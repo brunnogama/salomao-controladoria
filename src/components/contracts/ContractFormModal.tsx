@@ -44,11 +44,38 @@ interface Props {
   getStatusLabel: (s: string) => string;
 }
 
-// Helper para calcular duração
-const getDuration = (startStr: string, endStr: string) => {
-  const start = new Date(startStr);
-  const end = new Date(endStr);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
+// --- FUNÇÕES DE DATA INTELIGENTE ---
+
+// Retorna a data de negócio correta baseada no status
+const getEffectiveDate = (status: string, defaultDate: string, formData: Contract) => {
+  let businessDate = null;
+
+  switch (status) {
+    case 'analysis':
+      businessDate = formData.prospect_date;
+      break;
+    case 'proposal':
+      businessDate = formData.proposal_date;
+      break;
+    case 'active':
+      businessDate = formData.contract_date;
+      break;
+    case 'rejected':
+      businessDate = formData.rejection_date;
+      break;
+    case 'probono':
+      businessDate = formData.probono_date;
+      break;
+  }
+
+  // Se existir uma data de negócio preenchida, usa ela. Senão, usa a data do registro (changed_at).
+  // Adicionamos 'T12:00:00' para evitar problemas de fuso horário ao converter string YYYY-MM-DD
+  return businessDate ? new Date(businessDate + 'T12:00:00') : new Date(defaultDate);
+};
+
+// Calcula duração entre duas datas
+const getDuration = (startDate: Date, endDate: Date) => {
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
   if (diffDays === 0) return 'Mesmo dia';
@@ -60,16 +87,19 @@ const getDuration = (startStr: string, endStr: string) => {
   return `${diffDays} dias`;
 };
 
-const getTotalDuration = (timelineData: TimelineEvent[]) => {
+// Calcula o tempo total do início ao fim usando as datas efetivas
+const getTotalDuration = (timelineData: TimelineEvent[], formData: Contract) => {
   if (timelineData.length === 0) return '0 dias';
-  const first = new Date(timelineData[timelineData.length - 1].changed_at); // O mais antigo
-  const last = new Date(timelineData[0].changed_at); // O mais recente
   
-  const diffTime = Math.abs(last.getTime() - first.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // O evento mais antigo (início)
+  const firstEvent = timelineData[timelineData.length - 1];
+  const firstDate = getEffectiveDate(firstEvent.new_status, firstEvent.changed_at, formData);
   
-  const months = (diffDays / 30).toFixed(1);
-  return `${months} meses`;
+  // O evento mais recente (estado atual)
+  const lastEvent = timelineData[0];
+  const lastDate = getEffectiveDate(lastEvent.new_status, lastEvent.changed_at, formData);
+  
+  return getDuration(firstDate, lastDate);
 };
 
 export function ContractFormModal({
@@ -497,15 +527,22 @@ export function ContractFormModal({
                   <HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso
                 </h3>
                 <span className="bg-salomao-gold/10 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center">
-                  <Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData)}
+                  <Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, formData)}
                 </span>
               </div>
 
               <div className="relative border-l-2 border-gray-100 ml-3 space-y-8 pb-4">
                 {timelineData.map((t, idx) => {
-                  // Calcular duração entre este evento e o próximo (que é mais antigo na lista)
+                  // Calcular duração usando as datas reais do form (se disponíveis)
+                  const currentEventDate = getEffectiveDate(t.new_status, t.changed_at, formData);
                   const nextEvent = timelineData[idx + 1];
-                  const duration = nextEvent ? getDuration(nextEvent.changed_at, t.changed_at) : 'Início';
+                  
+                  let duration = 'Início';
+                  if (nextEvent) {
+                    const prevEventDate = getEffectiveDate(nextEvent.new_status, nextEvent.changed_at, formData);
+                    duration = getDuration(prevEventDate, currentEventDate);
+                  }
+
                   const isCurrent = idx === 0;
 
                   return (
@@ -520,7 +557,8 @@ export function ContractFormModal({
                           </h4>
                           <p className="text-xs text-gray-400 mt-1 flex items-center">
                             <CalendarCheck className="w-3 h-3 mr-1" />
-                            {new Date(t.changed_at).toLocaleDateString('pt-BR')} às {new Date(t.changed_at).toLocaleTimeString('pt-BR')}
+                            {/* Mostra a data efetiva (negócio) ou a data de sistema se não houver data de negócio */}
+                            {currentEventDate.toLocaleDateString('pt-BR')}
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             Alterado por: <span className="font-medium text-gray-600">{t.changed_by}</span>
