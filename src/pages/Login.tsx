@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { User, Lock, ArrowRight, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export function Login() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState(''); // Alterado de email para username
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Estado para imagem dinâmica (Do código original)
+  const [bgImage, setBgImage] = useState('');
+
+  useEffect(() => {
+    // Imagem Dinâmica com ID aleatório (Lógica original)
+    const randomID = Math.floor(Math.random() * 1000);
+    setBgImage(`https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070&auto=format&fit=crop&sig=${randomID}`);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,7 +25,6 @@ export function Login() {
     setError('');
 
     try {
-      // Reconstrói o e-mail completo para autenticação
       const email = `${username}@salomaoadv.com.br`;
 
       const { error } = await supabase.auth.signInWithPassword({
@@ -25,6 +33,11 @@ export function Login() {
       });
 
       if (error) throw error;
+      
+      // Salva nome para exibição (Simulando comportamento original)
+      const nomeFormatado = username.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      localStorage.setItem('user_name', nomeFormatado);
+      
       navigate('/dashboard');
     } catch (err: any) {
       setError('Credenciais inválidas. Verifique seu usuário e senha.');
@@ -34,9 +47,9 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans">
+    <div className="min-h-screen flex font-sans w-full bg-white overflow-hidden">
       
-      {/* LADO ESQUERDO: FORMULÁRIO */}
+      {/* --- LADO ESQUERDO: UI MODERNA ATUAL --- */}
       <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white sm:p-12 lg:p-16 relative z-10">
         
         <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
@@ -48,7 +61,6 @@ export function Login() {
                alt="Salomão Advogados" 
                className="h-24 object-contain transition-transform duration-300 hover:scale-105" 
                onError={(e) => {
-                 // Fallback discreto caso a imagem não carregue
                  e.currentTarget.style.display = 'none';
                  const fallback = document.getElementById('logo-fallback');
                  if(fallback) fallback.style.display = 'block';
@@ -62,7 +74,7 @@ export function Login() {
 
           <form onSubmit={handleLogin} className="space-y-6">
             
-            {/* USER INPUT (COM SUFIXO FIXO) */}
+            {/* USER INPUT */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Usuário Corporativo</label>
               <div className="relative group flex items-center bg-gray-50 border border-gray-200 rounded-xl focus-within:bg-white focus-within:border-[#0F2C4C]/30 focus-within:ring-4 focus-within:ring-[#0F2C4C]/5 transition-all duration-300">
@@ -79,7 +91,6 @@ export function Login() {
                   required
                 />
                 
-                {/* Sufixo Fixo */}
                 <div className="pr-4 pl-2 py-3.5 text-sm text-gray-400 font-medium select-none bg-transparent border-l border-gray-100/50">
                   @salomaoadv.com.br
                 </div>
@@ -125,45 +136,49 @@ export function Login() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Entrar no Sistema
+                  ACESSAR SISTEMA
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </>
               )}
             </button>
 
-            {/* FOOTER */}
             <div className="pt-8 text-center">
-              <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
-                <ShieldCheck className="w-3 h-3" />
-                Ambiente Seguro | Controladoria Jurídica
+              <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-[0.3em] pt-4">
+                © 2026 Salomão Advogados • v2.5.0
               </p>
             </div>
           </form>
         </div>
       </div>
 
-      {/* LADO DIREITO: IMAGEM/BRANDING ORIGINAL */}
-      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden bg-[#0F2C4C]">
-        {/* Imagem de Fundo de Alta Qualidade */}
-        <img 
-          src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80" 
-          alt="Office Background" 
-          className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-1000 opacity-40 mix-blend-overlay"
-        />
-        
-        {/* Overlay Sólido para dar o tom da marca */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0F2C4C] via-[#0F2C4C]/90 to-[#1a3b61]/80 mix-blend-multiply" />
+      {/* --- LADO DIREITO: LAYOUT ORIGINAL --- */}
+      <div className='hidden lg:flex lg:w-1/2 bg-[#0F2C4C] relative items-center justify-center overflow-hidden'>
+        <div className='absolute inset-0'>
+          <img
+            src={bgImage}
+            alt='Jurídico'
+            className='w-full h-full object-cover opacity-20 mix-blend-luminosity'
+          />
+          <div className='absolute inset-0 bg-gradient-to-tr from-[#0F2C4C] via-[#0F2C4C]/90 to-blue-900/40'></div>
+        </div>
 
-        {/* Conteúdo Institucional */}
-        <div className="relative z-20 flex flex-col justify-center items-center h-full text-white px-12 text-center space-y-8">
-          <div className="w-24 h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-70 rounded-full"></div>
-          
-          <h2 className="text-5xl font-serif font-bold tracking-tight drop-shadow-2xl text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-300">
-            Excelência &<br/>Tradição
+        <div className='relative z-10 p-16 max-w-xl'>
+          <div className='inline-flex items-center justify-center p-3 rounded-2xl bg-white/5 border border-white/10 mb-8 backdrop-blur-sm shadow-2xl'>
+            <ArrowRight className='text-yellow-400 w-6 h-6' />
+          </div>
+
+          <h2 className='text-4xl font-bold text-white mb-6 leading-tight'>
+            Controladoria Jurídica <br />
+            <span className='text-blue-200'>Estratégica</span>
           </h2>
-          
-          <p className="text-lg text-gray-300 max-w-md leading-relaxed font-light tracking-wide">
-            Soluções jurídicas estratégicas para impulsionar seus resultados com segurança e eficiência.
+          <div className='h-1 w-24 bg-yellow-500 mb-8'></div>
+          <p className='text-gray-300 text-lg leading-relaxed font-light mb-8'>
+            Gestão inteligente de processos e contratos. A tecnologia garantindo
+            a segurança e eficiência do{' '}
+            <strong className='text-white font-medium'>
+              Salomão Advogados
+            </strong>
+            .
           </p>
         </div>
       </div>
