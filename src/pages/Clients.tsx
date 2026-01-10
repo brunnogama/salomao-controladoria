@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, Building2, User, Globe, Mail, MapPin, Briefcase, Edit, Trash2, Loader2, Filter } from 'lucide-react';
+import { Plus, Search, Building2, User, Globe, Mail, MapPin, Briefcase, Edit, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { Client, Partner } from '../types';
 import { ClientFormModal } from '../components/clients/ClientFormModal';
+import { ConfirmModal } from '../components/ui/ConfirmModal'; // IMPORT NOVO
 import { useNavigate } from 'react-router-dom';
 import { CustomSelect } from '../components/ui/CustomSelect';
 
 export function Clients() {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
-  const [partners, setPartners] = useState<Partner[]>([]); // Estado para sócios
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   
   // FILTROS
@@ -17,8 +18,16 @@ export function Clients() {
   const [selectedPartner, setSelectedPartner] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
   
+  // MODALS
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  
+  // ESTADOS DE CONFIRMAÇÃO E ERRO
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null); // Para mostrar erros bonitos
+
   const [formData, setFormData] = useState<Client>({
     name: '', cnpj: '', is_person: false
   });
@@ -29,16 +38,12 @@ export function Clients() {
 
   const fetchData = async () => {
     setLoading(true);
-    
-    // 1. Busca Sócios
     const { data: partnersData } = await supabase.from('partners').select('*').order('name');
     if (partnersData) setPartners(partnersData);
 
-    // 2. Busca Clientes
     const { data: clientsData } = await supabase.from('clients').select('*').order('name');
     
     if (clientsData) {
-      // 3. Busca contratos para métricas
       const clientsWithDetails = await Promise.all(clientsData.map(async (client) => {
         const { data: contracts } = await supabase
           .from('contracts')
@@ -46,8 +51,6 @@ export function Clients() {
           .eq('client_id', client.id);
         
         const activeContracts = contracts?.filter(c => c.status === 'active') || [];
-        
-        // Encontra nome do sócio
         const partner = partnersData?.find(p => p.id === client.partner_id);
 
         return {
@@ -57,13 +60,13 @@ export function Clients() {
           partner_name: partner ? partner.name : null
         };
       }));
-      
       setClients(clientsWithDetails as Client[]);
     }
     setLoading(false);
   };
 
   const handleOpenModal = (client?: Client) => {
+    setErrorMessage(null);
     if (client) {
       setEditingClient(client);
       setFormData(client);
@@ -74,43 +77,65 @@ export function Clients() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteClient = async (id: string, e: React.MouseEvent) => {
+  // --- LÓGICA DE EXCLUSÃO MODERNA ---
+  const requestDelete = (client: Client, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Tem certeza que deseja excluir este cliente? Todos os vínculos com contratos serão removidos.')) return;
+    setErrorMessage(null); // Limpa erros anteriores
+    setClientToDelete(client);
+    setDeleteModalOpen(true);
+  };
 
-    setLoading(true);
-    const { error } = await supabase.from('clients').delete().eq('id', id);
-    if (error) {
-      alert('Erro ao excluir: ' + error.message);
-    } else {
-      setClients(clients.filter(c => c.id !== id));
+  const confirmDelete = async () => {
+    if (!clientToDelete?.id) return;
+    
+    setDeleteLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', clientToDelete.id);
+      
+      if (error) {
+        // TRADUÇÃO DE ERROS TÉCNICOS
+        if (error.code === '23503') { // Foreign Key Violation
+          setErrorMessage("Não é possível excluir este cliente pois existem Contratos vinculados a ele. Exclua ou desvincule os contratos primeiro.");
+        } else {
+          setErrorMessage("Ocorreu um erro ao tentar excluir. Tente novamente.");
+        }
+        // Fecha o modal de confirmação para mostrar o erro na tela (ou mantém aberto se preferir)
+        setDeleteModalOpen(false); 
+      } else {
+        // Sucesso
+        setClients(clients.filter(c => c.id !== clientToDelete.id));
+        setDeleteModalOpen(false);
+        setClientToDelete(null);
+      }
+    } catch (err) {
+      setErrorMessage("Erro inesperado de conexão.");
+    } finally {
+      setDeleteLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSave = async () => {
     const { active_contracts_count, contracts_hon, partner_name, ...saveData } = formData;
-    
     if (editingClient?.id) {
       await supabase.from('clients').update(saveData).eq('id', editingClient.id);
     } else {
       await supabase.from('clients').insert(saveData);
     }
     setIsModalOpen(false);
-    fetchData(); // Recarrega para atualizar vínculos e nomes
+    fetchData();
   };
 
-  // Lógica de Filtragem
   const filteredClients = clients.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.cnpj.includes(searchTerm);
     const matchesPartner = selectedPartner ? c.partner_id === selectedPartner : true;
     const matchesType = selectedType ? (selectedType === 'pf' ? c.is_person : !c.is_person) : true;
-    
     return matchesSearch && matchesPartner && matchesType;
   });
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="p-8 space-y-8 animate-in fade-in duration-500 relative">
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -123,10 +148,22 @@ export function Clients() {
         </button>
       </div>
 
-      {/* BARRA DE FILTROS (Igual Contratos) */}
+      {/* ERROR BANNER (MODERNO) */}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 animate-in slide-in-from-top-2 shadow-sm">
+          <div className="bg-red-100 p-2 rounded-full text-red-600">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-red-800">Ação Bloqueada</h4>
+            <p className="text-sm text-red-600">{errorMessage}</p>
+          </div>
+          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-700 font-bold text-sm">Dispnesar</button>
+        </div>
+      )}
+
+      {/* BARRA DE FILTROS */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
-        
-        {/* Busca */}
         <div className="flex-1 w-full relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input 
@@ -137,8 +174,6 @@ export function Clients() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-        {/* Filtro Sócio */}
         <div className="w-full md:w-64">
           <CustomSelect 
             value={selectedPartner}
@@ -147,8 +182,6 @@ export function Clients() {
             placeholder="Filtrar por Sócio"
           />
         </div>
-
-        {/* Filtro Tipo */}
         <div className="w-full md:w-48">
           <CustomSelect 
             value={selectedType}
@@ -198,7 +231,7 @@ export function Clients() {
                     <Edit className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={(e) => handleDeleteClient(client.id!, e)} 
+                    onClick={(e) => requestDelete(client, e)} 
                     className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title="Excluir"
                   >
@@ -207,9 +240,7 @@ export function Clients() {
                 </div>
               </div>
 
-              {/* DADOS DE CONTATO & SÓCIO */}
               <div className="space-y-2 mb-4 min-h-[80px]">
-                {/* Exibe o Sócio Responsável se houver */}
                 {client.partner_name && (
                   <div className="flex items-center text-xs text-salomao-blue font-medium bg-blue-50 w-fit px-2 py-1 rounded mb-2">
                     <User className="w-3 h-3 mr-1" /> Resp: {client.partner_name}
@@ -259,6 +290,7 @@ export function Clients() {
         </div>
       )}
 
+      {/* MODAL DE CADASTRO */}
       <ClientFormModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
@@ -267,7 +299,19 @@ export function Clients() {
         onSave={handleSave} 
         loading={false} 
         isEditing={!!editingClient}
-        partners={partners} // Passa sócios para o modal
+        partners={partners}
+      />
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO (UI MODERNA) */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Cliente"
+        message={`Tem certeza que deseja remover o cliente "${clientToDelete?.name}"? Esta ação é irreversível e removerá todos os dados cadastrais.`}
+        loading={deleteLoading}
+        confirmLabel="Sim, Excluir"
+        variant="danger"
       />
     </div>
   );
