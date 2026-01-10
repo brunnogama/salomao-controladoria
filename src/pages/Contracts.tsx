@@ -1,35 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus } from 'lucide-react';
+import { Plus, Search, Filter, SlidersHorizontal, Download, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-
+import { ContractFormModal } from '../components/contracts/ContractFormModal'; // Verifique se o caminho está exato
+import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
 import { Contract, Partner, ContractProcess, TimelineEvent } from '../types';
-import { maskHon, unmaskMoney, toTitleCase } from '../utils/masks';
-import { ContractFilters } from '../components/contracts/ContractFilters';
-import { ContractTable } from '../components/contracts/ContractTable';
-import { ContractCards } from '../components/contracts/ContractCards';
-import { ContractFormModal } from '../components/contracts/ContractFormModal';
-import { PartnerManagerModal } from '../components/contracts/PartnerManagerModal';
+import { CustomSelect } from '../components/ui/CustomSelect';
 
 export function Contracts() {
-  const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [contracts, setContracts] = useState<any[]>([]);
-  
-  // Edit State
-  const [editingContractId, setEditingContractId] = useState<string | null>(null);
-  const [initialStatus, setInitialStatus] = useState<string>('');
-  const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
-
-  // Partner Management State
+  // --- ESTADOS ---
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [isPartnerManagerOpen, setIsPartnerManagerOpen] = useState(false);
-  const [newPartnerName, setNewPartnerName] = useState('');
-  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
+  
+  // Modals
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Form State
-  const initialFormState: Contract = {
+  // Form States
+  const [formData, setFormData] = useState<Contract>({
     status: 'analysis',
     cnpj: '',
     has_no_cnpj: false,
@@ -41,178 +33,131 @@ export function Contracts() {
     area: '',
     partner_id: '',
     observations: '',
-    intermediate_fees: [],
-    timesheet: false,
-    physical_signature: false
-  };
-  const [formData, setFormData] = useState<Contract>(initialFormState);
-  
-  // Process State
+    physical_signature: undefined
+  });
+
   const [processes, setProcesses] = useState<ContractProcess[]>([]);
-  const [currentProcess, setCurrentProcess] = useState<ContractProcess>({ process_number: '', cause_value: '', court: '', judge: '' });
+  const [currentProcess, setCurrentProcess] = useState<ContractProcess>({
+    process_number: '', cause_value: '', court: '', judge: ''
+  });
   const [editingProcessIndex, setEditingProcessIndex] = useState<number | null>(null);
-
-  // Fee State
+  
   const [newIntermediateFee, setNewIntermediateFee] = useState('');
+  const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
 
-  // Filters & Sorting
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [partnerFilter, setPartnerFilter] = useState('');
-  const [sortOrder, setSortOrder] = useState<'name' | 'date'>('name');
-
-  // --- INIT ---
+  // --- EFEITOS ---
   useEffect(() => {
-    fetchPartners();
     fetchContracts();
+    fetchPartners();
   }, []);
 
-  // --- DATA FETCHING ---
-  const fetchPartners = async () => {
-    const { data } = await supabase.from('partners').select('*').eq('active', true).order('name');
-    if (data) setPartners(data);
-  };
-
+  // --- FETCH DATA ---
   const fetchContracts = async () => {
     setLoading(true);
-    let query = supabase.from('contracts').select(`*, clients(name), partners(name), contract_processes(count)`);
-    const { data, error } = await query;
-    if (!error && data) {
-      const formatted = data.map((d: any) => ({
-        ...d,
-        client_name: d.clients?.name,
-        partner_name: d.partners?.name,
-        process_count: d.contract_processes?.[0]?.count || 0,
-        ...d.financial_data
+    const { data, error } = await supabase
+      .from('contracts')
+      .select(`
+        *,
+        partners (name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) console.error('Erro ao buscar contratos:', error);
+    else {
+      // Mapeia para garantir que partner_name exista
+      const formattedData = data.map((item: any) => ({
+        ...item,
+        partner_name: item.partners?.name
       }));
-      setContracts(formatted);
+      setContracts(formattedData);
     }
     setLoading(false);
   };
 
-  const fetchProcessesForContract = async (contractId: string) => {
-    const { data } = await supabase.from('contract_processes').select('*').eq('contract_id', contractId);
-    if (data) setProcesses(data);
+  const fetchPartners = async () => {
+    const { data } = await supabase.from('partners').select('*').order('name');
+    if (data) setPartners(data);
   };
 
-  const fetchTimeline = async (contractId: string) => {
-    const { data } = await supabase.from('contract_timeline').select('*').eq('contract_id', contractId).order('changed_at', { ascending: false });
-    if (data) setTimelineData(data);
-  };
-
-  // --- ACTIONS ---
-  const handleEdit = async (contract: any) => {
-    setLoading(true);
-    setEditingContractId(contract.id);
-    setInitialStatus(contract.status);
+  // --- HANDLERS DO FORMULÁRIO ---
+  const handleProcessAction = () => {
+    if (!currentProcess.process_number) return alert('Preencha o número do processo.');
     
-    const baseData = { ...contract };
-    if (contract.hon_number) baseData.hon_number = maskHon(contract.hon_number);
-    baseData.physical_signature = contract.physical_signature || false;
-    
-    setFormData(baseData);
-    await fetchProcessesForContract(contract.id);
-    await fetchTimeline(contract.id);
-    setLoading(false);
-    setIsModalOpen(true);
+    if (editingProcessIndex !== null) {
+      const updated = [...processes];
+      updated[editingProcessIndex] = currentProcess;
+      setProcesses(updated);
+      setEditingProcessIndex(null);
+    } else {
+      setProcesses([...processes, currentProcess]);
+    }
+    setCurrentProcess({ process_number: '', cause_value: '', court: '', judge: '' });
   };
 
-  const handleCreateNew = () => {
-    setEditingContractId(null);
-    setFormData(initialFormState);
-    setProcesses([]);
-    setTimelineData([]);
-    setIsModalOpen(true);
+  const editProcess = (index: number) => {
+    setCurrentProcess(processes[index]);
+    setEditingProcessIndex(index);
   };
 
+  const removeProcess = (index: number) => {
+    setProcesses(processes.filter((_, i) => i !== index));
+  };
+
+  const addIntermediateFee = () => {
+    if (!newIntermediateFee) return;
+    setFormData(prev => ({
+      ...prev,
+      intermediate_fees: [...(prev.intermediate_fees || []), newIntermediateFee]
+    }));
+    setNewIntermediateFee('');
+  };
+
+  const removeIntermediateFee = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      intermediate_fees: prev.intermediate_fees?.filter((_, i) => i !== index)
+    }));
+  };
+
+  // --- SALVAR CONTRATO ---
   const handleSave = async () => {
-    setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userName = user?.email?.split('@')[0] || 'Sistema';
-
-      let clientId = null;
-      if (formData.cnpj) {
-        const { data } = await supabase.from('clients').upsert({ cnpj: formData.cnpj, name: formData.client_name }, { onConflict: 'cnpj' }).select('id').single();
-        clientId = data?.id;
-      } else {
-        const { data } = await supabase.from('clients').insert({ name: formData.client_name }).select('id').single();
-        clientId = data?.id;
-      }
-
-      const financialData = {
-        pro_labore: formData.pro_labore,
-        final_success_fee: formData.final_success_fee,
-        final_success_percent: formData.final_success_percent,
-        intermediate_fees: formData.intermediate_fees,
-        other_fees: formData.other_fees,
-        timesheet: formData.timesheet
+      setLoading(true);
+      
+      const contractData = {
+        ...formData,
+        process_count: processes.length
       };
 
-      const payload: any = {
-        status: formData.status,
-        client_position: formData.client_position,
-        company_name: formData.company_name,
-        has_legal_process: formData.has_legal_process,
-        uf: formData.uf,
-        area: formData.area,
-        partner_id: formData.partner_id,
-        observations: formData.observations,
-        prospect_date: formData.prospect_date || null,
-        analyzed_by: formData.analyzed_by,
-        proposal_date: formData.proposal_date || null,
-        contract_date: formData.contract_date || null,
-        hon_number: formData.hon_number,
-        rejection_date: formData.rejection_date || null,
-        rejected_by: formData.rejected_by,
-        rejection_reason: formData.rejection_reason,
-        probono_date: formData.probono_date || null,
-        physical_signature: formData.physical_signature,
-        financial_data: financialData
-      };
+      let contractId = formData.id;
 
-      if (clientId) payload.client_id = clientId;
-
-      let contractId = editingContractId;
-
-      if (editingContractId) {
-        const { error } = await supabase.from('contracts').update(payload).eq('id', editingContractId);
+      if (isEditing && contractId) {
+        // Update
+        const { error } = await supabase.from('contracts').update(contractData).eq('id', contractId);
         if (error) throw error;
-        if (initialStatus !== formData.status) {
-          await supabase.from('contract_timeline').insert({
-            contract_id: editingContractId,
-            previous_status: initialStatus,
-            new_status: formData.status,
-            changed_by: toTitleCase(userName)
-          });
-        }
       } else {
-        const { data, error } = await supabase.from('contracts').insert(payload).select('id').single();
+        // Insert
+        const { data, error } = await supabase.from('contracts').insert(contractData).select().single();
         if (error) throw error;
         contractId = data.id;
-        await supabase.from('contract_timeline').insert({
-          contract_id: contractId,
-          previous_status: 'Criação',
-          new_status: formData.status,
-          changed_by: toTitleCase(userName)
-        });
       }
 
+      // Salvar Processos
       if (contractId) {
+        // Remove processos antigos para reescrever (simplificação)
         await supabase.from('contract_processes').delete().eq('contract_id', contractId);
+        
         if (processes.length > 0) {
           const processesToSave = processes.map(p => ({
             contract_id: contractId,
-            process_number: p.process_number,
-            cause_value: unmaskMoney(p.cause_value.toString()),
-            court: p.court,
-            judge: p.judge
+            ...p
           }));
           await supabase.from('contract_processes').insert(processesToSave);
         }
       }
 
       setIsModalOpen(false);
+      resetForm();
       fetchContracts();
     } catch (error: any) {
       alert('Erro ao salvar: ' + error.message);
@@ -221,71 +166,56 @@ export function Contracts() {
     }
   };
 
-  const handleDeleteContract = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (!confirm('Tem certeza que deseja excluir este caso?')) return;
-    const { error } = await supabase.from('contracts').delete().eq('id', id);
-    if (!error) setContracts(contracts.filter(c => c.id !== id));
+  const handleEdit = async (contract: Contract) => {
+    setIsEditing(true);
+    setFormData(contract);
+    
+    // Busca processos
+    const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
+    if (procData) setProcesses(procData);
+
+    // Busca Timeline
+    const { data: timeline } = await supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false });
+    if (timeline) setTimelineData(timeline);
+
+    setIsModalOpen(true);
   };
 
-  // --- PARTNER MANAGER ---
-  const handleAddPartner = async () => {
-    if (!newPartnerName) return;
-    const { data, error } = await supabase.from('partners').insert({ name: toTitleCase(newPartnerName) }).select().single();
-    if (!error && data) { setPartners([...partners, data]); setNewPartnerName(''); }
+  const resetForm = () => {
+    setFormData({
+      status: 'analysis',
+      cnpj: '',
+      has_no_cnpj: false,
+      client_name: '',
+      client_position: 'Autor',
+      company_name: '',
+      has_legal_process: true,
+      uf: '',
+      area: '',
+      partner_id: '',
+      observations: '',
+      physical_signature: undefined
+    });
+    setProcesses([]);
+    setTimelineData([]);
+    setIsEditing(false);
   };
-
-  const handleUpdatePartner = async () => {
-    if (!editingPartner || !newPartnerName) return;
-    const { error } = await supabase.from('partners').update({ name: toTitleCase(newPartnerName) }).eq('id', editingPartner.id);
-    if (!error) {
-      setPartners(partners.map(p => p.id === editingPartner.id ? { ...p, name: toTitleCase(newPartnerName) } : p));
-      setEditingPartner(null); setNewPartnerName('');
-    }
-  };
-
-  const handleDeletePartner = async (id: string) => {
-    if (!confirm('Remover sócio?')) return;
-    const { error } = await supabase.from('partners').update({ active: false }).eq('id', id);
-    if (!error) setPartners(partners.filter(p => p.id !== id));
-  };
-
-  // --- HELPERS ---
-  const handleCNPJSearch = async () => {
-    const cleanCNPJ = formData.cnpj.replace(/\D/g, '');
-    if (cleanCNPJ.length !== 14) return alert('CNPJ inválido');
-    setLoading(true);
-    try {
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
-      const data = await response.json();
-      if (data.razao_social) setFormData(prev => ({ ...prev, client_name: toTitleCase(data.razao_social) }));
-    } catch (e) { alert('Erro ao buscar CNPJ.'); } finally { setLoading(false); }
-  };
-
-  const handleProcessAction = () => {
-    if (!currentProcess.process_number) return;
-    if (editingProcessIndex !== null) {
-      const updated = [...processes]; updated[editingProcessIndex] = currentProcess; setProcesses(updated); setEditingProcessIndex(null);
-    } else { setProcesses(prev => [...prev, currentProcess]); }
-    setCurrentProcess({ process_number: '', cause_value: '', court: '', judge: '' });
-  };
-
-  const editProcess = (index: number) => { setCurrentProcess(processes[index]); setEditingProcessIndex(index); };
-  const removeProcess = (index: number) => { setProcesses(processes.filter((_, i) => i !== index)); };
-  
-  const addIntermediateFee = () => { 
-    if (!newIntermediateFee) return; 
-    setFormData(prev => ({ ...prev, intermediate_fees: [...(prev.intermediate_fees || []), newIntermediateFee] })); 
-    setNewIntermediateFee(''); 
-  };
-  const removeIntermediateFee = (index: number) => { setFormData(prev => ({ ...prev, intermediate_fees: (prev.intermediate_fees || []).filter((_, i) => i !== index) })); };
 
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(contracts);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contratos");
-    XLSX.writeFile(wb, "salomao_contratos.xlsx");
+    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
+
+  // --- FILTROS E UI ---
+  const filteredContracts = contracts.filter(c => {
+    const matchesSearch = 
+      c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.hon_number?.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -294,79 +224,165 @@ export function Contracts() {
       case 'active': return 'bg-green-100 text-green-800 border-green-200';
       case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
       case 'probono': return 'bg-purple-100 text-purple-800 border-purple-200';
-      default: return 'bg-gray-100';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusLabel = (status: string) => {
-    const map: any = { 'analysis': 'Sob Análise', 'proposal': 'Proposta Enviada', 'active': 'Contrato Fechado', 'rejected': 'Rejeitado', 'probono': 'Probono' };
-    return map[status] || status;
+    switch (status) {
+      case 'analysis': return 'Sob Análise';
+      case 'proposal': return 'Proposta Enviada';
+      case 'active': return 'Contrato Fechado';
+      case 'rejected': return 'Rejeitada';
+      case 'probono': return 'Probono';
+      default: return status;
+    }
   };
 
-  // --- FILTERING ---
-  const filteredAndSortedContracts = contracts
-    .filter(c => {
-      const matchesStatus = statusFilter ? c.status === statusFilter : true;
-      const matchesPartner = partnerFilter ? c.partner_id === partnerFilter : true;
-      const matchesSearch = searchTerm ? 
-        (c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-         c.hon_number?.includes(searchTerm)) : true;
-      return matchesStatus && matchesPartner && matchesSearch;
-    })
-    .sort((a, b) => {
-      if (sortOrder === 'name') return (a.client_name || '').localeCompare(b.client_name || '');
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+  // Opções para o filtro de status (CustomSelect)
+  const statusFilterOptions = [
+    { label: 'Todos os Status', value: 'all' },
+    { label: 'Sob Análise', value: 'analysis' },
+    { label: 'Proposta Enviada', value: 'proposal' },
+    { label: 'Contrato Fechado', value: 'active' },
+    { label: 'Rejeitada', value: 'rejected' },
+    { label: 'Probono', value: 'probono' }
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div><h1 className="text-2xl font-bold text-gray-800">Gestão de Contratos</h1><p className="text-gray-500 text-sm">Controle unificado de casos, clientes e jurimetria.</p></div>
-        <button onClick={handleCreateNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center shadow-lg transition-all"><Plus className="w-5 h-5 mr-2" />Novo Caso</button>
+    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+      
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-salomao-blue">Gestão de Contratos</h1>
+          <p className="text-gray-500 mt-1">Gerencie o ciclo de vida dos seus casos jurídicos.</p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={exportToExcel} className="bg-white border border-gray-200 text-gray-600 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors shadow-sm font-medium flex items-center">
+            <Download className="w-5 h-5 mr-2" /> Exportar
+          </button>
+          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95">
+            <Plus className="w-5 h-5 mr-2" /> Novo Caso
+          </button>
+        </div>
       </div>
 
-      <ContractFilters 
-        searchTerm={searchTerm} setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
-        partnerFilter={partnerFilter} setPartnerFilter={setPartnerFilter} partners={partners}
-        sortOrder={sortOrder} setSortOrder={setSortOrder}
-        viewMode={viewMode} setViewMode={setViewMode}
-        onExport={exportToExcel}
-      />
+      {/* FILTROS */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 w-full relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input 
+            type="text" 
+            placeholder="Buscar por cliente, número HON..." 
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="w-full md:w-64">
+          <CustomSelect 
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusFilterOptions}
+            placeholder="Filtrar por Status"
+          />
+        </div>
+      </div>
 
-      {viewMode === 'list' ? (
-        <ContractTable 
-          contracts={filteredAndSortedContracts} 
-          onEdit={handleEdit} 
-          onDelete={handleDeleteContract}
-          getStatusColor={getStatusColor}
-          getStatusLabel={getStatusLabel}
-        />
+      {/* TABELA DE CARDS */}
+      {loading ? (
+        <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : (
-        <ContractCards 
-          contracts={filteredAndSortedContracts} 
-          onEdit={handleEdit} 
-          onDelete={handleDeleteContract}
-          getStatusColor={getStatusColor}
-          getStatusLabel={getStatusLabel}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredContracts.map((contract) => (
+            <div 
+              key={contract.id} 
+              onClick={() => handleEdit(contract)} 
+              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer group relative overflow-hidden"
+            >
+              {/* STATUS BADGE */}
+              <div className="flex justify-between items-start mb-4">
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${getStatusColor(contract.status)}`}>
+                  {getStatusLabel(contract.status)}
+                </span>
+                {contract.hon_number && (
+                  <span className="font-mono text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    #{contract.hon_number}
+                  </span>
+                )}
+              </div>
+
+              {/* INFO CLIENTE */}
+              <h3 className="font-bold text-gray-800 text-lg leading-tight mb-1 group-hover:text-salomao-blue transition-colors line-clamp-2">
+                {contract.client_name}
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">{contract.area} • {contract.uf}</p>
+
+              {/* INFO FINANCEIRA & PARCEIRO */}
+              <div className="space-y-2 border-t border-gray-100 pt-4">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Valor Causa</span>
+                  <span className="font-medium text-gray-800">{contract.final_success_fee || '-'}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Sócio Resp.</span>
+                  <span className="font-medium text-salomao-blue">{contract.partner_name || 'N/A'}</span>
+                </div>
+              </div>
+
+              {/* ALERTAS VISUAIS */}
+              <div className="mt-4 flex gap-2">
+                {contract.status === 'active' && contract.physical_signature === false && (
+                  <div className="flex items-center text-[10px] text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-100 w-full justify-center">
+                    <AlertCircle className="w-3 h-3 mr-1" /> Assinatura Pendente
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      <ContractFormModal
-        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
-        formData={formData} setFormData={setFormData} onSave={handleSave} loading={loading} isEditing={!!editingContractId}
-        partners={partners} onOpenPartnerManager={() => setIsPartnerManagerOpen(true)} onCNPJSearch={handleCNPJSearch}
-        processes={processes} currentProcess={currentProcess} setCurrentProcess={setCurrentProcess} editingProcessIndex={editingProcessIndex}
-        handleProcessAction={handleProcessAction} editProcess={editProcess} removeProcess={removeProcess}
-        newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} addIntermediateFee={addIntermediateFee} removeIntermediateFee={removeIntermediateFee}
-        timelineData={timelineData} getStatusColor={getStatusColor} getStatusLabel={getStatusLabel}
+      {/* MODALS */}
+      <ContractFormModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        formData={formData}
+        setFormData={setFormData}
+        onSave={async () => { await handleSave(); }} // Wrapper para manter compatibilidade de tipos se necessário
+        loading={loading}
+        isEditing={isEditing}
+        partners={partners}
+        onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
+        
+        // Props de Processo
+        processes={processes}
+        currentProcess={currentProcess}
+        setCurrentProcess={setCurrentProcess}
+        editingProcessIndex={editingProcessIndex}
+        handleProcessAction={handleProcessAction}
+        editProcess={editProcess}
+        removeProcess={removeProcess}
+        onCNPJSearch={async () => {}} // Placeholder, lógica está dentro do modal agora
+
+        // Props Financeiras
+        newIntermediateFee={newIntermediateFee}
+        setNewIntermediateFee={setNewIntermediateFee}
+        addIntermediateFee={addIntermediateFee}
+        removeIntermediateFee={removeIntermediateFee}
+        
+        // Props Gerais
+        timelineData={timelineData}
+        getStatusColor={getStatusColor}
+        getStatusLabel={getStatusLabel}
       />
 
       <PartnerManagerModal 
-        isOpen={isPartnerManagerOpen} onClose={() => setIsPartnerManagerOpen(false)}
-        partners={partners} newPartnerName={newPartnerName} setNewPartnerName={setNewPartnerName}
-        editingPartner={editingPartner} setEditingPartner={setEditingPartner}
-        onAdd={handleAddPartner} onUpdate={handleUpdatePartner} onDelete={handleDeletePartner}
+        isOpen={isPartnerModalOpen}
+        onClose={() => setIsPartnerModalOpen(false)}
+        onPartnersUpdate={fetchPartners}
       />
     </div>
   );
