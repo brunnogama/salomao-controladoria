@@ -1,3 +1,23 @@
+// Adicione/Atualize estas interfaces
+
+export interface Client {
+  id?: string;
+  name: string;
+  cnpj: string;
+  is_person: boolean;
+  address?: string;
+  number?: string;
+  complement?: string;
+  city?: string;
+  uf?: string;
+  email?: string;
+  website?: string;
+  created_at?: string;
+  // Campos virtuais (calculados na query)
+  active_contracts_count?: number;
+  contracts_hon?: string[]; // Array de números HON
+}
+
 export interface Partner {
   id: string;
   name: string;
@@ -49,6 +69,7 @@ export interface Contract {
   cnpj: string;
   has_no_cnpj: boolean;
   client_name: string;
+  client_id?: string; // Novo vínculo
   client_position: string;
   company_name: string;
   has_legal_process: boolean;
@@ -68,7 +89,7 @@ export interface Contract {
   probono_date?: string;
   
   physical_signature?: boolean; 
-  billing_location?: string; // NOVO CAMPO
+  billing_location?: string;
   
   pro_labore?: string;
   final_success_fee?: string;

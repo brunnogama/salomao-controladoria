@@ -42,7 +42,7 @@ interface Props {
   addIntermediateFee: () => void;
   removeIntermediateFee: (idx: number) => void;
   timelineData: TimelineEvent[];
-  getStatusColor: (s: string) => string; // CORREÇÃO: Propriedade recolocada
+  getStatusColor: (s: string) => string;
   getStatusLabel: (s: string) => string;
 }
 
@@ -104,12 +104,23 @@ export function ContractFormModal(props: Props) {
   const [searchingCNJ, setSearchingCNJ] = useState(false);
   
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
+  
+  // Estado local para armazenar dados extras do cliente (endereço) que não aparecem no formulário de contrato
+  const [clientExtraData, setClientExtraData] = useState({ 
+    address: '', 
+    number: '', 
+    complement: '', 
+    city: '',
+    email: '',
+    is_person: false
+  });
 
   useEffect(() => {
     if (isOpen && formData.id) {
       fetchDocuments();
     } else {
       setDocuments([]);
+      setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
     }
   }, [isOpen, formData.id]);
 
@@ -118,8 +129,59 @@ export function ContractFormModal(props: Props) {
     if (data) setDocuments(data);
   };
 
-  const handleSaveWithKanbanTrigger = async () => {
+  // --- UPSERT CLIENTE (CRIA OU ATUALIZA) ---
+  const upsertClient = async () => {
+    if (!formData.cnpj || !formData.client_name) return null;
+
+    // Prepara dados do cliente
+    const clientData = {
+      name: formData.client_name,
+      cnpj: formData.cnpj,
+      is_person: clientExtraData.is_person || (!formData.has_no_cnpj && formData.cnpj.length <= 14),
+      uf: formData.uf,
+      // Usa os dados extras capturados no handleCNPJSearch se disponíveis
+      address: clientExtraData.address || undefined,
+      city: clientExtraData.city || undefined,
+      complement: clientExtraData.complement || undefined,
+      number: clientExtraData.number || undefined,
+      email: clientExtraData.email || undefined
+    };
+
+    // Verifica se já existe
+    const { data: existingClient } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('cnpj', formData.cnpj)
+      .single();
+
+    let clientId = existingClient?.id;
+
+    if (clientId) {
+      // Atualiza cliente existente
+      await supabase.from('clients').update(clientData).eq('id', clientId);
+    } else {
+      // Cria novo cliente
+      const { data: newClient } = await supabase.from('clients').insert(clientData).select().single();
+      clientId = newClient?.id;
+    }
+
+    return clientId;
+  };
+
+  // --- SAVE WRAPPER ---
+  const handleSaveWithIntegrations = async () => {
+    // 1. Garante que o cliente existe ou é atualizado na tabela de Clientes
+    const clientId = await upsertClient();
+
+    // 2. Chama o salvamento do contrato (Pai)
     onSave();
+
+    // 3. Atualiza o vínculo no contrato se tivermos ID (Edição) ou tenta atualizar logo após
+    if (formData.id && clientId) {
+      await supabase.from('contracts').update({ client_id: clientId }).eq('id', formData.id);
+    }
+
+    // 4. Lógica Kanban (Assinatura Pendente)
     if (formData.status === 'active' && formData.physical_signature === false) {
       if (formData.id) {
         const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', formData.id).eq('status', 'signature').single();
@@ -150,11 +212,33 @@ export function ContractFormModal(props: Props) {
   const handleCNPJSearch = async () => {
     const cleanCNPJ = formData.cnpj.replace(/\D/g, '');
     if (cleanCNPJ.length !== 14) return alert('CNPJ inválido');
+    
     try {
       const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
       const data = await response.json();
-      if (data.razao_social) setFormData(prev => ({ ...prev, client_name: toTitleCase(data.razao_social), uf: data.uf }));
-    } catch (e) { alert('Erro ao buscar CNPJ.'); }
+      
+      if (data.razao_social) {
+        // Atualiza formulário visível
+        setFormData(prev => ({ 
+          ...prev, 
+          client_name: toTitleCase(data.razao_social), 
+          uf: data.uf 
+        }));
+
+        // Armazena dados extras para o módulo de Clientes
+        setClientExtraData(prev => ({
+          ...prev,
+          address: toTitleCase(data.logradouro),
+          number: data.numero,
+          complement: toTitleCase(data.complemento),
+          city: toTitleCase(data.municipio),
+          email: data.email,
+          is_person: false
+        }));
+      }
+    } catch (e) { 
+      alert('Erro ao buscar CNPJ.'); 
+    }
   };
 
   const handleCNJSearch = async () => {
@@ -477,7 +561,7 @@ export function ContractFormModal(props: Props) {
 
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
-          <button onClick={handleSaveWithKanbanTrigger} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
+          <button onClick={handleSaveWithIntegrations} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
         </div>
       </div>
     </div>

@@ -4,7 +4,8 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { Contracts } from './pages/Contracts';
 import { GED } from './pages/GED';
 import { Dashboard } from './pages/Dashboard';
-import { Kanban } from './pages/Kanban'; // IMPORT NOVO
+import { Kanban } from './pages/Kanban';
+import { Clients } from './pages/Clients'; // Importação da nova página
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -24,15 +25,14 @@ function App() {
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/contratos" element={<Contracts />} />
-          <Route path="/ged" element={<GED />} />
-          {/* Rota Kanban Ativada */}
+          <Route path="/clientes" element={<Clients />} /> {/* Rota de Clientes */}
           <Route path="/kanban" element={<Kanban />} />
+          <Route path="/ged" element={<GED />} />
           
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
           <Route path="/financeiro" element={<PagePlaceholder title="Controle Financeiro" />} />
           <Route path="/volumetria" element={<PagePlaceholder title="Análise de Volumetria" />} />
           <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
-          <Route path="/clientes" element={<PagePlaceholder title="Carteira de Clientes" />} />
           <Route path="/historico" element={<PagePlaceholder title="Histórico de Atividades" />} />
           <Route path="/configuracoes" element={<PagePlaceholder title="Configurações do Sistema" />} />
         </Route>
