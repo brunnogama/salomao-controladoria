@@ -16,8 +16,7 @@ import {
   FileSignature,
   AlertCircle,
   Loader2,
-  Share2, // Ícone novo para o botão de exportar
-  Download
+  Share2
 } from 'lucide-react';
 import { unmaskMoney } from '../utils/masks';
 import html2canvas from 'html2canvas';
@@ -45,7 +44,7 @@ interface DashboardContract {
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const dashboardRef = useRef<HTMLDivElement>(null); // Referência para capturar a tela
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
   // Estado das Métricas
   const [metrics, setMetrics] = useState({
@@ -118,7 +117,6 @@ export function Dashboard() {
       const exito = unmaskMoney(c.financial_data?.final_success_fee || '0');
       const mensal = unmaskMoney(c.financial_data?.other_fees || '0');
 
-      // Funil
       fTotal++;
       const isProposal = c.status === 'proposal';
       const isActive = c.status === 'active';
@@ -129,7 +127,6 @@ export function Dashboard() {
       if (isActive) fFechados++;
       else if (isRejected) c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
 
-      // Geral
       mGeral.totalCasos++;
       if (isAnalysis) mGeral.emAnalise++;
       if (isRejected) mGeral.rejeitados++;
@@ -146,7 +143,6 @@ export function Dashboard() {
         c.physical_signature ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
-      // Semana & Mês
       if (dataCriacao >= inicioSemana) mSemana.novos++;
       if (isProposal && dataProp >= inicioSemana) { mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; }
       if (isActive && dataFechamento >= inicioSemana) { mSemana.fechQtd++; mSemana.fechPL += pl; mSemana.fechExito += exito; mSemana.fechMensal += mensal; }
@@ -154,7 +150,6 @@ export function Dashboard() {
       if (isProposal && dataProp >= inicioMes) { mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; }
       if (isActive && dataFechamento >= inicioMes) { mMes.fechQtd++; mMes.fechPL += pl; mMes.fechExito += exito; mMes.fechMensal += mensal; }
 
-      // Gráfico
       const datasDisponiveis = [
         new Date(c.created_at),
         c.proposal_date ? new Date(c.proposal_date) : null,
@@ -182,45 +177,56 @@ export function Dashboard() {
     setEvolucaoMensal(mesesGrafico.slice(-12)); 
   };
 
-  // --- EXPORTAR PDF E E-MAIL ---
+  // --- EXPORTAR PDF COMPLETO E E-MAIL ---
   const handleExport = async () => {
     if (!dashboardRef.current) return;
     setIsExporting(true);
 
-    try {
-      // 1. Captura a tela (o sidebar não é capturado pois está fora da ref)
-      const canvas = await html2canvas(dashboardRef.current, {
-        scale: 2, // Melhor qualidade
-        useCORS: true, // Para ícones/fontes
-        backgroundColor: '#f3f4f6' // Cor de fundo do layout
-      });
+    // Pequeno delay para garantir que o botão "Exportar" sumiu do DOM antes do print
+    setTimeout(async () => {
+      try {
+        const element = dashboardRef.current;
+        if (!element) return;
 
-      const imgData = canvas.toDataURL('image/png');
-      
-      // 2. Gera o PDF
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
+        // 1. Captura a tela com configurações para rolagem total
+        const canvas = await html2canvas(element, {
+          scale: 2, // Alta qualidade
+          useCORS: true,
+          backgroundColor: '#f9fafb', // Fundo cinza claro igual ao layout
+          logging: false,
+          // Garante que capture a altura total do scroll, não apenas o visível
+          height: element.scrollHeight,
+          windowHeight: element.scrollHeight 
+        });
 
-      const imgWidth = 297; // Largura A4 paisagem
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`Dashboard_Salomao_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+        const imgData = canvas.toDataURL('image/png');
+        
+        // 2. Configura PDF Dinâmico (Tamanho da Imagem)
+        // Isso evita cortes em dashboards longos
+        const imgWidthMm = 210; // Largura base (A4 width aprox)
+        const pageHeightMm = (canvas.height * imgWidthMm) / canvas.width;
 
-      // 3. Abre o cliente de e-mail
-      const subject = encodeURIComponent("Relatório Gerencial - Dashboard");
-      const body = encodeURIComponent("Olá,\n\nSegue em anexo o relatório atualizado do Dashboard de Controladoria.\n\nAtenciosamente.");
-      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        const pdf = new jsPDF({
+          orientation: pageHeightMm > imgWidthMm ? 'p' : 'l',
+          unit: 'mm',
+          format: [imgWidthMm, pageHeightMm] // Tamanho customizado da página
+        });
 
-    } catch (error) {
-      console.error("Erro ao exportar:", error);
-      alert("Erro ao gerar PDF.");
-    } finally {
-      setIsExporting(false);
-    }
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidthMm, pageHeightMm);
+        pdf.save(`Dashboard_Salomao_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+
+        // 3. Abre cliente de e-mail
+        const subject = encodeURIComponent("Relatório Gerencial - Dashboard");
+        const body = encodeURIComponent("Olá,\n\nSegue em anexo o relatório atualizado do Dashboard de Controladoria.\n\nAtenciosamente.");
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+
+      } catch (error) {
+        console.error("Erro ao exportar:", error);
+        alert("Erro ao gerar PDF.");
+      } finally {
+        setIsExporting(false);
+      }
+    }, 500); // 500ms de espera
   };
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -246,10 +252,9 @@ export function Dashboard() {
   }
 
   return (
-    // REF aqui para capturar tudo dentro desta div
     <div ref={dashboardRef} className='w-full space-y-8 pb-10 animate-in fade-in duration-500 bg-gray-50 p-6 min-h-screen'>
       
-      {/* HEADER E BOTÃO DE EXPORTAÇÃO */}
+      {/* HEADER E BOTÃO */}
       <div className="flex justify-between items-end">
         <div>
           <h1 className='text-3xl font-bold text-salomao-blue'>Controladoria Jurídica</h1>
@@ -261,7 +266,7 @@ export function Dashboard() {
             Atualizado: {new Date().toLocaleTimeString()}
           </div>
           
-          {/* Botão visível apenas se NÃO estiver exportando */}
+          {/* Oculta botão durante a exportação */}
           {!isExporting && (
             <button 
               onClick={handleExport}
@@ -386,6 +391,7 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* SEÇÃO DE ASSINATURA DE CONTRATOS */}
       <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
         <div className='flex items-center gap-2 mb-6 border-b pb-4'><FileSignature className='text-salomao-blue' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Status de Assinatura</h2><p className='text-xs text-gray-500'>Acompanhamento de assinaturas físicas dos contratos fechados.</p></div></div>
         <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
