@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
+import { decodeCNJ } from '../../utils/cnjDecoder'; // <--- Importe o novo utilitário
 
 const UFS = [
   { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' },
@@ -43,7 +44,6 @@ interface Props {
   getStatusLabel: (s: string) => string;
 }
 
-// --- HELPERS ---
 const getEffectiveDate = (status: string, defaultDate: string, formData: Contract) => {
   let businessDate = null;
   switch (status) {
@@ -77,14 +77,13 @@ const getTotalDuration = (timelineData: TimelineEvent[], formData: Contract) => 
   return getDuration(firstDate, lastDate);
 };
 
-// --- NOVA FUNÇÃO DE TEMA DO MODAL ---
 const getThemeBackground = (status: string) => {
   switch (status) {
-    case 'analysis': return 'bg-yellow-50'; // Amarelo suave
-    case 'proposal': return 'bg-blue-50';   // Azul suave
-    case 'active': return 'bg-green-50';    // Verde suave
-    case 'rejected': return 'bg-red-50';    // Vermelho suave
-    case 'probono': return 'bg-purple-50';  // Roxo suave
+    case 'analysis': return 'bg-yellow-50';
+    case 'proposal': return 'bg-blue-50';
+    case 'active': return 'bg-green-50';
+    case 'rejected': return 'bg-red-50';
+    case 'probono': return 'bg-purple-50';
     default: return 'bg-white';
   }
 };
@@ -99,6 +98,7 @@ export function ContractFormModal({
   
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [searchingCNJ, setSearchingCNJ] = useState(false);
 
   useEffect(() => {
     if (isOpen && formData.id) {
@@ -111,6 +111,37 @@ export function ContractFormModal({
   const fetchDocuments = async () => {
     const { data } = await supabase.from('contract_documents').select('*').eq('contract_id', formData.id).order('uploaded_at', { ascending: false });
     if (data) setDocuments(data);
+  };
+
+  // --- LÓGICA DE BUSCA DO CNJ ---
+  const handleCNJSearch = async () => {
+    setSearchingCNJ(true);
+    
+    // 1. Simula delay de rede para feedback visual
+    setTimeout(() => {
+      const info = decodeCNJ(currentProcess.process_number);
+      
+      if (info) {
+        setCurrentProcess(prev => ({
+          ...prev,
+          court: info.tribunal,
+          // Não podemos "adivinhar" o juiz ou valor sem API paga, então deixamos placeholders para o usuário preencher
+          // ou mantemos o que já estava se ele digitou algo.
+          judge: prev.judge || '', 
+          cause_value: prev.cause_value || ''
+        }));
+      } else {
+        alert('Número de CNJ inválido ou fora do padrão (NNNNNNN-DD.AAAA.J.TR.OOOO).');
+      }
+      setSearchingCNJ(false);
+    }, 600);
+  };
+
+  const handleOpenJusbrasil = () => {
+    const cleanCNJ = currentProcess.process_number.replace(/\D/g, '');
+    if (cleanCNJ.length > 5) {
+      window.open(`https://www.jusbrasil.com.br/processos/busca/${cleanCNJ}`, '_blank');
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'proposal' | 'contract') => {
@@ -173,10 +204,8 @@ export function ContractFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
-      {/* Container Principal com Cor Dinâmica */}
       <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
         
-        {/* HEADER (Com fundo transparente para herdar a cor, mas borda sutil) */}
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-2xl">
           <div>
             <h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2>
@@ -185,7 +214,6 @@ export function ContractFormModal({
           <button onClick={onClose} className="text-gray-400 hover:text-red-500"><X className="w-6 h-6" /></button>
         </div>
 
-        {/* BODY */}
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
@@ -225,7 +253,34 @@ export function ContractFormModal({
               <div className="space-y-4">
                 <div><label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} /></div>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Número CNJ</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /></div>
+                  
+                  {/* CAMPO CNJ COM IDENTIFICAÇÃO AUTOMÁTICA */}
+                  <div className="md:col-span-3">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">
+                      Número CNJ
+                      {currentProcess.process_number && (
+                        <button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>
+                      )}
+                    </label>
+                    <div className="flex relative items-center">
+                      <input 
+                        type="text" 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" 
+                        placeholder="0000000-00..." 
+                        value={currentProcess.process_number} 
+                        onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} 
+                      />
+                      <button 
+                        onClick={handleCNJSearch}
+                        disabled={searchingCNJ || !currentProcess.process_number}
+                        className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Identificar Tribunal (Algoritmo CNJ)"
+                      >
+                        {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                   <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
                   <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
