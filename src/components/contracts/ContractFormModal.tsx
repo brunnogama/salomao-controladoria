@@ -5,7 +5,7 @@ import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } f
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays } from 'date-fns';
-import { CustomSelect } from '../ui/CustomSelect'; // IMPORTAÇÃO DO NOVO COMPONENTE
+import { CustomSelect } from '../ui/CustomSelect';
 
 const UFS = [
   { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' },
@@ -42,6 +42,7 @@ interface Props {
   addIntermediateFee: () => void;
   removeIntermediateFee: (idx: number) => void;
   timelineData: TimelineEvent[];
+  getStatusColor: (s: string) => string; // CORREÇÃO: Propriedade recolocada
   getStatusLabel: (s: string) => string;
 }
 
@@ -253,6 +254,7 @@ export function ContractFormModal(props: Props) {
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           
+          {/* STATUS SELECT */}
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
             <CustomSelect 
               label="Status Atual do Caso"
@@ -382,7 +384,7 @@ export function ContractFormModal(props: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
                   
-                  {/* LOCAL DE FATURAMENTO (CustomSelect) */}
+                  {/* LOCAL DE FATURAMENTO */}
                   <div className="md:col-span-4">
                     <CustomSelect 
                       label="Local Faturamento"
@@ -394,7 +396,7 @@ export function ContractFormModal(props: Props) {
                     />
                   </div>
 
-                  {/* ASSINATURA FÍSICA (CustomSelect) */}
+                  {/* ASSINATURA FÍSICA */}
                   <div className="md:col-span-4">
                     <CustomSelect 
                       label="Possui Assinatura Física?"
@@ -412,7 +414,7 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
 
-            {/* REJECTION (CustomSelects) */}
+            {/* REJECTION */}
             {formData.status === 'rejected' && (
               <div className="grid grid-cols-3 gap-4">
                 <div>
