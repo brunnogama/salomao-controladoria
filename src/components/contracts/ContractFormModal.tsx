@@ -113,7 +113,7 @@ export function ContractFormModal({
     if (data) setDocuments(data);
   };
 
-  // --- BUSCA CNPJ AUTOMATIZADA COM UF ---
+  // --- BUSCA CNPJ (Cliente) ---
   const handleCNPJSearch = async () => {
     const cleanCNPJ = formData.cnpj.replace(/\D/g, '');
     if (cleanCNPJ.length !== 14) return alert('CNPJ inválido');
@@ -126,7 +126,7 @@ export function ContractFormModal({
         setFormData(prev => ({ 
           ...prev, 
           client_name: toTitleCase(data.razao_social),
-          uf: data.uf // Preenchimento automático da UF
+          uf: data.uf // Preenche UF com a sigla retornada da API (ex: "SP")
         }));
       }
     } catch (e) {
@@ -134,7 +134,7 @@ export function ContractFormModal({
     }
   };
 
-  // --- LÓGICA DE BUSCA DO CNJ ---
+  // --- BUSCA CNJ (Processo) ---
   const handleCNJSearch = async () => {
     const cnjRaw = currentProcess.process_number || '';
     const cnj = cnjRaw.replace(/\D/g, '');
@@ -150,14 +150,21 @@ export function ContractFormModal({
       const info = decodeCNJ(cnj);
       
       if (info) {
+        // Atualiza os dados do Processo
         setCurrentProcess(prev => ({
           ...prev,
           court: info.tribunal,
           judge: prev.judge || '', 
           cause_value: prev.cause_value || ''
         }));
+
+        // Se o decodificador encontrou uma UF válida, preenche o campo UF do contrato
+        if (info.uf) {
+          setFormData(prev => ({ ...prev, uf: info.uf }));
+        }
+
       } else {
-        alert('Número de CNJ inválido ou fora do padrão (NNNNNNN-DD.AAAA.J.TR.OOOO).');
+        alert('Número de CNJ inválido ou fora do padrão.');
       }
       setSearchingCNJ(false);
     }, 600);
@@ -253,7 +260,6 @@ export function ContractFormModal({
             </div>
           </div>
 
-          {/* DADOS DO CLIENTE (SEM UF) */}
           <section className="space-y-5">
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
@@ -274,7 +280,6 @@ export function ContractFormModal({
             </div>
           </section>
 
-          {/* PROCESSOS JUDICIAIS COM UF */}
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
             {formData.has_legal_process && (
@@ -282,12 +287,17 @@ export function ContractFormModal({
                 
                 {/* LINHA 1: UF e CONTRÁRIO */}
                 <div className="flex gap-4">
-                  <div className="w-32">
+                  <div className="w-40">
                     <label className="block text-xs font-medium text-gray-600 mb-1">Estado (UF)</label>
                     <div className="relative">
-                      <select className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white appearance-none" value={formData.uf} onChange={(e) => setFormData({...formData, uf: e.target.value})}>
-                        <option value="">UF</option>
-                        {UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.sigla}</option>)}
+                      <select 
+                        className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white appearance-none" 
+                        value={formData.uf} 
+                        onChange={(e) => setFormData({...formData, uf: e.target.value})}
+                      >
+                        <option value="">Selecione...</option>
+                        {/* AQUI ESTÁ A CORREÇÃO: VALUE=SIGLA, DISPLAY=NOME */}
+                        {UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.nome}</option>)}
                       </select>
                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                     </div>
@@ -308,8 +318,21 @@ export function ContractFormModal({
                       )}
                     </label>
                     <div className="flex relative items-center">
-                      <input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} />
-                      <button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button>
+                      <input 
+                        type="text" 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" 
+                        placeholder="0000000-00..." 
+                        value={currentProcess.process_number} 
+                        onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} 
+                      />
+                      <button 
+                        onClick={handleCNJSearch}
+                        disabled={searchingCNJ || !currentProcess.process_number}
+                        className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Identificar Tribunal e UF"
+                      >
+                        {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                   <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
@@ -322,8 +345,7 @@ export function ContractFormModal({
             )}
           </section>
 
-          {/* ... RESTANTE DO FORMULÁRIO (FINANCEIRO, ARQUIVOS, ETC) ... */}
-          {/* Mantido igual à versão anterior */}
+          {/* ... RESTO DO CÓDIGO MANTIDO (Fases, Obs, Timeline) ... */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center">
               <Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}
