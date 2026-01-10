@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays } from 'date-fns';
+import { CustomSelect } from '../ui/CustomSelect'; // IMPORTAÇÃO DO NOVO COMPONENTE
 
 const UFS = [
   { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' },
@@ -17,90 +18,6 @@ const UFS = [
   { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' },
   { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' }
 ];
-
-// --- COMPONENTE CUSTOM SELECT (NOVA UI) ---
-interface Option {
-  label: string;
-  value: string | number | boolean;
-}
-
-const CustomSelect = ({ 
-  label, 
-  value, 
-  onChange, 
-  options, 
-  placeholder = "Selecione...", 
-  disabled = false,
-  onAction,
-  actionIcon: ActionIcon,
-  actionLabel,
-  className = ""
-}: any) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Fecha ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedOption = options.find((opt: any) => String(opt.value) === String(value));
-
-  return (
-    <div className={`relative ${className}`} ref={containerRef}>
-      {label && <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => setIsOpen(!isOpen)}
-          className={`relative w-full border ${isOpen ? 'border-salomao-blue ring-1 ring-salomao-blue' : 'border-gray-300'} rounded-lg p-2.5 text-sm bg-white flex justify-between items-center transition-all disabled:bg-gray-100 text-left`}
-        >
-          <span className={`truncate block ${!selectedOption ? 'text-gray-400' : 'text-gray-700'}`}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-        {onAction && (
-          <button 
-            onClick={onAction} 
-            className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-600 rounded-lg px-3 transition-colors flex-shrink-0"
-            title={actionLabel}
-          >
-            {ActionIcon ? <ActionIcon className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-          </button>
-        )}
-      </div>
-
-      {isOpen && (
-        <div className="absolute z-[60] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 left-0 custom-scrollbar">
-          <div className="py-1">
-            {options.map((opt: any) => (
-              <div
-                key={String(opt.value)}
-                onClick={() => {
-                  onChange(opt.value);
-                  setIsOpen(false);
-                }}
-                className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 transition-colors flex items-center justify-between ${String(value) === String(opt.value) ? 'bg-blue-50 text-salomao-blue font-medium' : 'text-gray-700'}`}
-              >
-                <span className="truncate">{opt.label}</span>
-                {String(value) === String(opt.value) && <Check className="w-3 h-3 flex-shrink-0 ml-2" />}
-              </div>
-            ))}
-            {options.length === 0 && <div className="p-3 text-xs text-gray-400 text-center">Sem opções</div>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 interface Props {
   isOpen: boolean;
@@ -125,7 +42,6 @@ interface Props {
   addIntermediateFee: () => void;
   removeIntermediateFee: (idx: number) => void;
   timelineData: TimelineEvent[];
-  getStatusColor: (s: string) => string;
   getStatusLabel: (s: string) => string;
 }
 
@@ -290,7 +206,6 @@ export function ContractFormModal(props: Props) {
     setFormData({ ...formData, [field]: toTitleCase(value) });
   };
 
-  // --- OPÇÕES PARA OS SELECTS ---
   const statusOptions = [
     { label: 'Sob Análise', value: 'analysis' },
     { label: 'Proposta Enviada', value: 'proposal' },
@@ -313,7 +228,6 @@ export function ContractFormModal(props: Props) {
     { label: 'Não (Cobrar)', value: 'false' }
   ];
   
-  // Rejection Options
   const rejectionByOptions = [{ label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
   const rejectionReasonOptions = [
     { label: 'Cliente declinou', value: 'Cliente declinou' },
@@ -339,7 +253,6 @@ export function ContractFormModal(props: Props) {
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           
-          {/* STATUS SELECT (Novo CustomSelect) */}
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
             <CustomSelect 
               label="Status Atual do Caso"
@@ -363,7 +276,6 @@ export function ContractFormModal(props: Props) {
               </div>
               <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
               
-              {/* POSIÇÃO CLIENTE (CustomSelect) */}
               <div className="md:col-span-3">
                 <CustomSelect
                   label="Posição no Processo"
@@ -376,7 +288,6 @@ export function ContractFormModal(props: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Área do Direito</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} /></div>
               
-              {/* SÓCIO (CustomSelect) */}
               <div>
                 <CustomSelect 
                   label="Responsável (Sócio)"
@@ -401,7 +312,6 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Turma</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
                     
-                    {/* UF (CustomSelect) */}
                     <div className="md:col-span-2">
                       <CustomSelect 
                         label="Estado (UF)"
