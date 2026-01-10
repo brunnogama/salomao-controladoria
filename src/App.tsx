@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
-import { Contracts } from './pages/Contracts'; // Importando a nova página
+import { Contracts } from './pages/Contracts';
+import { GED } from './pages/GED'; // <--- Importe o novo módulo
 
-// Componentes Placeholder (os que ainda não fizemos)
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
     <h1 className="text-2xl font-bold text-gray-800 mb-4">{title}</h1>
@@ -17,15 +17,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rota Pública */}
         <Route path="/" element={<Login />} />
 
-        {/* Rotas Protegidas */}
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<PagePlaceholder title="Dashboard Gerencial" />} />
-          
-          {/* Rota Atualizada: Contratos */}
           <Route path="/contratos" element={<Contracts />} />
+          
+          {/* Módulo GED Ativado */}
+          <Route path="/ged" element={<GED />} />
           
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
           <Route path="/financeiro" element={<PagePlaceholder title="Controle Financeiro" />} />
@@ -33,7 +32,6 @@ function App() {
           <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
           <Route path="/clientes" element={<PagePlaceholder title="Carteira de Clientes" />} />
           <Route path="/kanban" element={<PagePlaceholder title="Fluxo de Trabalho (Kanban)" />} />
-          <Route path="/ged" element={<PagePlaceholder title="Gestão Eletrônica de Documentos" />} />
           <Route path="/historico" element={<PagePlaceholder title="Histórico de Atividades" />} />
           <Route path="/configuracoes" element={<PagePlaceholder title="Configurações do Sistema" />} />
         </Route>
