@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -95,7 +95,7 @@ export function ContractFormModal(props: Props) {
     partners, onOpenPartnerManager, 
     processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
     newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
-    timelineData, getStatusColor, getStatusLabel
+    timelineData, getStatusLabel
   } = props;
   
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
@@ -120,6 +120,7 @@ export function ContractFormModal(props: Props) {
 
   const handleSaveWithKanbanTrigger = async () => {
     onSave();
+    // Lógica Kanban: Se ativo e sem assinatura, cria tarefa
     if (formData.status === 'active' && formData.physical_signature === false) {
       if (formData.id) {
         const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', formData.id).eq('status', 'signature').single();
@@ -147,7 +148,6 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // ... (Funções auxiliares: handleCNPJSearch, handleCNJSearch, handleOpenJusbrasil, handleFileUpload, handleDownload, handleDeleteDocument, handleTextChange - MANTIDAS IGUAIS) ...
   const handleCNPJSearch = async () => {
     const cleanCNPJ = formData.cnpj.replace(/\D/g, '');
     if (cleanCNPJ.length !== 14) return alert('CNPJ inválido');
@@ -328,7 +328,7 @@ export function ContractFormModal(props: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
                   
-                  {/* LOCAL DE FATURAMENTO (Substituiu Data Assinatura) */}
+                  {/* LOCAL DE FATURAMENTO */}
                   <div className="md:col-span-4">
                     <label className="text-xs font-medium block mb-1 text-green-800">Local Faturamento</label>
                     <div className="flex gap-1">
@@ -375,4 +375,43 @@ export function ContractFormModal(props: Props) {
             <div className="border-t border-black/5 pt-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center"><HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso</h3>
-                <span className="bg-white/80 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center"><Hourglass className="w
+                <span className="bg-white/80 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center"><Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, formData)}</span>
+              </div>
+              <div className="relative border-l-2 border-black/5 ml-3 space-y-8 pb-4">
+                {timelineData.map((t, idx) => {
+                  const currentEventDate = getEffectiveDate(t.new_status, t.changed_at, formData);
+                  const nextEvent = timelineData[idx + 1];
+                  let duration = 'Início';
+                  if (nextEvent) {
+                    const prevEventDate = getEffectiveDate(nextEvent.new_status, nextEvent.changed_at, formData);
+                    duration = getDuration(prevEventDate, currentEventDate);
+                  }
+                  const isCurrent = idx === 0;
+                  return (
+                    <div key={t.id} className="relative pl-8">
+                      <span className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${isCurrent ? 'bg-salomao-blue border-blue-200' : 'bg-gray-300 border-white'}`}></span>
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between bg-white p-4 rounded-lg border border-gray-100 hover:border-blue-100 transition-colors shadow-sm">
+                        <div>
+                          <h4 className={`text-sm font-bold ${isCurrent ? 'text-salomao-blue' : 'text-gray-600'}`}>{getStatusLabel(t.new_status)}</h4>
+                          <p className="text-xs text-gray-400 mt-1 flex items-center"><CalendarCheck className="w-3 h-3 mr-1" />{currentEventDate.toLocaleDateString('pt-BR')}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">Alterado por: <span className="font-medium text-gray-600">{t.changed_by}</span></p>
+                        </div>
+                        <div className="mt-2 sm:mt-0 flex flex-col items-end"><span className="text-[10px] uppercase font-bold text-gray-400 mb-1">Duração da fase anterior</span><span className="bg-gray-50 px-2 py-1 rounded border border-gray-200 text-xs font-mono text-gray-600">{duration}</span></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
+          <button onClick={handleSaveWithKanbanTrigger} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
