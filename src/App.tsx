@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Contracts } from './pages/Contracts';
-import { GED } from './pages/GED'; // <--- Importe o novo módulo
+import { GED } from './pages/GED';
+import { Dashboard } from './pages/Dashboard'; // Importação do componente
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -20,10 +21,10 @@ function App() {
         <Route path="/" element={<Login />} />
 
         <Route element={<DashboardLayout />}>
-          <Route path="/dashboard" element={<PagePlaceholder title="Dashboard Gerencial" />} />
-          <Route path="/contratos" element={<Contracts />} />
+          {/* Rota do Dashboard Ativada */}
+          <Route path="/dashboard" element={<Dashboard />} />
           
-          {/* Módulo GED Ativado */}
+          <Route path="/contratos" element={<Contracts />} />
           <Route path="/ged" element={<GED />} />
           
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
