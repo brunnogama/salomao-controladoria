@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -17,6 +17,90 @@ const UFS = [
   { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' },
   { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' }
 ];
+
+// --- COMPONENTE CUSTOM SELECT (NOVA UI) ---
+interface Option {
+  label: string;
+  value: string | number | boolean;
+}
+
+const CustomSelect = ({ 
+  label, 
+  value, 
+  onChange, 
+  options, 
+  placeholder = "Selecione...", 
+  disabled = false,
+  onAction,
+  actionIcon: ActionIcon,
+  actionLabel,
+  className = ""
+}: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Fecha ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((opt: any) => String(opt.value) === String(value));
+
+  return (
+    <div className={`relative ${className}`} ref={containerRef}>
+      {label && <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setIsOpen(!isOpen)}
+          className={`relative w-full border ${isOpen ? 'border-salomao-blue ring-1 ring-salomao-blue' : 'border-gray-300'} rounded-lg p-2.5 text-sm bg-white flex justify-between items-center transition-all disabled:bg-gray-100 text-left`}
+        >
+          <span className={`truncate block ${!selectedOption ? 'text-gray-400' : 'text-gray-700'}`}>
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {onAction && (
+          <button 
+            onClick={onAction} 
+            className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-600 rounded-lg px-3 transition-colors flex-shrink-0"
+            title={actionLabel}
+          >
+            {ActionIcon ? <ActionIcon className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-[60] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100 left-0 custom-scrollbar">
+          <div className="py-1">
+            {options.map((opt: any) => (
+              <div
+                key={String(opt.value)}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 transition-colors flex items-center justify-between ${String(value) === String(opt.value) ? 'bg-blue-50 text-salomao-blue font-medium' : 'text-gray-700'}`}
+              >
+                <span className="truncate">{opt.label}</span>
+                {String(value) === String(opt.value) && <Check className="w-3 h-3 flex-shrink-0 ml-2" />}
+              </div>
+            ))}
+            {options.length === 0 && <div className="p-3 text-xs text-gray-400 text-center">Sem opções</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface Props {
   isOpen: boolean;
@@ -102,7 +186,6 @@ export function ContractFormModal(props: Props) {
   const [uploading, setUploading] = useState(false);
   const [searchingCNJ, setSearchingCNJ] = useState(false);
   
-  // Estado para Locais de Faturamento
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
 
   useEffect(() => {
@@ -120,7 +203,6 @@ export function ContractFormModal(props: Props) {
 
   const handleSaveWithKanbanTrigger = async () => {
     onSave();
-    // Lógica Kanban: Se ativo e sem assinatura, cria tarefa
     if (formData.status === 'active' && formData.physical_signature === false) {
       if (formData.id) {
         const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', formData.id).eq('status', 'signature').single();
@@ -208,6 +290,38 @@ export function ContractFormModal(props: Props) {
     setFormData({ ...formData, [field]: toTitleCase(value) });
   };
 
+  // --- OPÇÕES PARA OS SELECTS ---
+  const statusOptions = [
+    { label: 'Sob Análise', value: 'analysis' },
+    { label: 'Proposta Enviada', value: 'proposal' },
+    { label: 'Contrato Fechado', value: 'active' },
+    { label: 'Rejeitada', value: 'rejected' },
+    { label: 'Probono', value: 'probono' }
+  ];
+
+  const positionOptions = [
+    { label: 'Autor', value: 'Autor' },
+    { label: 'Réu', value: 'Réu' },
+    { label: 'Terceiro Interessado', value: 'Terceiro' }
+  ];
+
+  const ufOptions = UFS.map(uf => ({ label: uf.nome, value: uf.sigla }));
+  const partnerOptions = partners.map(p => ({ label: p.name, value: p.id }));
+  const billingOptions = billingLocations.map(l => ({ label: l, value: l }));
+  const signatureOptions = [
+    { label: 'Sim', value: 'true' },
+    { label: 'Não (Cobrar)', value: 'false' }
+  ];
+  
+  // Rejection Options
+  const rejectionByOptions = [{ label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
+  const rejectionReasonOptions = [
+    { label: 'Cliente declinou', value: 'Cliente declinou' },
+    { label: 'Cliente não retornou', value: 'Cliente não retornou' },
+    { label: 'Caso ruim', value: 'Caso ruim' },
+    { label: 'Conflito de interesses', value: 'Conflito de interesses' }
+  ];
+
   if (!isOpen) return null;
 
   return (
@@ -225,15 +339,14 @@ export function ContractFormModal(props: Props) {
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           
-          {/* STATUS */}
+          {/* STATUS SELECT (Novo CustomSelect) */}
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
-            <label className="block text-sm font-bold text-gray-700 mb-2">Status Atual do Caso</label>
-            <div className="relative">
-              <select className="w-full p-3 border border-gray-200 rounded-lg bg-white/80 font-medium text-salomao-blue appearance-none focus:ring-2 focus:ring-salomao-blue outline-none" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value as any})}>
-                <option value="analysis">Sob Análise</option><option value="proposal">Proposta Enviada</option><option value="active">Contrato Fechado</option><option value="rejected">Rejeitada</option><option value="probono">Probono</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-salomao-blue w-5 h-5 pointer-events-none" />
-            </div>
+            <CustomSelect 
+              label="Status Atual do Caso"
+              value={formData.status}
+              onChange={(val: any) => setFormData({...formData, status: val})}
+              options={statusOptions}
+            />
           </div>
 
           {/* DADOS DO CLIENTE */}
@@ -249,11 +362,32 @@ export function ContractFormModal(props: Props) {
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
               <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
-              <div className="md:col-span-3"><label className="block text-xs font-medium text-gray-600 mb-1">Posição no Processo</label><div className="relative"><select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.client_position} onChange={(e) => setFormData({...formData, client_position: e.target.value})}><option value="Autor">Autor</option><option value="Réu">Réu</option><option value="Terceiro">Terceiro Interessado</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" /></div></div>
+              
+              {/* POSIÇÃO CLIENTE (CustomSelect) */}
+              <div className="md:col-span-3">
+                <CustomSelect
+                  label="Posição no Processo"
+                  value={formData.client_position}
+                  onChange={(val: string) => setFormData({...formData, client_position: val})}
+                  options={positionOptions}
+                />
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Área do Direito</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} /></div>
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Responsável (Sócio)</label><div className="flex gap-2"><div className="relative flex-1"><select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.partner_id} onChange={(e) => setFormData({...formData, partner_id: e.target.value})}><option value="">Selecione...</option>{partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" /></div><button onClick={onOpenPartnerManager} className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg px-3 text-gray-600 transition-colors" title="Gerenciar Sócios"><Settings className="w-4 h-4" /></button></div></div>
+              
+              {/* SÓCIO (CustomSelect) */}
+              <div>
+                <CustomSelect 
+                  label="Responsável (Sócio)"
+                  value={formData.partner_id}
+                  onChange={(val: string) => setFormData({...formData, partner_id: val})}
+                  options={partnerOptions}
+                  onAction={onOpenPartnerManager}
+                  actionIcon={Settings}
+                  actionLabel="Gerenciar Sócios"
+                />
+              </div>
             </div>
           </section>
 
@@ -266,7 +400,18 @@ export function ContractFormModal(props: Props) {
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Turma</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
-                    <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Estado (UF)</label><div className="relative"><select className="w-full border-b border-gray-300 focus:border-salomao-blue bg-white appearance-none py-1 text-sm outline-none" value={formData.uf} onChange={(e) => setFormData({...formData, uf: e.target.value})}><option value="">UF</option>{UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.sigla}</option>)}</select><ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" /></div></div>
+                    
+                    {/* UF (CustomSelect) */}
+                    <div className="md:col-span-2">
+                      <CustomSelect 
+                        label="Estado (UF)"
+                        value={formData.uf}
+                        onChange={(val: string) => setFormData({...formData, uf: val})}
+                        options={ufOptions}
+                        placeholder="UF"
+                        className="custom-select-small"
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                     <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome da parte..." value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} /></div>
@@ -280,7 +425,7 @@ export function ContractFormModal(props: Props) {
             )}
           </section>
 
-          {/* DETALHES DA FASE (FINANCEIRO & ARQUIVOS) */}
+          {/* DETALHES DA FASE */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center">
               <Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}
@@ -299,7 +444,6 @@ export function ContractFormModal(props: Props) {
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                    
-                   {/* TROCA DINÂMICA: DATA PROPOSTA OU DATA ASSINATURA */}
                    <div>
                      <label className="text-xs font-medium block mb-1">
                        {formData.status === 'proposal' ? 'Data Proposta' : 'Data Assinatura'}
@@ -328,45 +472,57 @@ export function ContractFormModal(props: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
                   
-                  {/* LOCAL DE FATURAMENTO */}
+                  {/* LOCAL DE FATURAMENTO (CustomSelect) */}
                   <div className="md:col-span-4">
-                    <label className="text-xs font-medium block mb-1 text-green-800">Local Faturamento</label>
-                    <div className="flex gap-1">
-                      <select 
-                        className="flex-1 border border-green-200 p-2.5 rounded-lg text-sm bg-white focus:border-green-500 outline-none"
-                        value={formData.billing_location || ''}
-                        onChange={e => setFormData({...formData, billing_location: e.target.value})}
-                      >
-                        <option value="">Selecione...</option>
-                        {billingLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                      </select>
-                      <button onClick={handleAddLocation} className="bg-white border border-green-200 text-green-700 hover:bg-green-50 rounded-lg p-2.5" title="Adicionar Local"><Plus className="w-4 h-4" /></button>
-                    </div>
+                    <CustomSelect 
+                      label="Local Faturamento"
+                      value={formData.billing_location || ''}
+                      onChange={(val: string) => setFormData({...formData, billing_location: val})}
+                      options={billingOptions}
+                      onAction={handleAddLocation}
+                      actionLabel="Adicionar Local"
+                    />
                   </div>
 
+                  {/* ASSINATURA FÍSICA (CustomSelect) */}
                   <div className="md:col-span-4">
-                    <label className="text-xs font-medium block mb-1 text-green-800">Possui Assinatura Física?</label>
-                    <select 
-                      className="w-full border border-green-200 p-2.5 rounded-lg text-sm bg-white focus:border-green-500 outline-none" 
-                      value={formData.physical_signature === true ? 'Sim' : formData.physical_signature === false ? 'Não' : ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                    <CustomSelect 
+                      label="Possui Assinatura Física?"
+                      value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''}
+                      onChange={(val: string) => {
                         setFormData({
                           ...formData, 
-                          physical_signature: val === 'Sim' ? true : val === 'Não' ? false : undefined
+                          physical_signature: val === 'true' ? true : val === 'false' ? false : undefined
                         });
                       }}
-                    >
-                      <option value="">Selecione...</option>
-                      <option value="Sim">Sim</option>
-                      <option value="Não">Não (Cobrar)</option>
-                    </select>
+                      options={signatureOptions}
+                    />
                   </div>
                 </div>
               </div>
             )}
 
-            {formData.status === 'rejected' && (<div className="grid grid-cols-3 gap-4"><input type="date" className="border p-2 rounded bg-white" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /><select className="border p-2 rounded bg-white" onChange={e => setFormData({...formData, rejected_by: e.target.value})}><option>Rejeitado por...</option><option>Cliente</option><option>Escritório</option></select><select className="border p-2 rounded bg-white" onChange={e => setFormData({...formData, rejection_reason: e.target.value})}><option>Motivo...</option><option>Cliente declinou</option><option>Cliente não retornou</option><option>Caso ruim</option><option>Conflito de interesses</option></select></div>)}
+            {/* REJECTION (CustomSelects) */}
+            {formData.status === 'rejected' && (
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1">Data Rejeição</label>
+                  <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
+                </div>
+                <CustomSelect 
+                  label="Rejeitado por"
+                  value={formData.rejected_by || ''}
+                  onChange={(val: string) => setFormData({...formData, rejected_by: val})}
+                  options={rejectionByOptions}
+                />
+                <CustomSelect 
+                  label="Motivo"
+                  value={formData.rejection_reason || ''}
+                  onChange={(val: string) => setFormData({...formData, rejection_reason: val})}
+                  options={rejectionReasonOptions}
+                />
+              </div>
+            )}
           </section>
 
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:ring-2 focus:ring-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
