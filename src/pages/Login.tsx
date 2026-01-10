@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { User, Lock, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
+import { User, Lock, ArrowRight, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export function Login() {
   const navigate = useNavigate();
@@ -38,13 +38,18 @@ export function Login() {
         
         <div className="w-full max-w-sm space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
           
-          {/* LOGO RESTAURADO */}
+          {/* LOGO */}
           <div className="flex justify-center mb-8">
              <img 
                src="/logo-azul.png" 
                alt="Salomão Advogados" 
                className="h-20 object-contain hover:scale-105 transition-transform duration-300" 
+               onError={(e) => e.currentTarget.style.display = 'none'}
              />
+             {/* Fallback caso a imagem não exista */}
+             <div className="text-center" style={{ display: 'none' }}>
+                <h1 className="text-3xl font-serif font-bold text-[#0F2C4C] tracking-wide">SALOMÃO</h1>
+             </div>
           </div>
 
           <div className="text-center">
@@ -134,19 +139,19 @@ export function Login() {
         </div>
       </div>
 
-      {/* LADO DIREITO: IMAGEM/BRANDING (RESTAURADA) */}
+      {/* LADO DIREITO: IMAGEM/BRANDING */}
       <div className="hidden lg:block lg:w-1/2 relative overflow-hidden bg-[#0F2C4C]">
-        {/* Overlay Gradiente para dar elegância */}
+        {/* Overlay Gradiente */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0F2C4C]/80 to-[#0F2C4C]/40 z-10 mix-blend-multiply" />
         
-        {/* Imagem de Fundo (Escritório/Arquitetura) */}
+        {/* Imagem de Fundo */}
         <img 
           src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80" 
           alt="Office Background" 
           className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-1000"
         />
 
-        {/* Texto Institucional (Opcional) */}
+        {/* Texto Institucional */}
         <div className="relative z-20 flex flex-col justify-center items-center h-full text-white px-12 text-center space-y-6">
           <div className="w-20 h-1 bg-salomao-gold/50 rounded-full mb-4"></div>
           <h2 className="text-4xl font-serif font-bold tracking-wide drop-shadow-lg">
