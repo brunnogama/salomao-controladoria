@@ -1,4 +1,3 @@
-import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { menuItems } from '../config/menuConfig';
 import { History, Settings, LogOut, UserCircle } from 'lucide-react';
