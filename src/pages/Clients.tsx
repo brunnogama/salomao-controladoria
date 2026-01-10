@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, Building2, User, Globe, Mail, MapPin, Briefcase, Edit, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Building2, User, Globe, Mail, MapPin, Briefcase, Edit, Trash2, Loader2, AlertCircle, Download } from 'lucide-react';
 import { Client, Partner } from '../types';
 import { ClientFormModal } from '../components/clients/ClientFormModal';
-import { ConfirmModal } from '../components/ui/ConfirmModal'; // IMPORT NOVO
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 import { CustomSelect } from '../components/ui/CustomSelect';
+import * as XLSX from 'xlsx'; // Importação para Excel
 
 export function Clients() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export function Clients() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); // Para mostrar erros bonitos
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Client>({
     name: '', cnpj: '', is_person: false
@@ -77,10 +78,9 @@ export function Clients() {
     setIsModalOpen(true);
   };
 
-  // --- LÓGICA DE EXCLUSÃO MODERNA ---
   const requestDelete = (client: Client, e: React.MouseEvent) => {
     e.stopPropagation();
-    setErrorMessage(null); // Limpa erros anteriores
+    setErrorMessage(null);
     setClientToDelete(client);
     setDeleteModalOpen(true);
   };
@@ -95,16 +95,13 @@ export function Clients() {
       const { error } = await supabase.from('clients').delete().eq('id', clientToDelete.id);
       
       if (error) {
-        // TRADUÇÃO DE ERROS TÉCNICOS
-        if (error.code === '23503') { // Foreign Key Violation
+        if (error.code === '23503') {
           setErrorMessage("Não é possível excluir este cliente pois existem Contratos vinculados a ele. Exclua ou desvincule os contratos primeiro.");
         } else {
           setErrorMessage("Ocorreu um erro ao tentar excluir. Tente novamente.");
         }
-        // Fecha o modal de confirmação para mostrar o erro na tela (ou mantém aberto se preferir)
         setDeleteModalOpen(false); 
       } else {
-        // Sucesso
         setClients(clients.filter(c => c.id !== clientToDelete.id));
         setDeleteModalOpen(false);
         setClientToDelete(null);
@@ -127,6 +124,25 @@ export function Clients() {
     fetchData();
   };
 
+  // --- FUNÇÃO DE EXPORTAÇÃO (NOVA) ---
+  const exportToExcel = () => {
+    // Prepara os dados para o Excel (removendo campos técnicos)
+    const dataToExport = filteredClients.map(c => ({
+      'Nome': c.name,
+      'Documento': c.cnpj,
+      'Tipo': c.is_person ? 'Pessoa Física' : 'Pessoa Jurídica',
+      'E-mail': c.email || '-',
+      'Sócio Responsável': c.partner_name || '-',
+      'Cidade/UF': c.city ? `${c.city}/${c.uf}` : '-',
+      'Contratos Ativos': c.active_contracts_count || 0
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+    XLSX.writeFile(wb, "Relatorio_Clientes.xlsx");
+  };
+
   const filteredClients = clients.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.cnpj.includes(searchTerm);
     const matchesPartner = selectedPartner ? c.partner_id === selectedPartner : true;
@@ -137,18 +153,25 @@ export function Clients() {
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500 relative">
       
-      {/* HEADER */}
+      {/* HEADER + BOTÕES DE AÇÃO (EXPORTAR / NOVO) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue">Carteira de Clientes</h1>
           <p className="text-gray-500 mt-1">Gerenciamento de contatos e empresas.</p>
         </div>
-        <button onClick={() => handleOpenModal()} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95">
-          <Plus className="w-5 h-5 mr-2" /> Novo Cliente
-        </button>
+        <div className="flex gap-3">
+          {/* BOTÃO EXPORTAR */}
+          <button onClick={exportToExcel} className="bg-white border border-gray-200 text-gray-600 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors shadow-sm font-medium flex items-center">
+            <Download className="w-5 h-5 mr-2" /> Exportar
+          </button>
+          
+          <button onClick={() => handleOpenModal()} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95">
+            <Plus className="w-5 h-5 mr-2" /> Novo Cliente
+          </button>
+        </div>
       </div>
 
-      {/* ERROR BANNER (MODERNO) */}
+      {/* ERROR BANNER */}
       {errorMessage && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 animate-in slide-in-from-top-2 shadow-sm">
           <div className="bg-red-100 p-2 rounded-full text-red-600">
@@ -158,11 +181,11 @@ export function Clients() {
             <h4 className="text-sm font-bold text-red-800">Ação Bloqueada</h4>
             <p className="text-sm text-red-600">{errorMessage}</p>
           </div>
-          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-700 font-bold text-sm">Dispnesar</button>
+          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-700 font-bold text-sm">Dispensar</button>
         </div>
       )}
 
-      {/* BARRA DE FILTROS */}
+      {/* BARRA DE FILTROS (UI IDÊNTICA A CONTRATOS) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
         <div className="flex-1 w-full relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -302,13 +325,13 @@ export function Clients() {
         partners={partners}
       />
 
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO (UI MODERNA) */}
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       <ConfirmModal
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Excluir Cliente"
-        message={`Tem certeza que deseja remover o cliente "${clientToDelete?.name}"? Esta ação é irreversível e removerá todos os dados cadastrais.`}
+        message={`Tem certeza que deseja remover o cliente "${clientToDelete?.name}"? Esta ação é irreversível.`}
         loading={deleteLoading}
         confirmLabel="Sim, Excluir"
         variant="danger"
