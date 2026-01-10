@@ -1,18 +1,3 @@
-Entendido. Fiz a alteração do texto conforme solicitado.
-
-Sobre o anexo: **Não é possível anexar arquivos automaticamente usando o link de e-mail padrão do navegador (`mailto:`)**.
-
-Por **segurança**, os navegadores bloqueiam que sites anexem arquivos diretamente no seu programa de e-mail sem sua intervenção. O comportamento correto será:
-
-1. O sistema **baixa o PDF** automaticamente para sua pasta de Downloads.
-2. O sistema **abre a janela de "Novo E-mail"** com o texto preenchido.
-3. Você deve **arrastar ou anexar** o arquivo baixado manualmente.
-
-Abaixo está o código atualizado com o novo texto.
-
-**Arquivo:** `src/pages/Dashboard.tsx`
-
-```tsx
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
@@ -192,7 +177,6 @@ export function Dashboard() {
     setEvolucaoMensal(mesesGrafico.slice(-12)); 
   };
 
-  // --- EXPORTAR PDF COMPLETO E E-MAIL ---
   const handleExport = async () => {
     if (!dashboardRef.current) return;
     setIsExporting(true);
@@ -202,6 +186,7 @@ export function Dashboard() {
         const element = dashboardRef.current;
         if (!element) return;
 
+        // Captura a tela
         const canvas = await html2canvas(element, {
           scale: 2,
           useCORS: true,
@@ -213,6 +198,13 @@ export function Dashboard() {
 
         const imgData = canvas.toDataURL('image/png');
         
+        // 1. Download da Imagem (PNG)
+        const link = document.createElement('a');
+        link.href = imgData;
+        link.download = `Panorama_Contratos_${new Date().toLocaleDateString().replace(/\//g, '-')}.png`;
+        link.click();
+
+        // 2. Download do PDF
         const imgWidthMm = 210; 
         const pageHeightMm = (canvas.height * imgWidthMm) / canvas.width;
 
@@ -223,9 +215,9 @@ export function Dashboard() {
         });
 
         pdf.addImage(imgData, 'PNG', 0, 0, imgWidthMm, pageHeightMm);
-        pdf.save(`Dashboard_Salomao_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+        pdf.save(`Panorama_Contratos_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
 
-        // NOVO TEXTO DE E-MAIL
+        // 3. Abrir E-mail
         const subject = encodeURIComponent("Relatório Gerencial - Dashboard");
         const body = encodeURIComponent("Segue em anexo o panorama dos contratos atualizado");
         
@@ -233,7 +225,7 @@ export function Dashboard() {
 
       } catch (error) {
         console.error("Erro ao exportar:", error);
-        alert("Erro ao gerar PDF.");
+        alert("Erro ao gerar arquivos.");
       } finally {
         setIsExporting(false);
       }
@@ -282,7 +274,7 @@ export function Dashboard() {
               className="flex items-center gap-2 bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-all active:scale-95 font-medium text-sm"
             >
               <Share2 className="w-4 h-4" />
-              PDF / E-mail
+              Exportar
             </button>
           )}
         </div>
@@ -404,5 +396,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-```
