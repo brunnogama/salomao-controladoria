@@ -1,3 +1,18 @@
+Entendido. Fiz a alteração do texto conforme solicitado.
+
+Sobre o anexo: **Não é possível anexar arquivos automaticamente usando o link de e-mail padrão do navegador (`mailto:`)**.
+
+Por **segurança**, os navegadores bloqueiam que sites anexem arquivos diretamente no seu programa de e-mail sem sua intervenção. O comportamento correto será:
+
+1. O sistema **baixa o PDF** automaticamente para sua pasta de Downloads.
+2. O sistema **abre a janela de "Novo E-mail"** com o texto preenchido.
+3. Você deve **arrastar ou anexar** o arquivo baixado manualmente.
+
+Abaixo está o código atualizado com o novo texto.
+
+**Arquivo:** `src/pages/Dashboard.tsx`
+
+```tsx
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
@@ -182,42 +197,38 @@ export function Dashboard() {
     if (!dashboardRef.current) return;
     setIsExporting(true);
 
-    // Pequeno delay para garantir que o botão "Exportar" sumiu do DOM antes do print
     setTimeout(async () => {
       try {
         const element = dashboardRef.current;
         if (!element) return;
 
-        // 1. Captura a tela com configurações para rolagem total
         const canvas = await html2canvas(element, {
-          scale: 2, // Alta qualidade
+          scale: 2,
           useCORS: true,
-          backgroundColor: '#f9fafb', // Fundo cinza claro igual ao layout
+          backgroundColor: '#f9fafb',
           logging: false,
-          // Garante que capture a altura total do scroll, não apenas o visível
           height: element.scrollHeight,
           windowHeight: element.scrollHeight 
         });
 
         const imgData = canvas.toDataURL('image/png');
         
-        // 2. Configura PDF Dinâmico (Tamanho da Imagem)
-        // Isso evita cortes em dashboards longos
-        const imgWidthMm = 210; // Largura base (A4 width aprox)
+        const imgWidthMm = 210; 
         const pageHeightMm = (canvas.height * imgWidthMm) / canvas.width;
 
         const pdf = new jsPDF({
           orientation: pageHeightMm > imgWidthMm ? 'p' : 'l',
           unit: 'mm',
-          format: [imgWidthMm, pageHeightMm] // Tamanho customizado da página
+          format: [imgWidthMm, pageHeightMm]
         });
 
         pdf.addImage(imgData, 'PNG', 0, 0, imgWidthMm, pageHeightMm);
         pdf.save(`Dashboard_Salomao_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
 
-        // 3. Abre cliente de e-mail
+        // NOVO TEXTO DE E-MAIL
         const subject = encodeURIComponent("Relatório Gerencial - Dashboard");
-        const body = encodeURIComponent("Olá,\n\nSegue em anexo o relatório atualizado do Dashboard de Controladoria.\n\nAtenciosamente.");
+        const body = encodeURIComponent("Segue em anexo o panorama dos contratos atualizado");
+        
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
 
       } catch (error) {
@@ -226,7 +237,7 @@ export function Dashboard() {
       } finally {
         setIsExporting(false);
       }
-    }, 500); // 500ms de espera
+    }, 500);
   };
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -254,7 +265,6 @@ export function Dashboard() {
   return (
     <div ref={dashboardRef} className='w-full space-y-8 pb-10 animate-in fade-in duration-500 bg-gray-50 p-6 min-h-screen'>
       
-      {/* HEADER E BOTÃO */}
       <div className="flex justify-between items-end">
         <div>
           <h1 className='text-3xl font-bold text-salomao-blue'>Controladoria Jurídica</h1>
@@ -266,7 +276,6 @@ export function Dashboard() {
             Atualizado: {new Date().toLocaleTimeString()}
           </div>
           
-          {/* Oculta botão durante a exportação */}
           {!isExporting && (
             <button 
               onClick={handleExport}
@@ -279,7 +288,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ================= 1. FUNIL ================= */}
       <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
         <div className='flex items-center gap-2 mb-6 border-b pb-4'>
           <Filter className='text-blue-600' size={24} />
@@ -320,7 +328,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ================= 2. PULSO DA SEMANA ================= */}
       <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
         <div className='flex items-center gap-2 mb-4'>
           <CalendarDays className='text-blue-700' size={24} />
@@ -342,18 +349,15 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ================= 3. PERFORMANCE MENSAL vs TOTAL ================= */}
       <div>
         <h2 className='text-xl font-bold text-gray-800 mb-4 flex items-center gap-2'><TrendingUp size={20} className='text-salomao-blue' /> Performance Comercial</h2>
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-          {/* MENSAL */}
           <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 relative'>
             <div className='absolute top-0 right-0 bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>MÊS ATUAL</div>
             <div className='flex-1'><p className='text-sm text-gray-500 font-medium mb-1'>Negociações do Mês</p><h3 className='text-3xl font-bold text-blue-800'>{metrics.mes.propQtd} <span className='text-base font-normal text-gray-400'>propostas</span></h3><div className='mt-4 space-y-2'><FinItem label='Pró-labore Total' value={metrics.mes.propPL} /><FinItem label='Êxito Total' value={metrics.mes.propExito} /></div></div>
             <div className='w-full md:w-px bg-gray-100 h-full'></div>
             <div className='flex-1'><p className='text-sm text-gray-500 font-medium mb-1'>Realizado no Mês</p><h3 className='text-3xl font-bold text-green-700'>{metrics.mes.fechQtd} <span className='text-base font-normal text-gray-400'>fechamentos</span></h3><div className='mt-4 space-y-2'><FinItem label='Pró-labore Total' value={metrics.mes.fechPL} colorClass='text-green-700' /><FinItem label='Fixos Mensais Total' value={metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito Total' value={metrics.mes.fechExito} /></div></div>
           </div>
-          {/* TOTAL */}
           <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 relative'>
             <div className='absolute top-0 right-0 bg-salomao-blue text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>PERFORMANCE TOTAL</div>
             <div className='flex-1'><p className='text-sm text-gray-500 font-medium mb-1'>Total em Negociação</p><h3 className='text-3xl font-bold text-blue-900'>{metrics.geral.propostasAtivas} <span className='text-base font-normal text-gray-400'>em mesa</span></h3><div className='mt-4 space-y-2'><FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} /><FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} /></div></div>
@@ -363,7 +367,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ================= 4. DISTRIBUIÇÃO E GRÁFICO ================= */}
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
           <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><PieChart className='text-salomao-blue' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Distribuição</h2><p className='text-xs text-gray-500'>Visão consolidada por status.</p></div></div><div className='bg-salomao-blue text-white px-6 py-3 rounded-lg text-center'><span className='text-3xl font-bold block'>{metrics.geral.totalCasos}</span><span className='text-xs opacity-80 uppercase tracking-wider mt-1 block'>Total Analisado</span></div></div>
@@ -391,7 +394,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* SEÇÃO DE ASSINATURA DE CONTRATOS */}
       <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
         <div className='flex items-center gap-2 mb-6 border-b pb-4'><FileSignature className='text-salomao-blue' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Status de Assinatura</h2><p className='text-xs text-gray-500'>Acompanhamento de assinaturas físicas dos contratos fechados.</p></div></div>
         <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
@@ -402,3 +404,5 @@ export function Dashboard() {
     </div>
   );
 }
+
+```
