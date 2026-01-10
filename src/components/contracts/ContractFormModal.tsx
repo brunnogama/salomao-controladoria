@@ -2,7 +2,6 @@ import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryI
 import { Contract, Partner, ContractProcess, TimelineEvent } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
 
-// Constante movida para perto do formulário
 const UFS = [
   { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' },
   { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' },
@@ -127,47 +126,21 @@ export function ContractFormModal({
           <section className="border-t pt-6">
             <h3 className="text-sm font-bold text-salomao-gold uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
             {formData.status === 'analysis' && (<div className="grid grid-cols-2 gap-5"><div><label className="text-xs font-medium block mb-1">Data Prospect</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.prospect_date} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div><div><label className="text-xs font-medium block mb-1">Analisado Por</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.analyzed_by} onChange={e => setFormData({...formData, analyzed_by: toTitleCase(e.target.value)})} /></div></div>)}
+            
+            {/* --- SEÇÃO CORRIGIDA DE PROPOSTA/CONTRATO --- */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
+                
+                {/* LINHA 1: Campos Financeiros Principais (Limpos) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                   <div><label className="text-xs font-medium block mb-1">Data Proposta</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.proposal_date} onChange={e => setFormData({...formData, proposal_date: e.target.value})} /></div>
-                   <div><label className="text-xs font-medium block mb-1">Pró-Labore (R$)</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.pro_labore} onChange={e => setFormData({...formData, pro_labore: maskMoney(e.target.value)})} /></div>
-                   <div><label className="text-xs font-medium block mb-1">Êxito Final (R$)</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.final_success_fee} onChange={e => setFormData({...formData, final_success_fee: maskMoney(e.target.value)})} /></div>
-                   <div><label className="text-xs font-medium block mb-1">Êxito Final (%)</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} /></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="md:col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Êxitos Intermediários</label>
-                    <div className="flex gap-2 mb-3"><input type="text" className="flex-1 border border-gray-300 p-2 rounded text-sm" placeholder="R$ 0,00" value={newIntermediateFee} onChange={e => setNewIntermediateFee(maskMoney(e.target.value))} /><button onClick={addIntermediateFee} className="bg-salomao-blue text-white px-3 rounded hover:bg-blue-900 text-xs">Adicionar</button></div>
-                    <div className="flex flex-wrap gap-2">{formData.intermediate_fees?.map((fee, idx) => (<span key={idx} className="bg-white border border-gray-200 px-3 py-1 rounded-full text-xs text-gray-700 flex items-center shadow-sm">{fee}<button onClick={() => removeIntermediateFee(idx)} className="ml-2 text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button></span>))}</div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Outros Honorários</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" placeholder="Descrição/Valor" value={formData.other_fees} onChange={e => setFormData({...formData, other_fees: toTitleCase(e.target.value)})} />
-                    <div className="flex items-center pt-4"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-salomao-blue" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium">Requer Timesheet</label></div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {formData.status === 'active' && (<div className="mt-6 p-4 bg-green-50 border border-green-100 rounded-xl animate-in fade-in"><div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div><div><label className="text-xs font-medium block mb-1">Data Assinatura</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg" value={formData.contract_date} onChange={e => setFormData({...formData, contract_date: e.target.value})} /></div></div></div>)}
-            {formData.status === 'rejected' && (<div className="grid grid-cols-3 gap-4"><input type="date" className="border p-2 rounded" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /><select className="border p-2 rounded" onChange={e => setFormData({...formData, rejected_by: e.target.value})}><option>Rejeitado por...</option><option>Cliente</option><option>Escritório</option></select><select className="border p-2 rounded" onChange={e => setFormData({...formData, rejection_reason: e.target.value})}><option>Motivo...</option><option>Cliente declinou</option><option>Cliente não retornou</option><option>Caso ruim</option><option>Conflito de interesses</option></select></div>)}
-          </section>
-
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:ring-2 focus:ring-salomao-blue outline-none" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
-
-          {isEditing && timelineData.length > 0 && (
-            <div className="border-t pt-6">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center"><HistoryIcon className="w-4 h-4 mr-2" /> Histórico de Alterações</h3>
-              <div className="space-y-3">{timelineData.map((t) => (<div key={t.id} className="flex items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="flex items-center gap-2 font-medium text-gray-700 min-w-[200px]"><span className={`w-2 h-2 rounded-full ${getStatusColor(t.previous_status || '').split(' ')[0] || 'bg-gray-300'}`}></span>{getStatusLabel(t.previous_status || 'Início')}<ArrowRight className="w-3 h-3 text-gray-400" /><span className={`w-2 h-2 rounded-full ${getStatusColor(t.new_status).split(' ')[0]}`}></span>{getStatusLabel(t.new_status)}</div><div className="flex-1 text-gray-500 text-xs pl-4 border-l border-gray-200 ml-4">Alterado por <strong className="text-gray-700">{t.changed_by}</strong> em {new Date(t.changed_at).toLocaleDateString('pt-BR')} às {new Date(t.changed_at).toLocaleTimeString('pt-BR')}</div></div>))}</div>
-            </div>
-          )}
-
-        </div>
-
-        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
-          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
-          <button onClick={onSave} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+                   <div>
+                     <label className="text-xs font-medium block mb-1">Data Proposta</label>
+                     <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.proposal_date} onChange={e => setFormData({...formData, proposal_date: e.target.value})} />
+                   </div>
+                   <div>
+                     <label className="text-xs font-medium block mb-1">Pró-Labore (R$)</label>
+                     <input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.pro_labore} onChange={e => setFormData({...formData, pro_labore: maskMoney(e.target.value)})} />
+                   </div>
+                   <div>
+                     <label className="text-xs font-medium block mb-1">Êxito Final (R$)</label>
+                     <input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-
