@@ -3,7 +3,8 @@ import { Login } from './pages/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Contracts } from './pages/Contracts';
 import { GED } from './pages/GED';
-import { Dashboard } from './pages/Dashboard'; // Importação do componente
+import { Dashboard } from './pages/Dashboard';
+import { Kanban } from './pages/Kanban'; // IMPORT NOVO
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -21,18 +22,17 @@ function App() {
         <Route path="/" element={<Login />} />
 
         <Route element={<DashboardLayout />}>
-          {/* Rota do Dashboard Ativada */}
           <Route path="/dashboard" element={<Dashboard />} />
-          
           <Route path="/contratos" element={<Contracts />} />
           <Route path="/ged" element={<GED />} />
+          {/* Rota Kanban Ativada */}
+          <Route path="/kanban" element={<Kanban />} />
           
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
           <Route path="/financeiro" element={<PagePlaceholder title="Controle Financeiro" />} />
           <Route path="/volumetria" element={<PagePlaceholder title="Análise de Volumetria" />} />
           <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
           <Route path="/clientes" element={<PagePlaceholder title="Carteira de Clientes" />} />
-          <Route path="/kanban" element={<PagePlaceholder title="Fluxo de Trabalho (Kanban)" />} />
           <Route path="/historico" element={<PagePlaceholder title="Histórico de Atividades" />} />
           <Route path="/configuracoes" element={<PagePlaceholder title="Configurações do Sistema" />} />
         </Route>

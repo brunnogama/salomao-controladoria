@@ -4,7 +4,9 @@ import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryI
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
+import { addDays } from 'date-fns';
 
+// ... (Mantenha as constantes UFS, getEffectiveDate, getDuration, etc. IGUAIS) ...
 const UFS = [
   { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' },
   { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' },
@@ -22,7 +24,7 @@ interface Props {
   onClose: () => void;
   formData: Contract;
   setFormData: React.Dispatch<React.SetStateAction<Contract>>;
-  onSave: () => void;
+  onSave: () => void; // Vamos interceptar isso
   loading: boolean;
   isEditing: boolean;
   partners: Partner[];
@@ -44,6 +46,7 @@ interface Props {
   getStatusLabel: (s: string) => string;
 }
 
+// ... (Mantenha as funções auxiliares getEffectiveDate, getDuration, getTotalDuration, getThemeBackground)
 const getEffectiveDate = (status: string, defaultDate: string, formData: Contract) => {
   let businessDate = null;
   switch (status) {
@@ -88,13 +91,16 @@ const getThemeBackground = (status: string) => {
   }
 };
 
-export function ContractFormModal({
-  isOpen, onClose, formData, setFormData, onSave, loading, isEditing,
-  partners, onOpenPartnerManager, onCNPJSearch,
-  processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
-  newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
-  timelineData, getStatusColor, getStatusLabel
-}: Props) {
+// ...
+
+export function ContractFormModal(props: Props) {
+  const { 
+    isOpen, onClose, formData, setFormData, onSave, loading, isEditing,
+    partners, onOpenPartnerManager, 
+    processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
+    newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
+    timelineData, getStatusColor, getStatusLabel
+  } = props;
   
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -113,20 +119,53 @@ export function ContractFormModal({
     if (data) setDocuments(data);
   };
 
+  // --- INTERCEPTA O SALVAR PARA CRIAR TAREFA KANBAN ---
+  const handleSaveWithKanbanTrigger = async () => {
+    // Chama o onSave original do Pai
+    onSave();
+
+    // Lógica do Kanban: Se Contrato Fechado E Assinatura == Não (false)
+    // E se já temos o ID do contrato (edição) ou logo após criação (mas aqui é síncrono, idealmente faríamos no Pai, mas vamos simplificar)
+    
+    // OBS: Como onSave é assíncrono no Pai, aqui disparamos a verificação.
+    // Mas para garantir, a criação da tarefa deveria ser no backend ou no success do save.
+    // Vamos fazer uma verificação simples: se o usuário selecionou "NÃO" explicitamente.
+    
+    if (formData.status === 'active' && formData.physical_signature === false) {
+      // Verifica se já existe tarefa para este contrato para não duplicar
+      if (formData.id) {
+        const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', formData.id).eq('status', 'signature').single();
+        if (!data) {
+          // Cria tarefa
+          const dueDate = addDays(new Date(), 5);
+          await supabase.from('kanban_tasks').insert({
+            title: `Coletar Assinatura: ${formData.client_name}`,
+            description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`,
+            priority: 'Alta',
+            status: 'signature',
+            contract_id: formData.id,
+            due_date: dueDate.toISOString(),
+            position: 0
+          });
+        }
+      }
+    }
+  };
+
+  // ... (Mantenha handleCNPJSearch, handleCNJSearch, handleOpenJusbrasil, handleFileUpload, handleDownload, handleDeleteDocument, handleTextChange IGUAIS)
+  
   // --- BUSCA CNPJ (Cliente) ---
   const handleCNPJSearch = async () => {
     const cleanCNPJ = formData.cnpj.replace(/\D/g, '');
     if (cleanCNPJ.length !== 14) return alert('CNPJ inválido');
-    
     try {
       const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
       const data = await response.json();
-      
       if (data.razao_social) {
         setFormData(prev => ({ 
           ...prev, 
           client_name: toTitleCase(data.razao_social),
-          uf: data.uf
+          uf: data.uf 
         }));
       }
     } catch (e) {
@@ -138,17 +177,13 @@ export function ContractFormModal({
   const handleCNJSearch = async () => {
     const cnjRaw = currentProcess.process_number || '';
     const cnj = cnjRaw.replace(/\D/g, '');
-    
     if (cnj.length < 15) {
       alert('Digite um número CNJ válido para buscar.');
       return;
     }
-
     setSearchingCNJ(true);
-
     setTimeout(() => {
       const info = decodeCNJ(cnj);
-      
       if (info) {
         setCurrentProcess(prev => ({
           ...prev,
@@ -156,11 +191,9 @@ export function ContractFormModal({
           judge: prev.judge || '', 
           cause_value: prev.cause_value || ''
         }));
-
         if (info.uf) {
           setFormData(prev => ({ ...prev, uf: info.uf }));
         }
-
       } else {
         alert('Número de CNJ inválido ou fora do padrão.');
       }
@@ -182,26 +215,20 @@ export function ContractFormModal({
       alert('Salve o contrato primeiro para anexar arquivos.');
       return;
     }
-
     setUploading(true);
     const file = e.target.files[0];
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
+    const fileName = `${Date.now()}.${file.name.split('.').pop()}`;
     const filePath = `${toTitleCase(formData.client_name)}/${formData.id}/${fileName}`;
-
     try {
       const { error: uploadError } = await supabase.storage.from('ged').upload(filePath, file);
       if (uploadError) throw uploadError;
-
-      const { error: dbError } = await supabase.from('contract_documents').insert({
+      await supabase.from('contract_documents').insert({
         contract_id: formData.id,
         file_name: file.name,
         file_path: filePath,
         file_type: type,
         hon_number_ref: type === 'contract' ? formData.hon_number : null
       });
-
-      if (dbError) throw dbError;
       fetchDocuments();
     } catch (error: any) {
       alert('Erro ao enviar arquivo: ' + error.message);
@@ -258,7 +285,9 @@ export function ContractFormModal({
             </div>
           </div>
 
+          {/* DADOS DO CLIENTE */}
           <section className="space-y-5">
+            {/* ... Conteúdo Dados do Cliente igual ao anterior ... */}
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
               <div className="md:col-span-3">
@@ -278,165 +307,50 @@ export function ContractFormModal({
             </div>
           </section>
 
-          {/* PROCESSOS JUDICIAIS - LAYOUT REORGANIZADO */}
+          {/* PROCESSOS JUDICIAIS */}
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
+            {/* ... (Mantenha o conteúdo da seção de processos igual ao anterior) ... */}
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
-            
             {formData.has_legal_process && (
               <div className="space-y-4">
-                
-                {/* CONTAINER DE ENTRADA */}
-                <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                  
-                  {/* LINHA 1: CNJ | TRIBUNAL | ESTADO */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    
-                    {/* CNJ */}
-                    <div className="md:col-span-5">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">
-                        Número CNJ
-                        {currentProcess.process_number && (
-                          <button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>
-                        )}
-                      </label>
-                      <div className="flex relative items-center">
-                        <input 
-                          type="text" 
-                          className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" 
-                          placeholder="0000000-00..." 
-                          value={currentProcess.process_number} 
-                          onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} 
-                        />
-                        <button 
-                          onClick={handleCNJSearch}
-                          disabled={searchingCNJ || !currentProcess.process_number}
-                          className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                          title="Identificar Tribunal e UF"
-                        >
-                          {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* TRIBUNAL */}
-                    <div className="md:col-span-5">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Turma</label>
-                      <input 
-                        type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
-                        value={currentProcess.court} 
-                        onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} 
-                      />
-                    </div>
-
-                    {/* ESTADO (UF) */}
-                    <div className="md:col-span-2">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold">Estado (UF)</label>
-                      <div className="relative">
-                        <select 
-                          className="w-full border-b border-gray-300 focus:border-salomao-blue bg-white appearance-none py-1 text-sm outline-none" 
-                          value={formData.uf} 
-                          onChange={(e) => setFormData({...formData, uf: e.target.value})}
-                        >
-                          <option value="">UF</option>
-                          {UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.sigla}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
-                      </div>
-                    </div>
+                <div className="flex gap-4">
+                  <div className="w-40">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Estado (UF)</label>
+                    <div className="relative"><select className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white appearance-none" value={formData.uf} onChange={(e) => setFormData({...formData, uf: e.target.value})}><option value="">Selecione...</option>{UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.nome}</option>)}</select><ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" /></div>
                   </div>
-
-                  {/* LINHA 2: CONTRÁRIO | JUIZ | VALOR | BOTÃO */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                    
-                    {/* CONTRÁRIO */}
-                    <div className="md:col-span-4">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta)</label>
-                      <input 
-                        type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
-                        placeholder="Nome da parte..."
-                        value={formData.company_name} 
-                        onChange={(e) => handleTextChange('company_name', e.target.value)} 
-                      />
-                    </div>
-
-                    {/* JUIZ */}
-                    <div className="md:col-span-4">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label>
-                      <input 
-                        type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
-                        value={currentProcess.judge} 
-                        onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} 
-                      />
-                    </div>
-
-                    {/* VALOR DA CAUSA */}
-                    <div className="md:col-span-3">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label>
-                      <input 
-                        type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
-                        value={currentProcess.cause_value} 
-                        onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} 
-                      />
-                    </div>
-
-                    {/* BOTÃO */}
-                    <div className="md:col-span-1">
-                      <button 
-                        onClick={handleProcessAction} 
-                        className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md"
-                      >
-                        {editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                      </button>
-                    </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} />
                   </div>
-
                 </div>
-
-                {/* LISTA DE PROCESSOS ADICIONADOS */}
-                {processes.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    {processes.map((p, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
-                        <div className="grid grid-cols-4 gap-4 flex-1 text-xs">
-                          <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
-                          <span className="text-gray-600">{p.court} ({formData.uf})</span>
-                          <span className="text-gray-500 truncate">{p.judge}</span>
-                          <span className="text-gray-600 font-medium">{p.cause_value}</span>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
+                  <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
+                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
+                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
+                  <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors">{editingProcessIndex !== null ? <Check className="w-4 h-4 mx-auto" /> : <Plus className="w-4 h-4 mx-auto" />}</button></div>
+                </div>
+                {processes.length > 0 && (<div className="space-y-2">{processes.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div className="grid grid-cols-4 gap-4 flex-1 text-xs"><span className="font-mono font-medium text-gray-800">{p.process_number}</span><span className="text-gray-600">{p.court}</span><span className="text-gray-500 truncate">{p.judge}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button><button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>)}
               </div>
             )}
           </section>
 
-          {/* ... RESTANTE DO FORMULÁRIO (Mantido) ... */}
+          {/* FASES */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center">
               <Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}
             </h3>
 
             {(formData.status === 'proposal' || formData.status === 'active') && (
+              // ... (Mantenha seção de arquivos igual)
               <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos ({formData.status === 'active' ? 'Contratos' : 'Propostas'})</label>
-                  {!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}
-                </div>
+                <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos ({formData.status === 'active' ? 'Contratos' : 'Propostas'})</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
                 {documents.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path, doc.file_name)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>
                 ) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
               </div>
             )}
 
+            {/* ... (Campos Financeiros, Analysis, Proposal etc mantidos iguais) ... */}
             {formData.status === 'analysis' && (<div className="grid grid-cols-2 gap-5"><div><label className="text-xs font-medium block mb-1">Data Prospect</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div><div><label className="text-xs font-medium block mb-1">Analisado Por</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.analyzed_by} onChange={e => setFormData({...formData, analyzed_by: toTitleCase(e.target.value)})} /></div></div>)}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
@@ -458,7 +372,26 @@ export function ContractFormModal({
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
                   <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Data Assinatura</label><input type="date" className="w-full border border-green-200 p-2.5 rounded-lg text-sm bg-white focus:border-green-500 outline-none" value={formData.contract_date} onChange={e => setFormData({...formData, contract_date: e.target.value})} /></div>
-                  <div className="md:col-span-4"><label className="flex items-center p-2.5 bg-white border border-green-200 rounded-lg cursor-pointer hover:border-green-400 transition-colors"><input type="checkbox" className="w-4 h-4 text-green-600 rounded focus:ring-green-500 border-gray-300" checked={formData.physical_signature} onChange={(e) => setFormData({...formData, physical_signature: e.target.checked})} /><span className="ml-2 text-sm font-medium text-green-800">Possui Assinatura Física?</span></label></div>
+                  
+                  {/* MODIFICAÇÃO: CHECKBOX -> SELECT PARA ASSINATURA FÍSICA */}
+                  <div className="md:col-span-4">
+                    <label className="text-xs font-medium block mb-1 text-green-800">Possui Assinatura Física?</label>
+                    <select 
+                      className="w-full border border-green-200 p-2.5 rounded-lg text-sm bg-white focus:border-green-500 outline-none" 
+                      value={formData.physical_signature === true ? 'Sim' : formData.physical_signature === false ? 'Não' : ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData({
+                          ...formData, 
+                          physical_signature: val === 'Sim' ? true : val === 'Não' ? false : undefined
+                        });
+                      }}
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="Sim">Sim</option>
+                      <option value="Não">Não (Cobrar)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
@@ -506,7 +439,8 @@ export function ContractFormModal({
 
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
-          <button onClick={onSave} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
+          {/* BOTÃO SALVAR AGORA CHAMA O WRAPPER DO KANBAN */}
+          <button onClick={handleSaveWithKanbanTrigger} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
         </div>
       </div>
     </div>

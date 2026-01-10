@@ -30,6 +30,20 @@ export interface ContractDocument {
   hon_number_ref?: string;
 }
 
+// NOVA INTERFACE PARA O KANBAN
+export interface KanbanTask {
+  id: string;
+  title: string;
+  description?: string;
+  priority: 'Alta' | 'Média' | 'Baixa';
+  status: 'todo' | 'doing' | 'done' | 'signature';
+  position: number;
+  due_date?: string;
+  contract_id?: string;
+  observation?: string;
+  created_at?: string;
+}
+
 export interface Contract {
   id?: string;
   status: 'analysis' | 'proposal' | 'active' | 'rejected' | 'probono';
@@ -44,7 +58,6 @@ export interface Contract {
   partner_id: string;
   observations: string;
   
-  // Specifics
   prospect_date?: string;
   analyzed_by?: string;
   proposal_date?: string;
@@ -55,18 +68,16 @@ export interface Contract {
   rejection_reason?: string;
   probono_date?: string;
   
-  // Financial
+  // Alterado para aceitar null/undefined que mapeará para o Select
+  physical_signature?: boolean; 
+  
   pro_labore?: string;
   final_success_fee?: string;
   final_success_percent?: string;
   intermediate_fees?: string[];
   timesheet?: boolean;
   other_fees?: string;
-  
-  // New
-  physical_signature?: boolean;
 
-  // Display fields (joins)
   partner_name?: string;
   process_count?: number;
   created_at?: string;
