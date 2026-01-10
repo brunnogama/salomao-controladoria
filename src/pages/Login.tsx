@@ -18,7 +18,6 @@ export function Login() {
     const email = `${username}@salomaoadv.com.br`;
 
     try {
-      // Aqui removemos o "data" que não estava sendo usado
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -65,7 +64,8 @@ export function Login() {
                   placeholder="nome.sobrenome"
                   required
                 />
-                <span className="flex select-none items-center pr-3 text-gray-500 sm:text-sm bg-gray-50 px-3 border-l border-gray-200">
+                {/* Removido border-l e border-gray-200 daqui */}
+                <span className="flex select-none items-center pr-3 text-gray-500 sm:text-sm bg-gray-50 px-3">
                   @salomaoadv.com.br
                 </span>
               </div>
