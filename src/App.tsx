@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
+import { Contracts } from './pages/Contracts'; // Importando a nova página
 
-// Componentes Placeholder para as rotas (serão criados depois)
+// Componentes Placeholder (os que ainda não fizemos)
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
     <h1 className="text-2xl font-bold text-gray-800 mb-4">{title}</h1>
@@ -19,10 +20,13 @@ function App() {
         {/* Rota Pública */}
         <Route path="/" element={<Login />} />
 
-        {/* Rotas Protegidas (Layout com Sidebar) */}
+        {/* Rotas Protegidas */}
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<PagePlaceholder title="Dashboard Gerencial" />} />
-          <Route path="/contratos" element={<PagePlaceholder title="Gestão de Contratos" />} />
+          
+          {/* Rota Atualizada: Contratos */}
+          <Route path="/contratos" element={<Contracts />} />
+          
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
           <Route path="/financeiro" element={<PagePlaceholder title="Controle Financeiro" />} />
           <Route path="/volumetria" element={<PagePlaceholder title="Análise de Volumetria" />} />
@@ -34,7 +38,6 @@ function App() {
           <Route path="/configuracoes" element={<PagePlaceholder title="Configurações do Sistema" />} />
         </Route>
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
