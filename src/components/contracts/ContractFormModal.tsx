@@ -90,7 +90,7 @@ const getThemeBackground = (status: string) => {
 
 export function ContractFormModal({
   isOpen, onClose, formData, setFormData, onSave, loading, isEditing,
-  partners, onOpenPartnerManager,
+  partners, onOpenPartnerManager, onCNPJSearch,
   processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
   newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
   timelineData, getStatusColor, getStatusLabel
@@ -126,7 +126,7 @@ export function ContractFormModal({
         setFormData(prev => ({ 
           ...prev, 
           client_name: toTitleCase(data.razao_social),
-          uf: data.uf // Preenche UF com a sigla retornada da API (ex: "SP")
+          uf: data.uf
         }));
       }
     } catch (e) {
@@ -150,7 +150,6 @@ export function ContractFormModal({
       const info = decodeCNJ(cnj);
       
       if (info) {
-        // Atualiza os dados do Processo
         setCurrentProcess(prev => ({
           ...prev,
           court: info.tribunal,
@@ -158,7 +157,6 @@ export function ContractFormModal({
           cause_value: prev.cause_value || ''
         }));
 
-        // Se o decodificador encontrou uma UF válida, preenche o campo UF do contrato
         if (info.uf) {
           setFormData(prev => ({ ...prev, uf: info.uf }));
         }
@@ -280,72 +278,148 @@ export function ContractFormModal({
             </div>
           </section>
 
+          {/* PROCESSOS JUDICIAIS - LAYOUT REORGANIZADO */}
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
+            
             {formData.has_legal_process && (
               <div className="space-y-4">
                 
-                {/* LINHA 1: UF e CONTRÁRIO */}
-                <div className="flex gap-4">
-                  <div className="w-40">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Estado (UF)</label>
-                    <div className="relative">
-                      <select 
-                        className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white appearance-none" 
-                        value={formData.uf} 
-                        onChange={(e) => setFormData({...formData, uf: e.target.value})}
-                      >
-                        <option value="">Selecione...</option>
-                        {/* AQUI ESTÁ A CORREÇÃO: VALUE=SIGLA, DISPLAY=NOME */}
-                        {UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.nome}</option>)}
-                      </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                {/* CONTAINER DE ENTRADA */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                  
+                  {/* LINHA 1: CNJ | TRIBUNAL | ESTADO */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+                    
+                    {/* CNJ */}
+                    <div className="md:col-span-5">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">
+                        Número CNJ
+                        {currentProcess.process_number && (
+                          <button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>
+                        )}
+                      </label>
+                      <div className="flex relative items-center">
+                        <input 
+                          type="text" 
+                          className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" 
+                          placeholder="0000000-00..." 
+                          value={currentProcess.process_number} 
+                          onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} 
+                        />
+                        <button 
+                          onClick={handleCNJSearch}
+                          disabled={searchingCNJ || !currentProcess.process_number}
+                          className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          title="Identificar Tribunal e UF"
+                        >
+                          {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} />
-                  </div>
-                </div>
 
-                {/* LINHA 2: DADOS DO PROCESSO */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className="md:col-span-3">
-                    <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">
-                      Número CNJ
-                      {currentProcess.process_number && (
-                        <button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>
-                      )}
-                    </label>
-                    <div className="flex relative items-center">
+                    {/* TRIBUNAL */}
+                    <div className="md:col-span-5">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Turma</label>
                       <input 
                         type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" 
-                        placeholder="0000000-00..." 
-                        value={currentProcess.process_number} 
-                        onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
+                        value={currentProcess.court} 
+                        onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} 
                       />
+                    </div>
+
+                    {/* ESTADO (UF) */}
+                    <div className="md:col-span-2">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">Estado (UF)</label>
+                      <div className="relative">
+                        <select 
+                          className="w-full border-b border-gray-300 focus:border-salomao-blue bg-white appearance-none py-1 text-sm outline-none" 
+                          value={formData.uf} 
+                          onChange={(e) => setFormData({...formData, uf: e.target.value})}
+                        >
+                          <option value="">UF</option>
+                          {UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.sigla}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* LINHA 2: CONTRÁRIO | JUIZ | VALOR | BOTÃO */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    
+                    {/* CONTRÁRIO */}
+                    <div className="md:col-span-4">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta)</label>
+                      <input 
+                        type="text" 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
+                        placeholder="Nome da parte..."
+                        value={formData.company_name} 
+                        onChange={(e) => handleTextChange('company_name', e.target.value)} 
+                      />
+                    </div>
+
+                    {/* JUIZ */}
+                    <div className="md:col-span-4">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label>
+                      <input 
+                        type="text" 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
+                        value={currentProcess.judge} 
+                        onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} 
+                      />
+                    </div>
+
+                    {/* VALOR DA CAUSA */}
+                    <div className="md:col-span-3">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label>
+                      <input 
+                        type="text" 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
+                        value={currentProcess.cause_value} 
+                        onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} 
+                      />
+                    </div>
+
+                    {/* BOTÃO */}
+                    <div className="md:col-span-1">
                       <button 
-                        onClick={handleCNJSearch}
-                        disabled={searchingCNJ || !currentProcess.process_number}
-                        className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        title="Identificar Tribunal e UF"
+                        onClick={handleProcessAction} 
+                        className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md"
                       >
-                        {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                        {editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
-                  <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
-                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
-                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
-                  <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors">{editingProcessIndex !== null ? <Check className="w-4 h-4 mx-auto" /> : <Plus className="w-4 h-4 mx-auto" />}</button></div>
+
                 </div>
-                {processes.length > 0 && (<div className="space-y-2">{processes.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div className="grid grid-cols-4 gap-4 flex-1 text-xs"><span className="font-mono font-medium text-gray-800">{p.process_number}</span><span className="text-gray-600">{p.cause_value}</span><span className="text-gray-500">{p.court}</span><span className="text-gray-500 truncate">{p.judge}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button><button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>)}
+
+                {/* LISTA DE PROCESSOS ADICIONADOS */}
+                {processes.length > 0 && (
+                  <div className="space-y-2 mt-4">
+                    {processes.map((p, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
+                        <div className="grid grid-cols-4 gap-4 flex-1 text-xs">
+                          <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
+                          <span className="text-gray-600">{p.court} ({formData.uf})</span>
+                          <span className="text-gray-500 truncate">{p.judge}</span>
+                          <span className="text-gray-600 font-medium">{p.cause_value}</span>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
 
-          {/* ... RESTO DO CÓDIGO MANTIDO (Fases, Obs, Timeline) ... */}
+          {/* ... RESTANTE DO FORMULÁRIO (Mantido) ... */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center">
               <Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}
