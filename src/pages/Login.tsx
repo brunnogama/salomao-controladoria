@@ -18,7 +18,8 @@ export function Login() {
     const email = `${username}@salomaoadv.com.br`;
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Aqui removemos o "data" que não estava sendo usado
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -113,7 +114,7 @@ export function Login() {
 
       {/* Lado Direito - Branding */}
       <div className="hidden lg:flex w-[60%] bg-salomao-dark relative overflow-hidden items-center">
-        {/* Overlay de imagem de livros - placeholder simulado com gradiente se não houver imagem */}
+        {/* Overlay de imagem de livros */}
         <div 
           className="absolute inset-0 z-0 opacity-10 mix-blend-overlay"
           style={{
