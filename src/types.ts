@@ -30,7 +30,6 @@ export interface ContractDocument {
   hon_number_ref?: string;
 }
 
-// NOVA INTERFACE PARA O KANBAN
 export interface KanbanTask {
   id: string;
   title: string;
@@ -68,8 +67,8 @@ export interface Contract {
   rejection_reason?: string;
   probono_date?: string;
   
-  // Alterado para aceitar null/undefined que mapeará para o Select
   physical_signature?: boolean; 
+  billing_location?: string; // NOVO CAMPO
   
   pro_labore?: string;
   final_success_fee?: string;
