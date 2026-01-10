@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { Plus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-// Novos imports
 import { Contract, Partner, ContractProcess, TimelineEvent } from '../types';
 import { maskHon, unmaskMoney, toTitleCase } from '../utils/masks';
 import { ContractFilters } from '../components/contracts/ContractFilters';
@@ -43,7 +42,8 @@ export function Contracts() {
     partner_id: '',
     observations: '',
     intermediate_fees: [],
-    timesheet: false
+    timesheet: false,
+    physical_signature: false // Novo campo
   };
   const [formData, setFormData] = useState<Contract>(initialFormState);
   
@@ -106,9 +106,11 @@ export function Contracts() {
     setEditingContractId(contract.id);
     setInitialStatus(contract.status);
     
-    // Popula o form (simplificado, assume que fields mapeiam direto)
+    // Popula o form
     const baseData = { ...contract };
     if (contract.hon_number) baseData.hon_number = maskHon(contract.hon_number);
+    // Garante que o boolean venha correto
+    baseData.physical_signature = contract.physical_signature || false;
     
     setFormData(baseData);
     
@@ -168,6 +170,7 @@ export function Contracts() {
         rejected_by: formData.rejected_by,
         rejection_reason: formData.rejection_reason,
         probono_date: formData.probono_date || null,
+        physical_signature: formData.physical_signature, // Salva o novo campo
         financial_data: financialData
       };
 
@@ -250,7 +253,7 @@ export function Contracts() {
     if (!error) setPartners(partners.filter(p => p.id !== id));
   };
 
-  // --- HELPERS (Logic only, UI moved) ---
+  // --- HELPERS ---
   const handleCNPJSearch = async () => {
     const cleanCNPJ = formData.cnpj.replace(/\D/g, '');
     if (cleanCNPJ.length !== 14) return alert('CNPJ inválido');
@@ -302,19 +305,6 @@ export function Contracts() {
     const map: any = { 'analysis': 'Sob Análise', 'proposal': 'Proposta Enviada', 'active': 'Contrato Fechado', 'rejected': 'Rejeitado', 'probono': 'Probono' };
     return map[status] || status;
   };
-
-  // --- FILTERING ---
-  const filteredAndSortedContracts = contracts
-    .filter(c => {
-      const matchesStatus = statusFilter ? c.status === statusFilter : true;
-      const matchesPartner = partnerFilter ? c.partner_id === partnerFilter : true;
-      const matchesSearch = searchTerm ? (c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || c.hon_number?.includes(searchTerm)) : true;
-      return matchesStatus && matchesPartner && matchesSearch;
-    })
-    .sort((a, b) => {
-      if (sortOrder === 'name') return (a.client_name || '').localeCompare(b.client_name || '');
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
 
   return (
     <div className="space-y-6">

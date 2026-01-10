@@ -85,11 +85,9 @@ export function ContractFormModal({
   timelineData, getStatusColor, getStatusLabel
 }: Props) {
   
-  // State for Documents
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  // Fetch documents when modal opens
   useEffect(() => {
     if (isOpen && formData.id) {
       fetchDocuments();
@@ -114,15 +112,12 @@ export function ContractFormModal({
     const file = e.target.files[0];
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExt}`;
-    // Estrutura de pasta: Nome Cliente / ID Contrato / Arquivo
     const filePath = `${toTitleCase(formData.client_name)}/${formData.id}/${fileName}`;
 
     try {
-      // 1. Upload to Storage
       const { error: uploadError } = await supabase.storage.from('ged').upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      // 2. Save Metadata to DB
       const { error: dbError } = await supabase.from('contract_documents').insert({
         contract_id: formData.id,
         file_name: file.name,
@@ -132,7 +127,6 @@ export function ContractFormModal({
       });
 
       if (dbError) throw dbError;
-
       fetchDocuments();
     } catch (error: any) {
       alert('Erro ao enviar arquivo: ' + error.message);
@@ -191,8 +185,6 @@ export function ContractFormModal({
             </div>
           </div>
 
-          {/* ... DADOS DO CLIENTE E PROCESSOS (CÓDIGO ANTERIOR) ... */}
-          {/* Mantive as seções anteriores resumidas para focar no novo recurso, mas no código final elas devem estar aqui completas como no passo anterior */}
           <section className="space-y-5">
             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Dados do Cliente</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
@@ -219,89 +211,35 @@ export function ContractFormModal({
             {formData.has_legal_process && (
               <div className="space-y-4">
                 <div><label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} /></div>
-                <div className="grid grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className="col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Número CNJ</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /></div>
-                  <div className="col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
-                  <div className="col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
-                  <div className="col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
-                  <div className="col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors">{editingProcessIndex !== null ? <Check className="w-4 h-4 mx-auto" /> : <Plus className="w-4 h-4 mx-auto" />}</button></div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Número CNJ</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /></div>
+                  <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
+                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
+                  <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
+                  <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors">{editingProcessIndex !== null ? <Check className="w-4 h-4 mx-auto" /> : <Plus className="w-4 h-4 mx-auto" />}</button></div>
                 </div>
                 {processes.length > 0 && (<div className="space-y-2">{processes.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div className="grid grid-cols-4 gap-4 flex-1 text-xs"><span className="font-mono font-medium text-gray-800">{p.process_number}</span><span className="text-gray-600">{p.cause_value}</span><span className="text-gray-500">{p.court}</span><span className="text-gray-500 truncate">{p.judge}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button><button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>)}
               </div>
             )}
           </section>
 
-          {/* DETALHES DA FASE */}
           <section className="border-t pt-6">
             <h3 className="text-sm font-bold text-salomao-gold uppercase tracking-wider mb-6 flex items-center">
               <Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}
             </h3>
 
-            {/* SEÇÃO DE ARQUIVOS (NOVO) */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">
-                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Arquivos & Documentos ({formData.status === 'active' ? 'Contratos' : 'Propostas'})
-                  </label>
-                  {!isEditing ? (
-                    <span className="text-xs text-orange-500 flex items-center">
-                      <AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos
-                    </span>
-                  ) : (
-                    <label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">
-                      {uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}
-                      <input 
-                        type="file" 
-                        accept="application/pdf" 
-                        className="hidden" 
-                        disabled={uploading}
-                        onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} 
-                      />
-                    </label>
-                  )}
+                  <label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos ({formData.status === 'active' ? 'Contratos' : 'Propostas'})</label>
+                  {!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}
                 </div>
-
                 {documents.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {documents.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 group">
-                        <div className="flex items-center overflow-hidden">
-                          <div className="bg-red-100 p-2 rounded text-red-600 mr-3">
-                            <FileText className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p>
-                            <div className="flex items-center text-[10px] text-gray-400 mt-0.5">
-                              <span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>
-                              {doc.hon_number_ref && (
-                                <span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">
-                                  HON: {maskHon(doc.hon_number_ref)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleDownload(doc.file_path, doc.file_name)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded">
-                            <Download className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>
-                )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path, doc.file_name)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>
+                ) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
               </div>
             )}
 
-            {/* CAMPOS FINANCEIROS */}
-            {/* (O código abaixo mantém a estrutura corrigida que fizemos antes) */}
             {formData.status === 'analysis' && (<div className="grid grid-cols-2 gap-5"><div><label className="text-xs font-medium block mb-1">Data Prospect</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.prospect_date} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div><div><label className="text-xs font-medium block mb-1">Analisado Por</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.analyzed_by} onChange={e => setFormData({...formData, analyzed_by: toTitleCase(e.target.value)})} /></div></div>)}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
@@ -317,7 +255,30 @@ export function ContractFormModal({
                 </div>
               </div>
             )}
-            {formData.status === 'active' && (<div className="mt-6 p-4 bg-green-50 border border-green-100 rounded-xl animate-in fade-in"><div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div><div><label className="text-xs font-medium block mb-1">Data Assinatura</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg" value={formData.contract_date} onChange={e => setFormData({...formData, contract_date: e.target.value})} /></div></div></div>)}
+
+            {/* SEÇÃO CONTRATO FECHADO: Adicionado Checkbox Assinatura Física */}
+            {formData.status === 'active' && (
+              <div className="mt-6 p-4 bg-green-50 border border-green-100 rounded-xl animate-in fade-in">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
+                  <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Data Assinatura</label><input type="date" className="w-full border border-green-200 p-2.5 rounded-lg text-sm bg-white" value={formData.contract_date} onChange={e => setFormData({...formData, contract_date: e.target.value})} /></div>
+                  
+                  {/* CHECKBOX ASSINATURA FÍSICA */}
+                  <div className="md:col-span-4">
+                    <label className="flex items-center p-2.5 bg-white border border-green-200 rounded-lg cursor-pointer hover:border-green-400 transition-colors">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 text-green-600 rounded focus:ring-green-500 border-gray-300"
+                        checked={formData.physical_signature}
+                        onChange={(e) => setFormData({...formData, physical_signature: e.target.checked})}
+                      />
+                      <span className="ml-2 text-sm font-medium text-green-800">Possui Assinatura Física?</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {formData.status === 'rejected' && (<div className="grid grid-cols-3 gap-4"><input type="date" className="border p-2 rounded" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /><select className="border p-2 rounded" onChange={e => setFormData({...formData, rejected_by: e.target.value})}><option>Rejeitado por...</option><option>Cliente</option><option>Escritório</option></select><select className="border p-2 rounded" onChange={e => setFormData({...formData, rejection_reason: e.target.value})}><option>Motivo...</option><option>Cliente declinou</option><option>Cliente não retornou</option><option>Caso ruim</option><option>Conflito de interesses</option></select></div>)}
           </section>
 
@@ -326,12 +287,8 @@ export function ContractFormModal({
           {isEditing && timelineData.length > 0 && (
             <div className="border-t pt-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center">
-                  <HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso
-                </h3>
-                <span className="bg-salomao-gold/10 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center">
-                  <Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, formData)}
-                </span>
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center"><HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso</h3>
+                <span className="bg-salomao-gold/10 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center"><Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, formData)}</span>
               </div>
               <div className="relative border-l-2 border-gray-100 ml-3 space-y-8 pb-4">
                 {timelineData.map((t, idx) => {
