@@ -1,4 +1,4 @@
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2 } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
 
@@ -43,6 +43,34 @@ interface Props {
   getStatusColor: (s: string) => string;
   getStatusLabel: (s: string) => string;
 }
+
+// Helper para calcular duração
+const getDuration = (startStr: string, endStr: string) => {
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+  if (diffDays === 0) return 'Mesmo dia';
+  if (diffDays > 30) {
+    const months = Math.floor(diffDays / 30);
+    const days = diffDays % 30;
+    return days > 0 ? `${months} meses e ${days} dias` : `${months} meses`;
+  }
+  return `${diffDays} dias`;
+};
+
+const getTotalDuration = (timelineData: TimelineEvent[]) => {
+  if (timelineData.length === 0) return '0 dias';
+  const first = new Date(timelineData[timelineData.length - 1].changed_at); // O mais antigo
+  const last = new Date(timelineData[0].changed_at); // O mais recente
+  
+  const diffTime = Math.abs(last.getTime() - first.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  const months = (diffDays / 30).toFixed(1);
+  return `${months} meses`;
+};
 
 export function ContractFormModal({
   isOpen, onClose, formData, setFormData, onSave, loading, isEditing,
@@ -461,27 +489,55 @@ export function ContractFormModal({
             ></textarea>
           </div>
 
-          {/* TIMELINE */}
+          {/* TIMELINE VISUAL */}
           {isEditing && timelineData.length > 0 && (
             <div className="border-t pt-6">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
-                <HistoryIcon className="w-4 h-4 mr-2" /> Histórico de Alterações
-              </h3>
-              <div className="space-y-3">
-                {timelineData.map((t) => (
-                  <div key={t.id} className="flex items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <div className="flex items-center gap-2 font-medium text-gray-700 min-w-[200px]">
-                      <span className={`w-2 h-2 rounded-full ${getStatusColor(t.previous_status || '').split(' ')[0] || 'bg-gray-300'}`}></span>
-                      {getStatusLabel(t.previous_status || 'Início')}
-                      <ArrowRight className="w-3 h-3 text-gray-400" />
-                      <span className={`w-2 h-2 rounded-full ${getStatusColor(t.new_status).split(' ')[0]}`}></span>
-                      {getStatusLabel(t.new_status)}
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center">
+                  <HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso
+                </h3>
+                <span className="bg-salomao-gold/10 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center">
+                  <Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData)}
+                </span>
+              </div>
+
+              <div className="relative border-l-2 border-gray-100 ml-3 space-y-8 pb-4">
+                {timelineData.map((t, idx) => {
+                  // Calcular duração entre este evento e o próximo (que é mais antigo na lista)
+                  const nextEvent = timelineData[idx + 1];
+                  const duration = nextEvent ? getDuration(nextEvent.changed_at, t.changed_at) : 'Início';
+                  const isCurrent = idx === 0;
+
+                  return (
+                    <div key={t.id} className="relative pl-8">
+                      {/* Bolinha da Timeline */}
+                      <span className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${isCurrent ? 'bg-salomao-blue border-blue-200' : 'bg-gray-200 border-white'}`}></span>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between bg-gray-50 p-4 rounded-lg border border-gray-100 hover:border-blue-100 transition-colors">
+                        <div>
+                          <h4 className={`text-sm font-bold ${isCurrent ? 'text-salomao-blue' : 'text-gray-600'}`}>
+                            {getStatusLabel(t.new_status)}
+                          </h4>
+                          <p className="text-xs text-gray-400 mt-1 flex items-center">
+                            <CalendarCheck className="w-3 h-3 mr-1" />
+                            {new Date(t.changed_at).toLocaleDateString('pt-BR')} às {new Date(t.changed_at).toLocaleTimeString('pt-BR')}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Alterado por: <span className="font-medium text-gray-600">{t.changed_by}</span>
+                          </p>
+                        </div>
+
+                        {/* Badge de Duração */}
+                        <div className="mt-2 sm:mt-0 flex flex-col items-end">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 mb-1">Duração da fase anterior</span>
+                          <span className="bg-white px-2 py-1 rounded border border-gray-200 text-xs font-mono text-gray-600 shadow-sm">
+                            {duration}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 text-gray-500 text-xs pl-4 border-l border-gray-200 ml-4">
-                      Alterado por <strong className="text-gray-700">{t.changed_by}</strong> em {new Date(t.changed_at).toLocaleDateString('pt-BR')} às {new Date(t.changed_at).toLocaleTimeString('pt-BR')}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
