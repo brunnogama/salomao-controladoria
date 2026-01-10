@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -43,7 +43,7 @@ export function Contracts() {
     observations: '',
     intermediate_fees: [],
     timesheet: false,
-    physical_signature: false // Novo campo
+    physical_signature: false
   };
   const [formData, setFormData] = useState<Contract>(initialFormState);
   
@@ -78,7 +78,7 @@ export function Contracts() {
     let query = supabase.from('contracts').select(`*, clients(name), partners(name), contract_processes(count)`);
     const { data, error } = await query;
     if (!error && data) {
-      const formatted = data.map(d => ({
+      const formatted = data.map((d: any) => ({
         ...d,
         client_name: d.clients?.name,
         partner_name: d.partners?.name,
@@ -109,7 +109,6 @@ export function Contracts() {
     // Popula o form
     const baseData = { ...contract };
     if (contract.hon_number) baseData.hon_number = maskHon(contract.hon_number);
-    // Garante que o boolean venha correto
     baseData.physical_signature = contract.physical_signature || false;
     
     setFormData(baseData);
@@ -170,7 +169,7 @@ export function Contracts() {
         rejected_by: formData.rejected_by,
         rejection_reason: formData.rejection_reason,
         probono_date: formData.probono_date || null,
-        physical_signature: formData.physical_signature, // Salva o novo campo
+        physical_signature: formData.physical_signature,
         financial_data: financialData
       };
 
@@ -305,6 +304,22 @@ export function Contracts() {
     const map: any = { 'analysis': 'Sob Análise', 'proposal': 'Proposta Enviada', 'active': 'Contrato Fechado', 'rejected': 'Rejeitado', 'probono': 'Probono' };
     return map[status] || status;
   };
+
+  // --- FILTERING ---
+  // AQUI estava o erro: esta variável não existia ou foi apagada acidentalmente
+  const filteredAndSortedContracts = contracts
+    .filter(c => {
+      const matchesStatus = statusFilter ? c.status === statusFilter : true;
+      const matchesPartner = partnerFilter ? c.partner_id === partnerFilter : true;
+      const matchesSearch = searchTerm ? 
+        (c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         c.hon_number?.includes(searchTerm)) : true;
+      return matchesStatus && matchesPartner && matchesSearch;
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'name') return (a.client_name || '').localeCompare(b.client_name || '');
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   return (
     <div className="space-y-6">
