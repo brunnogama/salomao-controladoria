@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { maskCNPJ, maskCNJ, maskMoney, maskHon, unmaskMoney, toTitleCase } from '../utils/masks';
-import { Search, Plus, Filter, FileSpreadsheet, LayoutGrid, List as ListIcon, Trash2, Edit, X, Save, Settings, Check, ChevronDown, Clock, ArrowDownAZ, Calendar } from 'lucide-react';
+import { Search, Plus, Filter, FileSpreadsheet, LayoutGrid, List as ListIcon, Trash2, Edit, X, Save, Settings, Check, ChevronDown, Clock, ArrowDownAZ, Calendar, UserPlus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // --- TYPES ---
@@ -58,7 +58,7 @@ export function Contracts() {
   
   // Partner Management State
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [isManagingPartners, setIsManagingPartners] = useState(false);
+  const [isPartnerManagerOpen, setIsPartnerManagerOpen] = useState(false); // Novo Modal Separado
   const [newPartnerName, setNewPartnerName] = useState('');
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
 
@@ -168,6 +168,7 @@ export function Contracts() {
   };
 
   const handleDeletePartner = async (id: string) => {
+    if (!confirm('Tem certeza que deseja remover este sócio da lista?')) return;
     const { error } = await supabase.from('partners').update({ active: false }).eq('id', id);
     if (!error) {
       setPartners(partners.filter(p => p.id !== id));
@@ -344,8 +345,6 @@ export function Contracts() {
 
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-        
-        {/* Search & Filters */}
         <div className="flex flex-1 gap-3 w-full">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -357,62 +356,27 @@ export function Contracts() {
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-salomao-blue outline-none"
             />
           </div>
-          
-          <select 
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-salomao-blue"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
+          <select className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-salomao-blue" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">Todos Status</option>
             <option value="analysis">Sob Análise</option>
             <option value="proposal">Proposta Enviada</option>
             <option value="active">Contrato Fechado</option>
             <option value="rejected">Rejeitado</option>
           </select>
-
-          <select 
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-salomao-blue"
-            value={partnerFilter}
-            onChange={(e) => setPartnerFilter(e.target.value)}
-          >
+          <select className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-salomao-blue" value={partnerFilter} onChange={(e) => setPartnerFilter(e.target.value)}>
             <option value="">Todos Sócios</option>
-            {partners.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
+            {partners.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
           </select>
         </div>
-
-        {/* Tools: Sort, Export, View */}
         <div className="flex items-center gap-3 border-l pl-4 border-gray-200">
-           {/* Sorting */}
            <div className="flex bg-gray-100 rounded-lg p-1 mr-2">
-            <button 
-              onClick={() => setSortOrder('name')} 
-              className={`p-1.5 rounded flex items-center gap-1 text-xs font-medium transition-all ${sortOrder === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}
-              title="Ordenar por Nome"
-            >
-              <ArrowDownAZ className="w-4 h-4" /> Nome
-            </button>
-            <button 
-              onClick={() => setSortOrder('date')} 
-              className={`p-1.5 rounded flex items-center gap-1 text-xs font-medium transition-all ${sortOrder === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}
-              title="Ordenar por Data"
-            >
-              <Calendar className="w-4 h-4" /> Data
-            </button>
+            <button onClick={() => setSortOrder('name')} className={`p-1.5 rounded flex items-center gap-1 text-xs font-medium transition-all ${sortOrder === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`} title="Ordenar por Nome"><ArrowDownAZ className="w-4 h-4" /> Nome</button>
+            <button onClick={() => setSortOrder('date')} className={`p-1.5 rounded flex items-center gap-1 text-xs font-medium transition-all ${sortOrder === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`} title="Ordenar por Data"><Calendar className="w-4 h-4" /> Data</button>
            </div>
-
-          <button onClick={exportToExcel} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Exportar Excel">
-            <FileSpreadsheet className="w-5 h-5" />
-          </button>
-          
+          <button onClick={exportToExcel} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Exportar Excel"><FileSpreadsheet className="w-5 h-5" /></button>
           <div className="flex bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}>
-              <ListIcon className="w-5 h-5" />
-            </button>
-            <button onClick={() => setViewMode('card')} className={`p-1.5 rounded ${viewMode === 'card' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}>
-              <LayoutGrid className="w-5 h-5" />
-            </button>
+            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}><ListIcon className="w-5 h-5" /></button>
+            <button onClick={() => setViewMode('card')} className={`p-1.5 rounded ${viewMode === 'card' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}><LayoutGrid className="w-5 h-5" /></button>
           </div>
         </div>
       </div>
@@ -432,22 +396,16 @@ export function Contracts() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredAndSortedContracts.length === 0 ? (
-                 <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">Nenhum contrato encontrado com esses filtros.</td>
-                 </tr>
+                 <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Nenhum contrato encontrado com esses filtros.</td></tr>
               ) : (
                 filteredAndSortedContracts.map((contract) => (
                   <tr key={contract.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
-                        {getStatusLabel(contract.status)}
-                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span>
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900">{contract.client_name} <span className="text-gray-400 text-xs font-normal">({contract.client_position})</span></td>
                     <td className="px-6 py-4 text-gray-600 flex items-center gap-2">
-                       <div className="w-6 h-6 rounded-full bg-salomao-blue text-white flex items-center justify-center text-xs">
-                          {contract.partner_name?.charAt(0)}
-                       </div>
+                       <div className="w-6 h-6 rounded-full bg-salomao-blue text-white flex items-center justify-center text-xs">{contract.partner_name?.charAt(0)}</div>
                        {contract.partner_name || '-'}
                     </td>
                     <td className="px-6 py-4 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-700">{contract.process_count}</span></td>
@@ -478,9 +436,9 @@ export function Contracts() {
         </div>
       )}
 
-      {/* --- MODAL (Mantido igual) --- */}
+      {/* --- MODAL PRINCIPAL DE CONTRATOS --- */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200">
             
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
@@ -544,11 +502,7 @@ export function Contracts() {
                   <div className="md:col-span-3">
                     <label className="block text-xs font-medium text-gray-600 mb-1">Posição no Processo</label>
                     <div className="relative">
-                      <select 
-                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none"
-                        value={formData.client_position}
-                        onChange={(e) => setFormData({...formData, client_position: e.target.value})}
-                      >
+                      <select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.client_position} onChange={(e) => setFormData({...formData, client_position: e.target.value})}>
                         <option value="Autor">Autor</option>
                         <option value="Réu">Réu</option>
                         <option value="Terceiro">Terceiro Interessado</option>
@@ -574,52 +528,31 @@ export function Contracts() {
                     <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} />
                   </div>
                   
-                  {/* PARTNER MANAGER */}
-                  <div className="relative">
-                    <label className="block text-xs font-medium text-gray-600 mb-1 flex justify-between">
-                      Responsável (Sócio)
-                      <button onClick={() => setIsManagingPartners(!isManagingPartners)} className="text-salomao-blue hover:underline text-[10px] flex items-center">
-                        <Settings className="w-3 h-3 mr-1" /> Gerenciar
-                      </button>
-                    </label>
-                    
-                    {!isManagingPartners ? (
-                      <div className="relative">
-                        <select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.partner_id} onChange={(e) => setFormData({...formData, partner_id: e.target.value})}>
-                          <option value="">Selecione...</option>
-                          {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                      </div>
-                    ) : (
-                      <div className="absolute top-0 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-xl p-3 z-10 mt-6">
-                        <div className="flex gap-2 mb-2">
-                          <input type="text" className="flex-1 border rounded p-1 text-xs" placeholder="Nome do Sócio" value={newPartnerName} onChange={(e) => setNewPartnerName(toTitleCase(e.target.value))} />
-                          {editingPartner ? (
-                            <button onClick={handleUpdatePartner} className="bg-green-500 text-white p-1 rounded"><Check className="w-4 h-4" /></button>
-                          ) : (
-                            <button onClick={handleAddPartner} className="bg-blue-500 text-white p-1 rounded"><Plus className="w-4 h-4" /></button>
-                          )}
+                  {/* SELEÇÃO E GERENCIAMENTO DE SÓCIOS */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Responsável (Sócio)</label>
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.partner_id} onChange={(e) => setFormData({...formData, partner_id: e.target.value})}>
+                            <option value="">Selecione...</option>
+                            {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                         </div>
-                        <ul className="max-h-32 overflow-y-auto space-y-1">
-                          {partners.map(p => (
-                            <li key={p.id} className="text-xs flex justify-between items-center bg-gray-50 p-1 rounded">
-                              {p.name}
-                              <div className="flex gap-1">
-                                <button onClick={() => { setEditingPartner(p); setNewPartnerName(p.name); }} className="text-blue-500"><Edit className="w-3 h-3" /></button>
-                                <button onClick={() => handleDeletePartner(p.id)} className="text-red-500"><Trash2 className="w-3 h-3" /></button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                        <button onClick={() => setIsManagingPartners(false)} className="w-full text-center text-xs text-gray-500 mt-2 hover:bg-gray-100 p-1 rounded">Fechar</button>
-                      </div>
-                    )}
+                        <button 
+                          onClick={() => setIsPartnerManagerOpen(true)}
+                          className="bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg px-3 text-gray-600 transition-colors"
+                          title="Gerenciar Sócios"
+                        >
+                          <Settings className="w-4 h-4" />
+                        </button>
+                    </div>
                   </div>
                 </div>
               </section>
 
-              {/* PROCESSOS JUDICIAIS */}
+              {/* RESTANTE DO FORMULÁRIO (PROCESSOS, FASES, OBS) MANTIDO IDÊNTICO */}
+              {/* Processos Judiciais */}
               <section className="space-y-4 bg-gray-50 p-5 rounded-xl border border-gray-200">
                 <div className="flex justify-between items-center">
                    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3>
@@ -628,14 +561,12 @@ export function Contracts() {
                      <label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label>
                    </div>
                 </div>
-
                 {formData.has_legal_process && (
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label>
                       <input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} />
                     </div>
-
                     <div className="grid grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                       <div className="col-span-3">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Número CNJ</label>
@@ -659,7 +590,6 @@ export function Contracts() {
                         </button>
                       </div>
                     </div>
-
                     {processes.length > 0 && (
                       <div className="space-y-2">
                         {processes.map((p, idx) => (
@@ -687,7 +617,6 @@ export function Contracts() {
                   <Clock className="w-4 h-4 mr-2" />
                   Detalhes da Fase: {getStatusLabel(formData.status)}
                 </h3>
-
                 {formData.status === 'analysis' && (
                   <div className="grid grid-cols-2 gap-5">
                     <div>
@@ -700,7 +629,6 @@ export function Contracts() {
                     </div>
                   </div>
                 )}
-
                 {(formData.status === 'proposal' || formData.status === 'active') && (
                   <div className="space-y-6 animate-in slide-in-from-top-2">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -721,7 +649,6 @@ export function Contracts() {
                           <input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
                        </div>
                     </div>
-
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                       <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Êxitos Intermediários</label>
                       <div className="flex gap-2 mb-3">
@@ -737,7 +664,6 @@ export function Contracts() {
                         ))}
                       </div>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
                         <label className="text-xs font-medium block mb-1">Outros Honorários</label>
@@ -750,7 +676,6 @@ export function Contracts() {
                     </div>
                   </div>
                 )}
-
                 {formData.status === 'active' && (
                   <div className="mt-6 p-4 bg-green-50 border border-green-100 rounded-xl animate-in fade-in">
                     <div className="grid grid-cols-2 gap-4">
@@ -765,7 +690,6 @@ export function Contracts() {
                     </div>
                   </div>
                 )}
-                
                 {formData.status === 'rejected' && (
                    <div className="grid grid-cols-3 gap-4">
                       <input type="date" className="border p-2 rounded" onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
@@ -798,6 +722,76 @@ export function Contracts() {
                 {loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL DE GERENCIAMENTO DE SÓCIOS (NOVO) --- */}
+      {isPartnerManagerOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95">
+             <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">Sócios Responsáveis</h3>
+                  <p className="text-xs text-gray-500">Adicione ou remova sócios da lista.</p>
+                </div>
+                <button onClick={() => setIsPartnerManagerOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+             </div>
+
+             <div className="flex gap-2 mb-4">
+                <div className="relative flex-1">
+                   <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                   <input 
+                      type="text" 
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
+                      placeholder="Nome do Sócio"
+                      value={newPartnerName}
+                      onChange={(e) => setNewPartnerName(toTitleCase(e.target.value))}
+                   />
+                </div>
+                {editingPartner ? (
+                   <button onClick={handleUpdatePartner} className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors">
+                      <Check className="w-4 h-4" />
+                   </button>
+                ) : (
+                   <button onClick={handleAddPartner} className="bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 transition-colors">
+                      <Plus className="w-4 h-4" />
+                   </button>
+                )}
+             </div>
+
+             <div className="max-h-60 overflow-y-auto pr-1 space-y-2">
+                {partners.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 py-4">Nenhum sócio cadastrado.</p>
+                ) : (
+                  partners.map(p => (
+                    <div key={p.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-salomao-blue">
+                             {p.name.charAt(0)}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">{p.name}</span>
+                       </div>
+                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => { setEditingPartner(p); setNewPartnerName(p.name); }} className="text-blue-500 p-1.5 hover:bg-blue-100 rounded-md">
+                             <Edit className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeletePartner(p.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded-md">
+                             <Trash2 className="w-4 h-4" />
+                          </button>
+                       </div>
+                    </div>
+                  ))
+                )}
+             </div>
+
+             <div className="mt-6 border-t pt-4 flex justify-end">
+                <button onClick={() => setIsPartnerManagerOpen(false)} className="text-sm text-gray-600 hover:text-gray-900 font-medium">
+                   Concluir
+                </button>
+             </div>
           </div>
         </div>
       )}
