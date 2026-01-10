@@ -31,102 +31,133 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white p-8 sm:p-10 animate-in fade-in zoom-in duration-300">
+    <div className="min-h-screen flex font-sans">
+      
+      {/* LADO ESQUERDO: FORMULÁRIO */}
+      <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white sm:p-12 lg:p-16 relative z-10">
         
-        {/* LOGO AREA */}
-        <div className="flex flex-col items-center mb-10">
-          {/* Substitua pelo seu arquivo de logo real, se tiver. Usei texto estilizado como fallback */}
-          <div className="mb-4">
-             <img src="/logo-azul.png" alt="Salomão Advogados" className="h-16 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-             {/* Fallback visual caso a imagem não carregue */}
-             <div className="text-center">
-                <h1 className="text-3xl font-serif font-bold text-[#0F2C4C] tracking-wide">SALOMÃO</h1>
-                <p className="text-xs text-gray-400 uppercase tracking-[0.3em] mt-1">Advogados</p>
-             </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-6">
+        <div className="w-full max-w-sm space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
           
-          {/* USER INPUT */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Usuário Corporativo</label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400 group-focus-within:text-[#0F2C4C] transition-colors duration-300" />
-              </div>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm 
-                           outline-none transition-all duration-300
-                           focus:bg-white focus:border-[#0F2C4C]/30 focus:ring-4 focus:ring-[#0F2C4C]/5
-                           placeholder:text-gray-400"
-                placeholder="nome.sobrenome@salomaoadv.com.br"
-                required
-              />
-            </div>
+          {/* LOGO RESTAURADO */}
+          <div className="flex justify-center mb-8">
+             <img 
+               src="/logo-azul.png" 
+               alt="Salomão Advogados" 
+               className="h-20 object-contain hover:scale-105 transition-transform duration-300" 
+             />
           </div>
 
-          {/* PASSWORD INPUT */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Senha de Acesso</label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#0F2C4C] transition-colors duration-300" />
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm 
-                           outline-none transition-all duration-300
-                           focus:bg-white focus:border-[#0F2C4C]/30 focus:ring-4 focus:ring-[#0F2C4C]/5
-                           placeholder:text-gray-400"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-[#0F2C4C] tracking-tight">Bem-vindo</h2>
+            <p className="text-sm text-gray-500 mt-2">Acesse o portal de controladoria jurídica.</p>
           </div>
 
-          {/* ERROR MESSAGE */}
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-100 flex items-center gap-2 text-red-600 text-xs font-medium animate-in slide-in-from-top-1">
-              <div className="w-1 h-1 rounded-full bg-red-500" />
-              {error}
+          <form onSubmit={handleLogin} className="space-y-5">
+            
+            {/* USER INPUT (MODERNO & SEM AZUL) */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Usuário Corporativo</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400 group-focus-within:text-[#0F2C4C] transition-colors duration-300" />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="block w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm 
+                             outline-none transition-all duration-300
+                             focus:bg-white focus:border-[#0F2C4C]/30 focus:ring-4 focus:ring-[#0F2C4C]/5
+                             placeholder:text-gray-400"
+                  placeholder="nome.sobrenome@salomaoadv.com.br"
+                  required
+                />
+              </div>
             </div>
-          )}
 
-          {/* SUBMIT BUTTON */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl text-sm font-semibold text-white 
-                       bg-[#0F2C4C] hover:bg-[#1a3b61] 
-                       shadow-[0_4px_14px_0_rgba(15,44,76,0.39)] hover:shadow-[0_6px_20px_rgba(15,44,76,0.23)] hover:-translate-y-0.5
-                       transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-          >
-            {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                Entrar no Sistema
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </>
+            {/* PASSWORD INPUT (MODERNO & SEM AZUL) */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Senha de Acesso</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#0F2C4C] transition-colors duration-300" />
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm 
+                             outline-none transition-all duration-300
+                             focus:bg-white focus:border-[#0F2C4C]/30 focus:ring-4 focus:ring-[#0F2C4C]/5
+                             placeholder:text-gray-400"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* ERROR MESSAGE */}
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-100 flex items-center gap-2 text-red-600 text-xs font-medium animate-in slide-in-from-top-1">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
             )}
-          </button>
 
-          {/* FOOTER */}
-          <div className="pt-4 text-center">
-            <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3 h-3" />
-              Ambiente Seguro | Controladoria Jurídica
-            </p>
-          </div>
-        </form>
+            {/* SUBMIT BUTTON */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl text-sm font-bold text-white 
+                         bg-[#0F2C4C] hover:bg-[#1a3b61] 
+                         shadow-[0_4px_14px_0_rgba(15,44,76,0.39)] hover:shadow-[0_6px_20px_rgba(15,44,76,0.23)] hover:-translate-y-0.5
+                         transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none mt-2"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Entrar no Sistema
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            {/* FOOTER */}
+            <div className="pt-6 text-center">
+              <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                Ambiente Seguro | Controladoria Jurídica
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
+
+      {/* LADO DIREITO: IMAGEM/BRANDING (RESTAURADA) */}
+      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden bg-[#0F2C4C]">
+        {/* Overlay Gradiente para dar elegância */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0F2C4C]/80 to-[#0F2C4C]/40 z-10 mix-blend-multiply" />
+        
+        {/* Imagem de Fundo (Escritório/Arquitetura) */}
+        <img 
+          src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80" 
+          alt="Office Background" 
+          className="absolute inset-0 w-full h-full object-cover animate-in fade-in duration-1000"
+        />
+
+        {/* Texto Institucional (Opcional) */}
+        <div className="relative z-20 flex flex-col justify-center items-center h-full text-white px-12 text-center space-y-6">
+          <div className="w-20 h-1 bg-salomao-gold/50 rounded-full mb-4"></div>
+          <h2 className="text-4xl font-serif font-bold tracking-wide drop-shadow-lg">
+            Excelência & Tradição
+          </h2>
+          <p className="text-lg text-gray-200 max-w-md leading-relaxed font-light drop-shadow-md">
+            Soluções jurídicas estratégicas para impulsionar seus resultados com segurança e eficiência.
+          </p>
+        </div>
+      </div>
+
     </div>
   );
 }
