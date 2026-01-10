@@ -1,21 +1,19 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { menuItems } from '../config/menuConfig';
-import { History, Settings, LogOut, UserCircle } from 'lucide-react';
+import { History, Settings, LogOut, UserCircle, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export function Sidebar() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState('Carregando...');
-  const [userRole, setUserRole] = useState('Advogado');
+  const [userRole, setUserRole] = useState('Sócio');
 
-  // Busca os dados do usuário logado ao carregar o componente
   useEffect(() => {
     const getUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user?.email) {
-        // Lógica para extrair "Nome Sobrenome" do email "nome.sobrenome@dominio.com"
         const emailName = user.email.split('@')[0];
         const formattedName = emailName
           .split('.')
@@ -35,68 +33,106 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 h-screen bg-salomao-blue text-white flex flex-col justify-between fixed left-0 top-0 z-50 shadow-xl">
+    <aside className="w-64 h-screen bg-salomao-blue text-white flex flex-col justify-between fixed left-0 top-0 z-50 shadow-2xl font-sans">
       {/* Logo Area */}
-      <div className="p-6 flex justify-center border-b border-white/10">
+      <div className="h-24 flex items-center justify-center border-b border-white/5 bg-salomao-blue">
         <img 
           src="/logo-branca.png" 
           alt="Salomão Advogados" 
-          className="h-12 w-auto object-contain"
+          className="h-10 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
         />
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
         {menuItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
-              `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+              `group relative flex items-center px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-300 ease-out ${
                 isActive
-                  ? 'bg-white text-salomao-blue shadow-md' // Item ativo (Fundo branco, texto azul)
-                  : 'text-gray-300 hover:bg-white/10 hover:text-white' // Item inativo
+                  ? 'bg-white text-salomao-blue shadow-lg translate-x-1' 
+                  : 'text-blue-100/60 hover:bg-white/5 hover:text-white hover:translate-x-1'
               }`
             }
           >
-            <item.icon className={`w-5 h-5 mr-3`} />
-            {item.label}
+            {({ isActive }) => (
+              <>
+                {/* Accent Bar Left (Opcional, removido para ficar mais clean, usando o translate) */}
+                
+                {/* Icon */}
+                <item.icon 
+                  className={`w-5 h-5 mr-3 transition-colors duration-300 ${
+                    isActive ? 'text-salomao-gold' : 'text-current group-hover:text-salomao-gold'
+                  }`} 
+                />
+                
+                {/* Label */}
+                <span className="tracking-wide">{item.label}</span>
+
+                {/* Elegant Active Indicator (Gold Dot) */}
+                {isActive && (
+                  <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-salomao-gold shadow-[0_0_8px_rgba(212,175,55,0.6)] animate-pulse" />
+                )}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
       {/* Footer / System Actions */}
-      <div className="p-3 border-t border-white/10 space-y-1">
-        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          Sistema
-        </div>
+      <div className="p-4 border-t border-white/5 bg-salomao-blue/50 backdrop-blur-sm space-y-1">
         
-        <NavLink to="/historico" className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white rounded-md hover:bg-white/10 transition-colors">
+        <NavLink 
+          to="/historico" 
+          className={({ isActive }) => 
+            `flex items-center px-4 py-2.5 text-xs uppercase tracking-wider font-semibold rounded-lg transition-colors ${
+              isActive ? 'text-white bg-white/10' : 'text-blue-200/50 hover:text-white hover:bg-white/5'
+            }`
+          }
+        >
           <History className="w-4 h-4 mr-3" />
           Histórico
         </NavLink>
         
-        <NavLink to="/configuracoes" className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white rounded-md hover:bg-white/10 transition-colors">
+        <NavLink 
+          to="/configuracoes" 
+          className={({ isActive }) => 
+            `flex items-center px-4 py-2.5 text-xs uppercase tracking-wider font-semibold rounded-lg transition-colors ${
+              isActive ? 'text-white bg-white/10' : 'text-blue-200/50 hover:text-white hover:bg-white/5'
+            }`
+          }
+        >
           <Settings className="w-4 h-4 mr-3" />
           Configurações
         </NavLink>
 
-        {/* User Card */}
-        <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between px-2">
+        {/* User Card Moderno */}
+        <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between group cursor-pointer">
           <div className="flex items-center">
-            <div className="bg-white/10 p-2 rounded-full">
-              <UserCircle className="w-6 h-6 text-white" />
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-salomao-gold to-yellow-200 p-[1px]">
+                <div className="w-full h-full rounded-full bg-salomao-blue flex items-center justify-center">
+                  <span className="text-sm font-bold text-white">
+                    {userName.charAt(0)}
+                  </span>
+                </div>
+              </div>
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-salomao-blue rounded-full"></div>
             </div>
+            
             <div className="ml-3">
-              <p className="text-sm font-medium text-white truncate max-w-[110px]" title={userName}>
+              <p className="text-sm font-medium text-white group-hover:text-salomao-gold transition-colors truncate max-w-[100px]" title={userName}>
                 {userName}
               </p>
-              <p className="text-xs text-gray-400">{userRole}</p>
+              <p className="text-[10px] text-blue-200/60 uppercase tracking-widest">{userRole}</p>
             </div>
           </div>
+          
           <button 
             onClick={handleLogout}
-            className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors"
+            className="p-2 text-blue-200/40 hover:text-red-400 hover:bg-white/5 rounded-lg transition-all"
             title="Sair do Sistema"
           >
             <LogOut className="w-5 h-5" />
