@@ -21,7 +21,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   formData: Contract;
-  setFormData: (c: Contract) => void;
+  setFormData: React.Dispatch<React.SetStateAction<Contract>>;
   onSave: () => void;
   loading: boolean;
   isEditing: boolean;
@@ -30,7 +30,6 @@ interface Props {
   onCNPJSearch: () => void;
   processes: ContractProcess[];
   currentProcess: ContractProcess;
-  // CORREÇÃO AQUI: Tipagem correta para o setter do useState
   setCurrentProcess: React.Dispatch<React.SetStateAction<ContractProcess>>;
   editingProcessIndex: number | null;
   handleProcessAction: () => void;
@@ -91,7 +90,7 @@ const getThemeBackground = (status: string) => {
 
 export function ContractFormModal({
   isOpen, onClose, formData, setFormData, onSave, loading, isEditing,
-  partners, onOpenPartnerManager, onCNPJSearch,
+  partners, onOpenPartnerManager,
   processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
   newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
   timelineData, getStatusColor, getStatusLabel
@@ -114,6 +113,27 @@ export function ContractFormModal({
     if (data) setDocuments(data);
   };
 
+  // --- BUSCA CNPJ AUTOMATIZADA COM UF ---
+  const handleCNPJSearch = async () => {
+    const cleanCNPJ = formData.cnpj.replace(/\D/g, '');
+    if (cleanCNPJ.length !== 14) return alert('CNPJ inválido');
+    
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
+      const data = await response.json();
+      
+      if (data.razao_social) {
+        setFormData(prev => ({ 
+          ...prev, 
+          client_name: toTitleCase(data.razao_social),
+          uf: data.uf // Preenchimento automático da UF
+        }));
+      }
+    } catch (e) {
+      alert('Erro ao buscar CNPJ.');
+    }
+  };
+
   // --- LÓGICA DE BUSCA DO CNJ ---
   const handleCNJSearch = async () => {
     const cnjRaw = currentProcess.process_number || '';
@@ -126,7 +146,6 @@ export function ContractFormModal({
 
     setSearchingCNJ(true);
 
-    // Simula delay de rede e uso da utilitário
     setTimeout(() => {
       const info = decodeCNJ(cnj);
       
@@ -134,7 +153,6 @@ export function ContractFormModal({
         setCurrentProcess(prev => ({
           ...prev,
           court: info.tribunal,
-          // Mantém o que o usuário já digitou ou usa placeholder
           judge: prev.judge || '', 
           cause_value: prev.cause_value || ''
         }));
@@ -235,6 +253,7 @@ export function ContractFormModal({
             </div>
           </div>
 
+          {/* DADOS DO CLIENTE (SEM UF) */}
           <section className="space-y-5">
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
@@ -242,28 +261,45 @@ export function ContractFormModal({
                 <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
                 <div className="flex gap-2">
                   <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue disabled:bg-gray-100 bg-white" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
-                  <button onClick={onCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50"><Plus className="w-4 h-4" /></button>
+                  <button onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50"><Plus className="w-4 h-4" /></button>
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
               <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
               <div className="md:col-span-3"><label className="block text-xs font-medium text-gray-600 mb-1">Posição no Processo</label><div className="relative"><select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.client_position} onChange={(e) => setFormData({...formData, client_position: e.target.value})}><option value="Autor">Autor</option><option value="Réu">Réu</option><option value="Terceiro">Terceiro Interessado</option></select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" /></div></div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Estado (UF)</label><div className="relative"><select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.uf} onChange={(e) => setFormData({...formData, uf: e.target.value})}><option value="">Selecione...</option>{UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.nome}</option>)}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" /></div></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Área do Direito</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} /></div>
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Responsável (Sócio)</label><div className="flex gap-2"><div className="relative flex-1"><select className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white appearance-none" value={formData.partner_id} onChange={(e) => setFormData({...formData, partner_id: e.target.value})}><option value="">Selecione...</option>{partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" /></div><button onClick={onOpenPartnerManager} className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg px-3 text-gray-600 transition-colors" title="Gerenciar Sócios"><Settings className="w-4 h-4" /></button></div></div>
             </div>
           </section>
 
+          {/* PROCESSOS JUDICIAIS COM UF */}
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
             {formData.has_legal_process && (
               <div className="space-y-4">
-                <div><label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} /></div>
+                
+                {/* LINHA 1: UF e CONTRÁRIO */}
+                <div className="flex gap-4">
+                  <div className="w-32">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Estado (UF)</label>
+                    <div className="relative">
+                      <select className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white appearance-none" value={formData.uf} onChange={(e) => setFormData({...formData, uf: e.target.value})}>
+                        <option value="">UF</option>
+                        {UFS.map(uf => <option key={uf.sigla} value={uf.sigla}>{uf.sigla}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} />
+                  </div>
+                </div>
+
+                {/* LINHA 2: DADOS DO PROCESSO */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                  
-                  {/* CAMPO CNJ COM IDENTIFICAÇÃO AUTOMÁTICA */}
                   <div className="md:col-span-3">
                     <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">
                       Número CNJ
@@ -272,24 +308,10 @@ export function ContractFormModal({
                       )}
                     </label>
                     <div className="flex relative items-center">
-                      <input 
-                        type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" 
-                        placeholder="0000000-00..." 
-                        value={currentProcess.process_number} 
-                        onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} 
-                      />
-                      <button 
-                        onClick={handleCNJSearch}
-                        disabled={searchingCNJ || !currentProcess.process_number}
-                        className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        title="Identificar Tribunal (Algoritmo CNJ)"
-                      >
-                        {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                      </button>
+                      <input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} />
+                      <button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button>
                     </div>
                   </div>
-
                   <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                   <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
                   <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
@@ -300,6 +322,8 @@ export function ContractFormModal({
             )}
           </section>
 
+          {/* ... RESTANTE DO FORMULÁRIO (FINANCEIRO, ARQUIVOS, ETC) ... */}
+          {/* Mantido igual à versão anterior */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center">
               <Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}
