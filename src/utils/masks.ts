@@ -9,7 +9,6 @@ export const maskCNPJ = (value: string) => {
 };
 
 export const maskCNJ = (value: string) => {
-  // Máscara básica de CNJ: 0000000-00.0000.0.00.0000
   return value
     .replace(/\D/g, '')
     .replace(/^(\d{7})(\d)/, '$1-$2')
@@ -17,7 +16,7 @@ export const maskCNJ = (value: string) => {
     .replace(/(\d{4})(\d)/, '$1.$2')
     .replace(/(\d{1})(\d)/, '$1.$2')
     .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(-\d{4})\d+?$/, '$1'); // Limita o tamanho
+    .replace(/(-\d{4})\d+?$/, '$1');
 };
 
 export const maskMoney = (value: string) => {
@@ -27,7 +26,6 @@ export const maskMoney = (value: string) => {
 };
 
 export const maskHon = (value: string) => {
-  // Máscara 0000000/000
   return value
     .replace(/\D/g, '')
     .replace(/^(\d{7})(\d)/, '$1/$2')
@@ -37,4 +35,10 @@ export const maskHon = (value: string) => {
 export const unmaskMoney = (value: string) => {
   if (!value) return 0;
   return Number(value.replace(/\D/g, '')) / 100;
+};
+
+// Nova função para Title Case (Ex: "joao da silva" -> "Joao Da Silva")
+export const toTitleCase = (str: string) => {
+  if (!str) return '';
+  return str.toLowerCase().replace(/(?:^|\s)\w/g, (match) => match.toUpperCase());
 };
