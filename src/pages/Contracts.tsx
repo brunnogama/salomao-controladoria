@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -106,13 +106,11 @@ export function Contracts() {
     setEditingContractId(contract.id);
     setInitialStatus(contract.status);
     
-    // Popula o form
     const baseData = { ...contract };
     if (contract.hon_number) baseData.hon_number = maskHon(contract.hon_number);
     baseData.physical_signature = contract.physical_signature || false;
     
     setFormData(baseData);
-    
     await fetchProcessesForContract(contract.id);
     await fetchTimeline(contract.id);
     setLoading(false);
@@ -306,7 +304,6 @@ export function Contracts() {
   };
 
   // --- FILTERING ---
-  // AQUI estava o erro: esta variável não existia ou foi apagada acidentalmente
   const filteredAndSortedContracts = contracts
     .filter(c => {
       const matchesStatus = statusFilter ? c.status === statusFilter : true;

@@ -55,9 +55,6 @@ export interface Contract {
   rejection_reason?: string;
   probono_date?: string;
   
-  // New Field
-  physical_signature?: boolean;
-  
   // Financial
   pro_labore?: string;
   final_success_fee?: string;
@@ -65,9 +62,12 @@ export interface Contract {
   intermediate_fees?: string[];
   timesheet?: boolean;
   other_fees?: string;
+  
+  // New
+  physical_signature?: boolean;
 
   // Display fields (joins)
   partner_name?: string;
   process_count?: number;
   created_at?: string;
-}s
+}
