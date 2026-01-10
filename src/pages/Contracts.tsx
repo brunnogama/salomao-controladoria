@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { maskCNPJ, maskCNJ, maskMoney, maskHon, unmaskMoney, toTitleCase } from '../utils/masks';
-import { Search, Plus, Filter, FileSpreadsheet, LayoutGrid, List as ListIcon, Trash2, Edit, X, Save, Settings, Check, ChevronDown, Clock } from 'lucide-react';
+import { Search, Plus, Filter, FileSpreadsheet, LayoutGrid, List as ListIcon, Trash2, Edit, X, Save, Settings, Check, ChevronDown, Clock, ArrowDownAZ, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // --- TYPES ---
@@ -19,8 +19,8 @@ interface Contract {
   cnpj: string;
   has_no_cnpj: boolean;
   client_name: string;
-  client_position: string; // Autor ou Réu
-  company_name: string; // Contrário
+  client_position: string;
+  company_name: string;
   has_legal_process: boolean;
   uf: string;
   area: string;
@@ -42,7 +42,7 @@ interface Contract {
   pro_labore?: string;
   final_success_fee?: string;
   final_success_percent?: string;
-  intermediate_fees?: string[]; // Array de valores
+  intermediate_fees?: string[];
   timesheet?: boolean;
   other_fees?: string;
 }
@@ -88,9 +88,11 @@ export function Contracts() {
   // Fee State
   const [newIntermediateFee, setNewIntermediateFee] = useState('');
 
-  // Filters
+  // Filters & Sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState<'name' | 'date'>('name');
 
   // --- INIT ---
   useEffect(() => {
@@ -111,7 +113,7 @@ export function Contracts() {
       clients(name),
       partners(name),
       contract_processes(count)
-    `).order('created_at', { ascending: false });
+    `);
 
     const { data, error } = await query;
     if (!error && data) {
@@ -120,13 +122,30 @@ export function Contracts() {
         client_name: d.clients?.name,
         partner_name: d.partners?.name,
         process_count: d.contract_processes?.[0]?.count || 0,
-        // Parse JSON financial data back to flat structure
         ...d.financial_data
       }));
       setContracts(formatted);
     }
     setLoading(false);
   };
+
+  // --- FILTERING & SORTING LOGIC ---
+  const filteredAndSortedContracts = contracts
+    .filter(c => {
+      const matchesStatus = statusFilter ? c.status === statusFilter : true;
+      const matchesPartner = partnerFilter ? c.partner_id === partnerFilter : true;
+      const matchesSearch = searchTerm ? 
+        (c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         c.hon_number?.includes(searchTerm)) : true;
+      return matchesStatus && matchesPartner && matchesSearch;
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'name') {
+        return (a.client_name || '').localeCompare(b.client_name || '');
+      } else {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
 
   // --- PARTNER ACTIONS ---
   const handleAddPartner = async () => {
@@ -149,7 +168,6 @@ export function Contracts() {
   };
 
   const handleDeletePartner = async (id: string) => {
-    // Soft delete
     const { error } = await supabase.from('partners').update({ active: false }).eq('id', id);
     if (!error) {
       setPartners(partners.filter(p => p.id !== id));
@@ -176,15 +194,12 @@ export function Contracts() {
 
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return;
-    
     if (editingProcessIndex !== null) {
-      // Edit existing
       const updated = [...processes];
       updated[editingProcessIndex] = currentProcess;
       setProcesses(updated);
       setEditingProcessIndex(null);
     } else {
-      // Add new
       setProcesses(prev => [...prev, currentProcess]);
     }
     setCurrentProcess({ process_number: '', cause_value: '', court: '', judge: '' });
@@ -199,7 +214,6 @@ export function Contracts() {
     setProcesses(processes.filter((_, i) => i !== index));
   };
 
-  // Fee Management
   const addIntermediateFee = () => {
     if (!newIntermediateFee) return;
     setFormData(prev => ({
@@ -219,7 +233,6 @@ export function Contracts() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // 1. Client
       let clientId = null;
       if (formData.cnpj) {
         const { data } = await supabase.from('clients').upsert({ cnpj: formData.cnpj, name: formData.client_name }, { onConflict: 'cnpj' }).select('id').single();
@@ -229,7 +242,6 @@ export function Contracts() {
         clientId = data?.id;
       }
 
-      // 2. Contract
       const financialData = {
         pro_labore: formData.pro_labore,
         final_success_fee: formData.final_success_fee,
@@ -263,12 +275,8 @@ export function Contracts() {
 
       if (error) throw error;
 
-      // 3. Processes
       if (contractData && processes.length > 0) {
-        // Delete old processes for this contract (simple sync strategy)
-        // Note: In a real app, you might want to update existing IDs
         await supabase.from('contract_processes').delete().eq('contract_id', contractData.id);
-        
         const processesToSave = processes.map(p => ({
           contract_id: contractData.id,
           process_number: p.process_number,
@@ -335,18 +343,21 @@ export function Contracts() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
-          <div className="relative flex-1 max-w-md">
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+        
+        {/* Search & Filters */}
+        <div className="flex flex-1 gap-3 w-full">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input 
               type="text" 
-              placeholder="Buscar por cliente, empresa ou OAB..." 
+              placeholder="Buscar por cliente..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-salomao-blue focus:border-transparent outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-salomao-blue outline-none"
             />
           </div>
+          
           <select 
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-salomao-blue"
             value={statusFilter}
@@ -356,12 +367,45 @@ export function Contracts() {
             <option value="analysis">Sob Análise</option>
             <option value="proposal">Proposta Enviada</option>
             <option value="active">Contrato Fechado</option>
+            <option value="rejected">Rejeitado</option>
+          </select>
+
+          <select 
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-salomao-blue"
+            value={partnerFilter}
+            onChange={(e) => setPartnerFilter(e.target.value)}
+          >
+            <option value="">Todos Sócios</option>
+            {partners.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
           </select>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={exportToExcel} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors">
+
+        {/* Tools: Sort, Export, View */}
+        <div className="flex items-center gap-3 border-l pl-4 border-gray-200">
+           {/* Sorting */}
+           <div className="flex bg-gray-100 rounded-lg p-1 mr-2">
+            <button 
+              onClick={() => setSortOrder('name')} 
+              className={`p-1.5 rounded flex items-center gap-1 text-xs font-medium transition-all ${sortOrder === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}
+              title="Ordenar por Nome"
+            >
+              <ArrowDownAZ className="w-4 h-4" /> Nome
+            </button>
+            <button 
+              onClick={() => setSortOrder('date')} 
+              className={`p-1.5 rounded flex items-center gap-1 text-xs font-medium transition-all ${sortOrder === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}
+              title="Ordenar por Data"
+            >
+              <Calendar className="w-4 h-4" /> Data
+            </button>
+           </div>
+
+          <button onClick={exportToExcel} className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors" title="Exportar Excel">
             <FileSpreadsheet className="w-5 h-5" />
           </button>
+          
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow text-salomao-blue' : 'text-gray-400'}`}>
               <ListIcon className="w-5 h-5" />
@@ -373,7 +417,7 @@ export function Contracts() {
         </div>
       </div>
 
-      {/* List/Card View */}
+      {/* Content */}
       {viewMode === 'list' ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-left">
@@ -381,45 +425,60 @@ export function Contracts() {
               <tr>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Cliente</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Contrário</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Sócio Responsável</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Proc. Vinculados</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {contracts.filter(c => (statusFilter ? c.status === statusFilter : true) && (searchTerm ? c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) : true)).map((contract) => (
-                <tr key={contract.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
-                      {getStatusLabel(contract.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{contract.client_name} <span className="text-gray-400 text-xs">({contract.client_position})</span></td>
-                  <td className="px-6 py-4 text-gray-600">{contract.company_name || '-'}</td>
-                  <td className="px-6 py-4 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-700">{contract.process_count}</span></td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
-                  </td>
-                </tr>
-              ))}
+              {filteredAndSortedContracts.length === 0 ? (
+                 <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">Nenhum contrato encontrado com esses filtros.</td>
+                 </tr>
+              ) : (
+                filteredAndSortedContracts.map((contract) => (
+                  <tr key={contract.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
+                        {getStatusLabel(contract.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{contract.client_name} <span className="text-gray-400 text-xs font-normal">({contract.client_position})</span></td>
+                    <td className="px-6 py-4 text-gray-600 flex items-center gap-2">
+                       <div className="w-6 h-6 rounded-full bg-salomao-blue text-white flex items-center justify-center text-xs">
+                          {contract.partner_name?.charAt(0)}
+                       </div>
+                       {contract.partner_name || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-700">{contract.process_count}</span></td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {contracts.map(c => (
+          {filteredAndSortedContracts.map(c => (
              <div key={c.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(c.status)}`}>{getStatusLabel(c.status)}</span>
                 </div>
                 <h3 className="font-bold text-gray-800 text-lg mb-1">{c.client_name}</h3>
-                <p className="text-sm text-gray-500 mb-4">{c.company_name}</p>
+                <p className="text-sm text-gray-500 mb-4">{c.client_position}</p>
+                <div className="border-t pt-4 flex justify-between items-center text-xs text-gray-500">
+                   <span>{c.process_count} Processos</span>
+                   <span className="font-semibold text-salomao-blue">{c.partner_name}</span>
+                </div>
              </div>
           ))}
         </div>
       )}
 
-      {/* --- MODAL --- */}
+      {/* --- MODAL (Mantido igual) --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200">
@@ -434,7 +493,6 @@ export function Contracts() {
 
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               
-              {/* STATUS */}
               <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Status Atual do Caso</label>
                 <div className="relative">
@@ -453,7 +511,6 @@ export function Contracts() {
                 </div>
               </div>
 
-              {/* DADOS CADASTRAIS */}
               <section className="space-y-5">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Dados do Cliente</h3>
                 
@@ -574,7 +631,6 @@ export function Contracts() {
 
                 {formData.has_legal_process && (
                   <div className="space-y-4">
-                    {/* Contrário (MOVED HERE) */}
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Contrário (Parte Oposta)</label>
                       <input type="text" className="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" placeholder="Nome da parte contrária" value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} />
@@ -604,7 +660,6 @@ export function Contracts() {
                       </div>
                     </div>
 
-                    {/* List */}
                     {processes.length > 0 && (
                       <div className="space-y-2">
                         {processes.map((p, idx) => (
@@ -627,14 +682,12 @@ export function Contracts() {
                 )}
               </section>
 
-              {/* FASES E STATUS */}
               <section className="border-t pt-6">
                 <h3 className="text-sm font-bold text-salomao-gold uppercase tracking-wider mb-6 flex items-center">
                   <Clock className="w-4 h-4 mr-2" />
                   Detalhes da Fase: {getStatusLabel(formData.status)}
                 </h3>
 
-                {/* --- SOB ANÁLISE --- */}
                 {formData.status === 'analysis' && (
                   <div className="grid grid-cols-2 gap-5">
                     <div>
@@ -648,7 +701,6 @@ export function Contracts() {
                   </div>
                 )}
 
-                {/* --- PROPOSTA ENVIADA (CAMPOS NOVOS) --- */}
                 {(formData.status === 'proposal' || formData.status === 'active') && (
                   <div className="space-y-6 animate-in slide-in-from-top-2">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -670,7 +722,6 @@ export function Contracts() {
                        </div>
                     </div>
 
-                    {/* Êxitos Intermediários */}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                       <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Êxitos Intermediários</label>
                       <div className="flex gap-2 mb-3">
@@ -700,7 +751,6 @@ export function Contracts() {
                   </div>
                 )}
 
-                {/* --- CONTRATO FECHADO (EXTRA FIELDS) --- */}
                 {formData.status === 'active' && (
                   <div className="mt-6 p-4 bg-green-50 border border-green-100 rounded-xl animate-in fade-in">
                     <div className="grid grid-cols-2 gap-4">
@@ -716,7 +766,6 @@ export function Contracts() {
                   </div>
                 )}
                 
-                {/* --- REJEITADA --- */}
                 {formData.status === 'rejected' && (
                    <div className="grid grid-cols-3 gap-4">
                       <input type="date" className="border p-2 rounded" onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
@@ -736,7 +785,6 @@ export function Contracts() {
                 )}
               </section>
 
-              {/* OBSERVAÇÕES */}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label>
                 <textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:ring-2 focus:ring-salomao-blue outline-none" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea>
