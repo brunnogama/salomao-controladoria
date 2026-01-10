@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { User, Lock, ArrowRight } from 'lucide-react';
+import { User, Lock, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
 
 export function Login() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,8 +14,6 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
-    const email = `${username}@salomaoadv.com.br`;
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -26,122 +24,108 @@ export function Login() {
       if (error) throw error;
       navigate('/dashboard');
     } catch (err: any) {
-      setError('Credenciais inválidas. Verifique e tente novamente.');
+      setError('Credenciais inválidas. Verifique seu usuário e senha.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen w-full bg-white overflow-hidden">
-      {/* Lado Esquerdo - Formulário */}
-      <div className="w-full lg:w-[40%] flex flex-col justify-center items-center p-8 sm:p-12 lg:p-16 relative">
-        <div className="w-full max-w-md space-y-8">
-          
-          <div className="text-center mb-10">
-            <img 
-              src="/logo-salomao.png" 
-              alt="Salomão Advogados" 
-              className="h-16 mx-auto mb-4 object-contain" 
-            />
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                Usuário Corporativo
-              </label>
-              {/* REMOVIDO: focus-within:ring-salomao-blue */}
-              <div className="flex rounded-md shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-1 focus-within:ring-gray-400 transition-shadow">
-                <div className="pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="block flex-1 border-0 bg-transparent py-3 pl-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
-                  placeholder="nome.sobrenome"
-                  required
-                />
-                <span className="flex select-none items-center pr-3 text-gray-500 sm:text-sm bg-gray-50 px-3">
-                  @salomaoadv.com.br
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                Senha
-              </label>
-              {/* REMOVIDO: focus-within:ring-salomao-blue */}
-              <div className="relative rounded-md shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-1 focus-within:ring-gray-400 transition-shadow">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Lock className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-md border-0 bg-transparent py-3 pl-10 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="text-red-500 text-sm text-center font-medium">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative flex w-full justify-center items-center rounded-md bg-salomao-blue px-3 py-3 text-sm font-semibold text-white hover:bg-[#0B2138] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-salomao-blue transition-all duration-200 uppercase tracking-wider"
-            >
-              {loading ? 'Acessando...' : 'Acessar Sistema'}
-              {!loading && <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />}
-            </button>
-          </form>
-
-          <p className="absolute bottom-6 left-0 w-full text-center text-[10px] text-gray-400 tracking-widest uppercase">
-            © 2026 Salomão Advogados • v2.5.0
-          </p>
-        </div>
-      </div>
-
-      {/* Lado Direito - Branding */}
-      <div className="hidden lg:flex w-[60%] bg-salomao-dark relative overflow-hidden items-center">
-        {/* Overlay de imagem de livros */}
-        <div 
-          className="absolute inset-0 z-0 opacity-10 mix-blend-overlay"
-          style={{
-            backgroundImage: 'url("https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070&auto=format&fit=crop")',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4 font-sans">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white p-8 sm:p-10 animate-in fade-in zoom-in duration-300">
         
-        <div className="relative z-10 px-20 max-w-2xl">
-          <div className="inline-flex items-center justify-center p-3 border border-white/20 rounded-full mb-8 backdrop-blur-sm">
-            <ArrowRight className="text-salomao-gold w-5 h-5" />
+        {/* LOGO AREA */}
+        <div className="flex flex-col items-center mb-10">
+          {/* Substitua pelo seu arquivo de logo real, se tiver. Usei texto estilizado como fallback */}
+          <div className="mb-4">
+             <img src="/logo-azul.png" alt="Salomão Advogados" className="h-16 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
+             {/* Fallback visual caso a imagem não carregue */}
+             <div className="text-center">
+                <h1 className="text-3xl font-serif font-bold text-[#0F2C4C] tracking-wide">SALOMÃO</h1>
+                <p className="text-xs text-gray-400 uppercase tracking-[0.3em] mt-1">Advogados</p>
+             </div>
           </div>
-          
-          <h1 className="text-4xl font-bold text-white mb-6 leading-tight">
-            Controladoria Jurídica <br/>
-            <span className="text-white">Estratégica</span>
-          </h1>
-          
-          {/* Linha Dourada */}
-          <div className="w-16 h-1 bg-salomao-gold mb-8"></div>
-          
-          <p className="text-gray-300 text-lg font-light leading-relaxed">
-            Gestão inteligente de processos e contratos. A tecnologia garantindo a segurança e eficiência do <strong className="text-white font-semibold">Salomão Advogados</strong>.
-          </p>
         </div>
+
+        <form onSubmit={handleLogin} className="space-y-6">
+          
+          {/* USER INPUT */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Usuário Corporativo</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <User className="h-5 w-5 text-gray-400 group-focus-within:text-[#0F2C4C] transition-colors duration-300" />
+              </div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm 
+                           outline-none transition-all duration-300
+                           focus:bg-white focus:border-[#0F2C4C]/30 focus:ring-4 focus:ring-[#0F2C4C]/5
+                           placeholder:text-gray-400"
+                placeholder="nome.sobrenome@salomaoadv.com.br"
+                required
+              />
+            </div>
+          </div>
+
+          {/* PASSWORD INPUT */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Senha de Acesso</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-[#0F2C4C] transition-colors duration-300" />
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="block w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm 
+                           outline-none transition-all duration-300
+                           focus:bg-white focus:border-[#0F2C4C]/30 focus:ring-4 focus:ring-[#0F2C4C]/5
+                           placeholder:text-gray-400"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+          </div>
+
+          {/* ERROR MESSAGE */}
+          {error && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-100 flex items-center gap-2 text-red-600 text-xs font-medium animate-in slide-in-from-top-1">
+              <div className="w-1 h-1 rounded-full bg-red-500" />
+              {error}
+            </div>
+          )}
+
+          {/* SUBMIT BUTTON */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl text-sm font-semibold text-white 
+                       bg-[#0F2C4C] hover:bg-[#1a3b61] 
+                       shadow-[0_4px_14px_0_rgba(15,44,76,0.39)] hover:shadow-[0_6px_20px_rgba(15,44,76,0.23)] hover:-translate-y-0.5
+                       transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                Entrar no Sistema
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </>
+            )}
+          </button>
+
+          {/* FOOTER */}
+          <div className="pt-4 text-center">
+            <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+              <ShieldCheck className="w-3 h-3" />
+              Ambiente Seguro | Controladoria Jurídica
+            </p>
+          </div>
+        </form>
       </div>
     </div>
   );
