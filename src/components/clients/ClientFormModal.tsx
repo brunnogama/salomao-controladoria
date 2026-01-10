@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { X, Save, Building2, User, Globe, Mail, MapPin, Search, Loader2 } from 'lucide-react';
-import { Client } from '../../types';
+import React, { useState } from 'react';
+import { X, Save, Building2, User, Globe, Mail, MapPin, Search, Loader2, Settings } from 'lucide-react';
+import { Client, Partner } from '../../types';
 import { maskCNPJ, toTitleCase } from '../../utils/masks';
 import { CustomSelect } from '../ui/CustomSelect';
 
@@ -25,9 +24,10 @@ interface Props {
   onSave: () => void;
   loading: boolean;
   isEditing: boolean;
+  partners: Partner[]; // Recebe a lista de sócios
 }
 
-export function ClientFormModal({ isOpen, onClose, formData, setFormData, onSave, loading, isEditing }: Props) {
+export function ClientFormModal({ isOpen, onClose, formData, setFormData, onSave, loading, isEditing, partners }: Props) {
   const [searching, setSearching] = useState(false);
 
   const handleCNPJSearch = async () => {
@@ -61,6 +61,8 @@ export function ClientFormModal({ isOpen, onClose, formData, setFormData, onSave
   const handleTextChange = (field: keyof Client, value: string) => {
     setFormData({ ...formData, [field]: field === 'email' || field === 'website' ? value : toTitleCase(value) });
   };
+
+  const partnerOptions = partners.map(p => ({ label: p.name, value: p.id }));
 
   if (!isOpen) return null;
 
@@ -128,14 +130,26 @@ export function ClientFormModal({ isOpen, onClose, formData, setFormData, onSave
               />
             </div>
 
-            {/* CONTATO */}
-            <div className="md:col-span-6">
+            {/* CONTATO & SÓCIO RESPONSÁVEL */}
+            <div className="md:col-span-4">
               <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center"><Mail className="w-3 h-3 mr-1"/> E-mail</label>
               <input type="email" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={formData.email || ''} onChange={(e) => handleTextChange('email', e.target.value)} />
             </div>
-            <div className="md:col-span-6">
+            <div className="md:col-span-4">
               <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center"><Globe className="w-3 h-3 mr-1"/> Site</label>
               <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none" placeholder="www.empresa.com.br" value={formData.website || ''} onChange={(e) => handleTextChange('website', e.target.value)} />
+            </div>
+            
+            {/* NOVO CAMPO: SÓCIO RESPONSÁVEL */}
+            <div className="md:col-span-4">
+              <CustomSelect 
+                label="Sócio Responsável"
+                value={formData.partner_id}
+                onChange={(val: any) => setFormData({...formData, partner_id: val})}
+                options={partnerOptions}
+                placeholder="Selecione..."
+                actionIcon={Settings}
+              />
             </div>
 
             {/* ENDEREÇO */}

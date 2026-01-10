@@ -1,23 +1,3 @@
-// Adicione/Atualize estas interfaces
-
-export interface Client {
-  id?: string;
-  name: string;
-  cnpj: string;
-  is_person: boolean;
-  address?: string;
-  number?: string;
-  complement?: string;
-  city?: string;
-  uf?: string;
-  email?: string;
-  website?: string;
-  created_at?: string;
-  // Campos virtuais (calculados na query)
-  active_contracts_count?: number;
-  contracts_hon?: string[]; // Array de números HON
-}
-
 export interface Partner {
   id: string;
   name: string;
@@ -63,13 +43,34 @@ export interface KanbanTask {
   created_at?: string;
 }
 
+export interface Client {
+  id?: string;
+  name: string;
+  cnpj: string;
+  is_person: boolean;
+  address?: string;
+  number?: string;
+  complement?: string;
+  city?: string;
+  uf?: string;
+  email?: string;
+  website?: string;
+  partner_id?: string; // Sócio Responsável pelo Cliente
+  created_at?: string;
+  
+  // Campos virtuais (calculados na query/frontend)
+  active_contracts_count?: number;
+  contracts_hon?: string[];
+  partner_name?: string; // Nome do sócio para exibição na lista
+}
+
 export interface Contract {
   id?: string;
   status: 'analysis' | 'proposal' | 'active' | 'rejected' | 'probono';
   cnpj: string;
   has_no_cnpj: boolean;
   client_name: string;
-  client_id?: string; // Novo vínculo
+  client_id?: string; // Vínculo com a tabela de Clientes
   client_position: string;
   company_name: string;
   has_legal_process: boolean;
@@ -88,7 +89,10 @@ export interface Contract {
   rejection_reason?: string;
   probono_date?: string;
   
+  // Assinatura Física (true = Sim, false = Não/Cobrar, undefined = Não preenchido)
   physical_signature?: boolean; 
+  
+  // Local de Faturamento (Ex: Salomão RJ, Salomão SP)
   billing_location?: string;
   
   pro_labore?: string;
