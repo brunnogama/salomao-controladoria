@@ -70,4 +70,4 @@ export interface Contract {
   partner_name?: string;
   process_count?: number;
   created_at?: string;
-}
+}s
