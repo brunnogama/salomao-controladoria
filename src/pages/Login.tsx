@@ -52,7 +52,8 @@ export function Login() {
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                 Usuário Corporativo
               </label>
-              <div className="flex rounded-md shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-salomao-blue">
+              {/* REMOVIDO: focus-within:ring-salomao-blue */}
+              <div className="flex rounded-md shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-1 focus-within:ring-gray-400 transition-shadow">
                 <div className="pl-3 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-gray-400" />
                 </div>
@@ -64,7 +65,6 @@ export function Login() {
                   placeholder="nome.sobrenome"
                   required
                 />
-                {/* Removido border-l e border-gray-200 daqui */}
                 <span className="flex select-none items-center pr-3 text-gray-500 sm:text-sm bg-gray-50 px-3">
                   @salomaoadv.com.br
                 </span>
@@ -75,7 +75,8 @@ export function Login() {
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                 Senha
               </label>
-              <div className="relative rounded-md shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-2 focus-within:ring-salomao-blue">
+              {/* REMOVIDO: focus-within:ring-salomao-blue */}
+              <div className="relative rounded-md shadow-sm ring-1 ring-inset ring-gray-300 focus-within:ring-1 focus-within:ring-gray-400 transition-shadow">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                   <Lock className="h-5 w-5 text-gray-400" aria-hidden="true" />
                 </div>
