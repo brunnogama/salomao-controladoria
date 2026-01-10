@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase } from '../../utils/masks';
-import { decodeCNJ } from '../../utils/cnjDecoder'; // <--- Importe o novo utilitário
+import { decodeCNJ } from '../../utils/cnjDecoder';
 
 const UFS = [
   { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' },
@@ -30,7 +30,8 @@ interface Props {
   onCNPJSearch: () => void;
   processes: ContractProcess[];
   currentProcess: ContractProcess;
-  setCurrentProcess: (p: ContractProcess) => void;
+  // CORREÇÃO AQUI: Tipagem correta para o setter do useState
+  setCurrentProcess: React.Dispatch<React.SetStateAction<ContractProcess>>;
   editingProcessIndex: number | null;
   handleProcessAction: () => void;
   editProcess: (idx: number) => void;
@@ -115,18 +116,25 @@ export function ContractFormModal({
 
   // --- LÓGICA DE BUSCA DO CNJ ---
   const handleCNJSearch = async () => {
-    setSearchingCNJ(true);
+    const cnjRaw = currentProcess.process_number || '';
+    const cnj = cnjRaw.replace(/\D/g, '');
     
-    // 1. Simula delay de rede para feedback visual
+    if (cnj.length < 15) {
+      alert('Digite um número CNJ válido para buscar.');
+      return;
+    }
+
+    setSearchingCNJ(true);
+
+    // Simula delay de rede e uso da utilitário
     setTimeout(() => {
-      const info = decodeCNJ(currentProcess.process_number);
+      const info = decodeCNJ(cnj);
       
       if (info) {
         setCurrentProcess(prev => ({
           ...prev,
           court: info.tribunal,
-          // Não podemos "adivinhar" o juiz ou valor sem API paga, então deixamos placeholders para o usuário preencher
-          // ou mantemos o que já estava se ele digitou algo.
+          // Mantém o que o usuário já digitou ou usa placeholder
           judge: prev.judge || '', 
           cause_value: prev.cause_value || ''
         }));
@@ -138,7 +146,8 @@ export function ContractFormModal({
   };
 
   const handleOpenJusbrasil = () => {
-    const cleanCNJ = currentProcess.process_number.replace(/\D/g, '');
+    const cnjRaw = currentProcess.process_number || '';
+    const cleanCNJ = cnjRaw.replace(/\D/g, '');
     if (cleanCNJ.length > 5) {
       window.open(`https://www.jusbrasil.com.br/processos/busca/${cleanCNJ}`, '_blank');
     }
