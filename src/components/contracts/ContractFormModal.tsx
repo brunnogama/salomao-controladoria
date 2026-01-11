@@ -7,6 +7,7 @@ import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
 import { CustomSelect } from '../ui/CustomSelect';
 
+// ... (Mantenha as constantes UFS e as funções auxiliares FinancialInputWithInstallments, getEffectiveDate, etc. IGUAIS) ...
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
 const FinancialInputWithInstallments = ({ 
@@ -141,6 +142,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // ... (Manter handleCreateStatus, fetchDocuments, upsertClient, handleAddToList, removeExtra, updateExtra iguais) ...
   const handleCreateStatus = async () => {
     const newLabel = window.prompt("Digite o nome do novo Status:");
     if (!newLabel) return;
@@ -210,6 +212,7 @@ export function ContractFormModal(props: Props) {
     });
   };
 
+  // ... (Manter generateFinancialInstallments igual) ...
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
@@ -266,20 +269,6 @@ export function ContractFormModal(props: Props) {
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
-  const forceUpdateFinancials = async (contractId: string) => {
-    const cleanPL = parseCurrency(formData.pro_labore);
-    const cleanSuccess = parseCurrency(formData.final_success_fee);
-    const cleanFixed = parseCurrency(formData.fixed_monthly_fee);
-    const cleanOther = parseCurrency(formData.other_fees);
-
-    await supabase.from('contracts').update({
-      pro_labore: cleanPL,
-      final_success_fee: cleanSuccess,
-      fixed_monthly_fee: cleanFixed,
-      other_fees: cleanOther
-    }).eq('id', contractId);
-  };
-
   const handleSaveWithIntegrations = async () => {
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
@@ -297,6 +286,7 @@ export function ContractFormModal(props: Props) {
     try {
         const clientId = await upsertClient();
         
+        // PAYLOAD LIMPO (SEM OBJETOS JOINADOS)
         const contractPayload: any = {
             ...formData,
             client_id: clientId || formData.client_id,
@@ -305,14 +295,19 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
+            // REMOVE CAMPOS VIRTUAIS/ESTRANGEIROS PARA EVITAR ERRO PGRST204
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
-            analysts: undefined,
-            clients: undefined, 
+            analyst: undefined,  // Correção CRÍTICA: singular
+            analysts: undefined, // Plural (por segurança)
+            client: undefined,   // Objeto client joinado
+            partner: undefined,  // Objeto partner joinado
+            processes: undefined, // Objeto processes joinado
             partners: undefined,
             id: undefined,
             
+            // Remove arrays de controle local
             pro_labore_extras: undefined,
             final_success_extras: undefined,
             fixed_monthly_extras: undefined,
@@ -354,7 +349,9 @@ export function ContractFormModal(props: Props) {
             alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.\n\nPor favor, verifique se o número foi digitado corretamente ou se este caso já foi inserido anteriormente.');
         } else if (error.code === 'PGRST204') {
              console.warn('Erro de estrutura de dados:', error.message);
-             alert('Ocorreu um erro técnico ao processar os dados do formulário.\n\nNossa equipe técnica foi notificada. Por favor, tente novamente em instantes.');
+             // Tenta extrair o nome da coluna problemática para ajudar
+             const column = error.message.match(/'([^']+)'/)?.[1];
+             alert(`Erro Técnico: O sistema tentou salvar um campo inválido (${column || 'desconhecido'}).\n\nIsso geralmente ocorre ao editar dados carregados. Tente recarregar a página.`);
         } else {
             alert('Não foi possível salvar as alterações.\n\nVerifique sua conexão com a internet e se todos os campos obrigatórios (*) estão preenchidos.');
         }
@@ -363,6 +360,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // ... (Resto do componente: handleAddLocation, handleCNPJSearch, etc. IGUAL) ...
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
@@ -398,7 +396,6 @@ export function ContractFormModal(props: Props) {
           </div>
 
           <section className="space-y-5">
-            {/* ... (Seção Dados do Cliente - IGUAL) ... */}
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
               <div className="md:col-span-3">
@@ -423,7 +420,6 @@ export function ContractFormModal(props: Props) {
             {formData.has_legal_process && (
               <div className="space-y-4">
                 <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                  {/* ... (Campos de input do processo - IGUAL) ... */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Turma</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
@@ -436,29 +432,11 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md">{editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div>
                   </div>
                 </div>
-                {processes.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    {processes.map((p, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
-                        {/* LISTAGEM DE PROCESSOS: GRID 3 COLUNAS E REMOÇÃO DO VALOR DA CAUSA */}
-                        <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
-                          <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
-                          <span className="text-gray-600">{p.court} ({formData.uf})</span>
-                          <span className="text-gray-500 truncate">{p.judge}</span>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {processes.length > 0 && (<div className="space-y-2 mt-4">{processes.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div className="grid grid-cols-3 gap-4 flex-1 text-xs"><span className="font-mono font-medium text-gray-800">{p.process_number}</span><span className="text-gray-600">{p.court} ({formData.uf})</span><span className="text-gray-500 truncate">{p.judge}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button><button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>)}
               </div>
             )}
           </section>
 
-          {/* ... (Seção Financeira e Uploads - MANTER IGUAL) ... */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
             
