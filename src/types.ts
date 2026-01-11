@@ -130,3 +130,13 @@ export interface FinancialInstallment {
   paid_at?: string;
   contract?: Contract; 
 }
+
+export interface Contract {
+  // ... (outros campos existentes)
+  
+  // Adicione estes dois:
+  fixed_monthly_fee?: string;
+  fixed_monthly_fee_installments?: string;
+
+  // ... (restante do arquivo)
+}
