@@ -1,29 +1,36 @@
+export interface Client {
+  id?: string;
+  name: string;
+  cnpj: string;
+  is_person: boolean;
+  uf?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  city?: string;
+  email?: string;
+}
+
 export interface Partner {
   id: string;
   name: string;
-  active: boolean;
+  email?: string;
 }
 
 export interface Analyst {
   id: string;
   name: string;
-  active: boolean;
+  email?: string;
+  role?: string;
 }
 
 export interface ContractProcess {
   id?: string;
+  contract_id?: string;
   process_number: string;
-  cause_value: string;
-  court: string;
-  judge: string;
-}
-
-export interface TimelineEvent {
-  id: string;
-  previous_status: string;
-  new_status: string;
-  changed_by: string;
-  changed_at: string;
+  cause_value?: string;
+  court?: string;
+  judge?: string;
 }
 
 export interface ContractDocument {
@@ -36,92 +43,20 @@ export interface ContractDocument {
   hon_number_ref?: string;
 }
 
-export interface KanbanTask {
+export interface TimelineEvent {
   id: string;
-  title: string;
-  description?: string;
-  priority: 'Alta' | 'Média' | 'Baixa';
-  status: 'todo' | 'doing' | 'done' | 'signature';
-  position: number;
-  due_date?: string;
-  contract_id?: string;
-  observation?: string;
-  created_at?: string;
-}
-
-export interface Client {
-  id?: string;
-  name: string;
-  cnpj: string;
-  is_person: boolean;
-  address?: string;
-  number?: string;
-  complement?: string;
-  city?: string;
-  uf?: string;
-  email?: string;
-  website?: string;
-  partner_id?: string;
-  created_at?: string;
-  
-  // Campos virtuais
-  active_contracts_count?: number;
-  contracts_hon?: string[];
-  partner_name?: string;
-}
-
-export interface Contract {
-  id?: string;
-  status: 'analysis' | 'proposal' | 'active' | 'rejected' | 'probono';
-  cnpj: string;
-  has_no_cnpj: boolean;
-  client_name: string;
-  client_id?: string;
-  client_position: string;
-  company_name: string;
-  has_legal_process: boolean;
-  uf: string;
-  area: string;
-  partner_id: string;
-  analyst_id?: string; // NOVO CAMPO
-  observations: string;
-  
-  prospect_date?: string;
-  analyzed_by?: string; // Mantido para legado, mas analyst_id é o principal agora
-  proposal_date?: string;
-  contract_date?: string;
-  hon_number?: string;
-  rejection_date?: string;
-  rejected_by?: string;
-  rejection_reason?: string;
-  probono_date?: string;
-  
-  physical_signature?: boolean; 
-  billing_location?: string;
-  
-  pro_labore?: string;
-  pro_labore_installments?: string;
-  
-  final_success_fee?: string;
-  final_success_fee_installments?: string;
-  
-  final_success_percent?: string;
-  intermediate_fees?: string[];
-  timesheet?: boolean;
-  
-  other_fees?: string;
-  other_fees_installments?: string;
-
-  partner_name?: string;
-  analyzed_by_name?: string; // NOVO CAMPO VIRTUAL
-  process_count?: number;
-  created_at?: string;
+  contract_id: string;
+  previous_status: string | null;
+  new_status: string;
+  changed_by: string;
+  changed_at: string;
 }
 
 export interface FinancialInstallment {
   id: string;
   contract_id: string;
-  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'other';
+  // AQUI ESTÁ A CORREÇÃO: Adicionado 'fixed'
+  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'other' | 'fixed';
   installment_number: number;
   total_installments: number;
   amount: number;
@@ -132,11 +67,76 @@ export interface FinancialInstallment {
 }
 
 export interface Contract {
-  // ... (outros campos existentes)
+  id?: string;
+  client_id?: string;
+  status: 'analysis' | 'proposal' | 'active' | 'rejected' | 'probono';
+  created_at?: string;
   
-  // Adicione estes dois:
+  // Client Info
+  cnpj: string;
+  has_no_cnpj: boolean;
+  client_name: string;
+  client_position: string;
+  area: string;
+  uf: string;
+  company_name?: string; // Parte contrária
+  
+  // Internal
+  partner_id: string;
+  analyst_id?: string; // Novo campo
+  partner_name?: string; // Virtual
+  analyzed_by_name?: string; // Virtual
+  
+  // Process
+  has_legal_process: boolean;
+  process_count?: number; // Virtual
+
+  // Dates
+  prospect_date?: string;
+  proposal_date?: string;
+  contract_date?: string;
+  rejection_date?: string;
+  probono_date?: string;
+
+  // Rejection
+  rejected_by?: string;
+  rejection_reason?: string;
+
+  // Active Contract Fields
+  hon_number?: string;
+  billing_location?: string;
+  physical_signature?: boolean;
+
+  // Financial
+  pro_labore?: string;
+  pro_labore_installments?: string;
+  
+  final_success_fee?: string;
+  final_success_fee_installments?: string;
+  final_success_percent?: string;
+  
+  intermediate_fees?: string[];
+  
+  other_fees?: string;
+  other_fees_installments?: string;
+
+  // Novos campos adicionados recentemente
   fixed_monthly_fee?: string;
   fixed_monthly_fee_installments?: string;
+  timesheet?: boolean;
 
-  // ... (restante do arquivo)
+  observations?: string;
+}
+
+export interface KanbanTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'todo' | 'doing' | 'review' | 'done' | 'billing' | 'signature';
+  priority: 'Baixa' | 'Média' | 'Alta';
+  due_date?: string;
+  assignee?: string;
+  contract_id?: string;
+  position: number;
+  contract?: Contract;
 }
