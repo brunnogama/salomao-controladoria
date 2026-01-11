@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Calendar, DollarSign, User, Briefcase, FileText, CheckCircle2, Clock, XCircle, AlertCircle, Scale, Tag } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Calendar, DollarSign, User, Briefcase, FileText, CheckCircle2, Clock, XCircle, AlertCircle, Scale, Tag, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
@@ -7,7 +7,6 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
-// ... (Manter as mesmas funções auxiliares getStatusColor e getStatusLabel)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -31,7 +30,6 @@ const getStatusLabel = (status: string) => {
 };
 
 export function Contracts() {
-  // ... (Manter todos os estados existentes)
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -42,7 +40,6 @@ export function Contracts() {
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
   
-  // Estados do formulário (Manter igual)
   const emptyContract: Contract = {
     cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: false,
     status: 'analysis', physical_signature: false
@@ -81,7 +78,6 @@ export function Contracts() {
     setLoading(false);
   };
 
-  // ... (Manter todas as funções de manipulação: handleNew, handleEdit, handleSave, processAction, etc.)
   const handleNew = () => {
     setFormData(emptyContract);
     setProcesses([]);
@@ -95,7 +91,6 @@ export function Contracts() {
     setFormData(contract);
     setIsEditing(true);
     
-    // Fetch related data
     const [procRes, timeRes] = await Promise.all([
         supabase.from('contract_processes').select('*').eq('contract_id', contract.id),
         supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false })
@@ -109,10 +104,8 @@ export function Contracts() {
 
   const handleSave = () => {
     fetchData(); 
-    // O fechamento do modal é controlado pelo próprio modal após sucesso
   };
 
-  // ... (Funções de processo e fees omitidas para brevidade, mas devem ser mantidas no arquivo original)
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return;
     if (editingProcessIndex !== null) {
@@ -151,7 +144,6 @@ export function Contracts() {
     }));
   };
 
-  // Filtragem
   const filteredContracts = contracts.filter(c => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.hon_number?.includes(searchTerm);
@@ -211,7 +203,6 @@ export function Contracts() {
           {filteredContracts.map((contract) => (
             <div key={contract.id} onClick={() => handleEdit(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
               
-              {/* Header Compacto */}
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1 min-w-0 pr-2">
                   <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
@@ -226,7 +217,6 @@ export function Contracts() {
                 )}
               </div>
 
-              {/* Informações Densas */}
               <div className="space-y-1.5 text-xs text-gray-600">
                 <div className="flex items-center">
                   <Briefcase className="w-3.5 h-3.5 mr-2 text-salomao-blue" />
@@ -242,7 +232,6 @@ export function Contracts() {
                 </div>
               </div>
 
-              {/* Footer Financeiro e Datas */}
               <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-end">
                 <div className="text-[10px] text-gray-400">
                   <div className="flex items-center">
@@ -266,7 +255,6 @@ export function Contracts() {
         </div>
       )}
 
-      {/* Modais */}
       <ContractFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -279,7 +267,7 @@ export function Contracts() {
         onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
         analysts={analysts}
         onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
-        onCNPJSearch={() => {}} // Placeholder
+        onCNPJSearch={() => {}}
         processes={processes}
         currentProcess={currentProcess}
         setCurrentProcess={setCurrentProcess}
