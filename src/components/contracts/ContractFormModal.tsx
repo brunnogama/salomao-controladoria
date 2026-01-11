@@ -168,9 +168,26 @@ export function ContractFormModal(props: Props) {
   }, [isOpen, formData.id]);
 
   const fetchStatuses = async () => {
-    const { data } = await supabase.from('contract_statuses').select('*').order('label');
+    const { data } = await supabase.from('contract_statuses').select('*');
     if (data) {
-      const options = data.map(s => ({ label: s.label, value: s.value }));
+      // Ordem prioritária fixa
+      const order = ['analysis', 'proposal', 'active', 'rejected', 'probono'];
+      
+      const sortedData = data.sort((a, b) => {
+        const indexA = order.indexOf(a.value);
+        const indexB = order.indexOf(b.value);
+        
+        // Se ambos estão na lista de prioridade, ordena pelo índice
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        // Se apenas A está na lista, vem primeiro
+        if (indexA !== -1) return -1;
+        // Se apenas B está na lista, vem primeiro
+        if (indexB !== -1) return 1;
+        // Se nenhum está (personalizados), ordena alfabeticamente
+        return a.label.localeCompare(b.label);
+      });
+
+      const options = sortedData.map(s => ({ label: s.label, value: s.value }));
       setStatusOptions(options);
     }
   };
@@ -543,17 +560,12 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
 
-            {/* FASE DE ANÁLISE: MOSTRA DATA E ANALISTA */}
+            {/* FASE: ANÁLISE (MOSTRAR SEMPRE SE FOR ANALYSIS) */}
             {(formData.status === 'analysis') && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
                 <div>
-                  <label className="text-xs font-medium block mb-1">Data Prospect</label>
-                  <input 
-                    type="date" 
-                    className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" 
-                    value={formData.prospect_date} 
-                    onChange={e => setFormData({...formData, prospect_date: e.target.value})} 
-                  />
+                  <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect</label>
+                  <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
                 </div>
                 <div>
                   <CustomSelect 
@@ -564,6 +576,7 @@ export function ContractFormModal(props: Props) {
                     onAction={onOpenAnalystManager} 
                     actionIcon={Settings} 
                     actionLabel="Gerenciar Analistas"
+                    className="bg-white border-yellow-200"
                   />
                 </div>
               </div>
