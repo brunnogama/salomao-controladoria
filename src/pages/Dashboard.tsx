@@ -298,11 +298,11 @@ export function Dashboard() {
     }).format(val);
 
   const FinItem = ({ label, value, colorClass = 'text-gray-700' }: any) => {
-    if (!value || value === 0) return null;
+    // CORREÇÃO: Removemos a condição que escondia o item se fosse 0 para garantir que apareça mesmo que seja 0
     return (
       <div className='flex justify-between items-end text-sm mt-1 border-b border-gray-100 pb-1 last:border-0 last:pb-0'>
         <span className='text-gray-500 text-xs'>{label}</span>
-        <span className={`font-bold ${colorClass}`}>{formatMoney(value)}</span>
+        <span className={`font-bold ${colorClass}`}>{formatMoney(value || 0)}</span>
       </div>
     );
   };
@@ -399,22 +399,25 @@ export function Dashboard() {
           <TrendingUp size={20} className='text-[#0F2C4C]' /> Performance Comercial
         </h2>
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-          {/* Card ESQUERDA: Negociações do Mês (Sem alteração) */}
-          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative'>
+          {/* CARD ESQUERDA: MENSAL (Propostas) */}
+          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 relative'>
             <div className='absolute top-0 right-0 bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>MÊS ATUAL</div>
-            <div>
-              <p className='text-sm text-gray-500 font-medium mb-1'>Negociações do Mês</p>
+            <div className='flex-1'>
+              <p className='text-sm text-gray-500 font-medium mb-1'>Propostas Enviadas</p>
               <h3 className='text-3xl font-bold text-blue-800'>{metrics.mes.propQtd} <span className='text-base font-normal text-gray-400'>propostas</span></h3>
-              <div className='mt-4 space-y-2'><FinItem label='Pró-labore Total' value={metrics.mes.propPL} /><FinItem label='Êxito Total' value={metrics.mes.propExito} /></div>
+              <div className='mt-4 space-y-2'>
+                <FinItem label='Pró-labore Total' value={metrics.mes.propPL} />
+                <FinItem label='Êxito Total' value={metrics.mes.propExito} />
+              </div>
             </div>
           </div>
 
-          {/* Card DIREITA: Realizado no Mês (Substituindo o antigo Total) */}
-          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative'>
+          {/* CARD DIREITA: MENSAL (Fechados) */}
+          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 relative'>
             <div className='absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>MÊS ATUAL (REALIZADO)</div>
-            <div>
-              <p className='text-sm text-gray-500 font-medium mb-1'>Fechamentos do Mês</p>
-              <h3 className='text-3xl font-bold text-green-700'>{metrics.mes.fechQtd} <span className='text-base font-normal text-gray-400'>contratos</span></h3>
+            <div className='flex-1'>
+              <p className='text-sm text-gray-500 font-medium mb-1'>Contratos Fechados</p>
+              <h3 className='text-3xl font-bold text-green-700'>{metrics.mes.fechQtd} <span className='text-base font-normal text-gray-400'>fechamentos</span></h3>
               <div className='mt-4 space-y-2'>
                 <FinItem label='Pró-labore Total' value={metrics.mes.fechPL} colorClass='text-green-700' />
                 <FinItem label='Fixos Mensais Total' value={metrics.mes.fechMensal} colorClass='text-green-700' />
@@ -446,14 +449,25 @@ export function Dashboard() {
 
       <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
         <div className='flex items-center justify-between mb-6 border-b pb-4'>
-          <h3 className='font-bold text-gray-800 flex items-center gap-2'><BarChart4 className='text-[#0F2C4C]' size={20} /> Evolução Financeira (12 Meses)</h3>
+          <h3 className='font-bold text-gray-800 flex items-center gap-2'>
+            <BarChart4 className='text-[#0F2C4C]' size={20} />
+            Evolução Financeira (12 Meses)
+          </h3>
           <div className='flex gap-4'>
-            <div className='bg-blue-50 px-4 py-2 rounded-lg border border-blue-100'><p className='text-[10px] text-blue-600 font-bold uppercase'>Média Pró-labore (+ Fixos)</p><p className='text-lg font-bold text-blue-900'>{formatMoney(mediasFinanceiras.pl)}</p></div>
-            <div className='bg-green-50 px-4 py-2 rounded-lg border border-green-100'><p className='text-[10px] text-green-600 font-bold uppercase'>Média Êxitos</p><p className='text-lg font-bold text-green-900'>{formatMoney(mediasFinanceiras.exito)}</p></div>
+            <div className='bg-blue-50 px-4 py-2 rounded-lg border border-blue-100'>
+              <p className='text-[10px] text-blue-600 font-bold uppercase'>Média Pró-labore (+ Fixos)</p>
+              <p className='text-lg font-bold text-blue-900'>{formatMoney(mediasFinanceiras.pl)}</p>
+            </div>
+            <div className='bg-green-50 px-4 py-2 rounded-lg border border-green-100'>
+              <p className='text-[10px] text-green-600 font-bold uppercase'>Média Êxitos</p>
+              <p className='text-lg font-bold text-green-900'>{formatMoney(mediasFinanceiras.exito)}</p>
+            </div>
           </div>
         </div>
         <div className='h-64 flex items-end justify-around gap-2'>
-          {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (
+          {financeiro12Meses.length === 0 ? (
+            <p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>
+          ) : (
             financeiro12Meses.map((item, index) => (
               <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end'>
                 <div className='flex items-end gap-1 h-full w-full justify-center px-1'>
@@ -491,9 +505,14 @@ export function Dashboard() {
         </div>
 
         <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
-          <h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3>
+          <h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'>
+            <BarChart3 className='text-[#0F2C4C]' size={20} />
+            Entrada de Casos (12 Meses)
+          </h3>
           <div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>
-            {evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (
+            {evolucaoMensal.length === 0 ? (
+              <p className='w-full text-center text-gray-400 self-center'>Sem dados</p>
+            ) : (
               evolucaoMensal.map((item, index) => (
                 <div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'>
                   <span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span>
