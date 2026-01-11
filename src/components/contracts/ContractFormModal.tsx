@@ -304,14 +304,22 @@ export function ContractFormModal(props: Props) {
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
-            // REMOVE CAMPOS VIRTUAIS OU ESTRANGEIROS QUE CAUSAM ERRO
+            
+            // REMOVE CAMPOS VIRTUAIS, ESTRANGEIROS OU TEMPORÁRIOS
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
-            analysts: undefined, // CORREÇÃO DO ERRO PGRST204
-            clients: undefined,  // GARANTIA
-            partners: undefined, // GARANTIA
-            id: undefined 
+            analysts: undefined,
+            clients: undefined, 
+            partners: undefined,
+            id: undefined,
+            
+            // CORREÇÃO: Remove os arrays de extras que não existem no banco
+            pro_labore_extras: undefined,
+            final_success_extras: undefined,
+            fixed_monthly_extras: undefined,
+            other_fees_extras: undefined,
+            percent_extras: undefined
         };
 
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
@@ -380,7 +388,6 @@ export function ContractFormModal(props: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          {/* ... Resto do componente permanece igual ... */}
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
             <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
           </div>
