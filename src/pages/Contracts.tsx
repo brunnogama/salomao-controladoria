@@ -155,9 +155,21 @@ export function Contracts() {
   const handleSave = async () => {
     try {
       setLoading(true);
-      const contractData = { ...formData, process_count: processes.length };
+      
+      // 1. LIMPEZA DOS DADOS (Correção do Erro)
+      // Removemos os objetos e campos virtuais que vêm do "join" e não existem na tabela contracts
+      const { 
+        partners,           // Objeto vindo do join
+        analysts,           // Objeto vindo do join
+        partner_name,       // Campo virtual frontend
+        analyzed_by_name,   // Campo virtual frontend
+        ...cleanFormData    // O resto são os dados reais da tabela
+      } = formData as any;
+
+      const contractData = { ...cleanFormData, process_count: processes.length };
       let contractId = formData.id;
 
+      // 2. Salva ou Atualiza o Contrato Principal
       if (isEditing && contractId) {
         const { error } = await supabase.from('contracts').update(contractData).eq('id', contractId);
         if (error) throw error;
@@ -167,8 +179,13 @@ export function Contracts() {
         contractId = data.id;
       }
 
+      // 3. Salva os Processos
       if (contractId) {
-        await supabase.from('contract_processes').delete().eq('contract_id', contractId);
+        // Remove antigos para garantir sincronia
+        const { error: deleteError } = await supabase.from('contract_processes').delete().eq('contract_id', contractId);
+        if (deleteError) throw new Error("Erro ao limpar processos antigos: " + deleteError.message);
+        
+        // Insere novos
         if (processes.length > 0) {
           const processesToSave = processes.map(p => ({
             contract_id: contractId,
@@ -177,7 +194,9 @@ export function Contracts() {
             judge: p.judge,
             cause_value: p.cause_value
           }));
-          await supabase.from('contract_processes').insert(processesToSave);
+          
+          const { error: insertError } = await supabase.from('contract_processes').insert(processesToSave);
+          if (insertError) throw new Error("Erro ao salvar processos: " + insertError.message);
         }
       }
 
