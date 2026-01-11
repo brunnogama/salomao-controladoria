@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, Filter, Calendar, CheckCircle2, Circle, AlertCircle, Loader2, ArrowUpRight, Clock } from 'lucide-react'; // Clock adicionado
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2 } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { ConfirmModal } from '../components/ui/ConfirmModal';
 import * as XLSX from 'xlsx';
 
 export function Finance() {
@@ -36,7 +35,7 @@ export function Finance() {
     if (partnersData) setPartners(partnersData);
 
     // Busca Parcelas com Join em Contratos
-    const { data: installmentsData, error } = await supabase
+    const { data: installmentsData } = await supabase
       .from('financial_installments')
       .select(`
         *,
@@ -87,11 +86,23 @@ export function Finance() {
     fetchData();
   };
 
+  // --- FUNÇÃO QUE TRADUZ OS TIPOS (AQUI ESTÁ ELA) ---
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'pro_labore': return 'Pró-Labore';
+      case 'success_fee': return 'Êxito (Geral)'; // Para compatibilidade
+      case 'final_success_fee': return 'Êxito Final';
+      case 'intermediate_fee': return 'Êxito Intermediário';
+      case 'other': return 'Outros';
+      default: return type;
+    }
+  };
+
   const exportToExcel = () => {
     const data = filteredInstallments.map(i => ({
       'Cliente': i.contract?.client_name,
       'HON': i.contract?.hon_number,
-      'Tipo': i.type === 'pro_labore' ? 'Pró-Labore' : i.type === 'success_fee' ? 'Êxito' : 'Outros',
+      'Tipo': getTypeLabel(i.type), // Usa a função aqui
       'Parcela': `${i.installment_number}/${i.total_installments}`,
       'Valor': i.amount,
       'Vencimento': new Date(i.due_date!).toLocaleDateString(),
@@ -176,9 +187,9 @@ export function Finance() {
             <table className="w-full text-sm text-left text-gray-600">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase font-bold border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Status / HON</th>
                   <th className="px-6 py-4">Vencimento</th>
-                  <th className="px-6 py-4">HON / Cliente</th>
+                  <th className="px-6 py-4">Cliente</th>
                   <th className="px-6 py-4">Tipo / Parcela</th>
                   <th className="px-6 py-4">Sócio / Local</th>
                   <th className="px-6 py-4 text-right">Valor</th>
@@ -190,10 +201,12 @@ export function Finance() {
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       {item.status === 'paid' ? (
-                        <span className="flex items-center text-green-600 font-bold text-xs uppercase"><CheckCircle2 className="w-4 h-4 mr-1" /> Faturado</span>
+                        <span className="flex items-center text-green-600 font-bold text-xs uppercase mb-1"><CheckCircle2 className="w-4 h-4 mr-1" /> Faturado</span>
                       ) : (
-                        <span className="flex items-center text-orange-500 font-bold text-xs uppercase"><Circle className="w-4 h-4 mr-1" /> Pendente</span>
+                        <span className="flex items-center text-orange-500 font-bold text-xs uppercase mb-1"><Circle className="w-4 h-4 mr-1" /> Pendente</span>
                       )}
+                      {/* HON MOVIDO PARA CÁ */}
+                      <div className="text-xs font-mono text-gray-500">HON: {item.contract?.hon_number || '-'}</div>
                     </td>
                     <td className="px-6 py-4 text-xs font-mono">
                       {item.paid_at ? (
@@ -204,10 +217,10 @@ export function Finance() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-800">{item.contract?.client_name}</div>
-                      <div className="text-xs text-gray-400 font-mono">HON: {item.contract?.hon_number || '-'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-gray-700 capitalize">{item.type.replace('_', ' ')}</div>
+                      {/* USO DA FUNÇÃO DE TRADUÇÃO */}
+                      <div className="text-gray-700 font-medium">{getTypeLabel(item.type)}</div>
                       <div className="text-xs text-gray-400">Parcela {item.installment_number}/{item.total_installments}</div>
                     </td>
                     <td className="px-6 py-4 text-xs">

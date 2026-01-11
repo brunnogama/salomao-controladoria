@@ -121,7 +121,7 @@ export interface Contract {
 export interface FinancialInstallment {
   id: string;
   contract_id: string;
-  type: 'pro_labore' | 'success_fee' | 'other';
+  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'other';
   installment_number: number;
   total_installments: number;
   amount: number;

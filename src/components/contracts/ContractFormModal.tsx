@@ -256,6 +256,7 @@ export function ContractFormModal(props: Props) {
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
 
+    // Remove parcelas pendentes antigas
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
 
     const installmentsToInsert: any[] = [];
@@ -280,17 +281,22 @@ export function ContractFormModal(props: Props) {
       }
     };
 
+    // GERAÇÃO COM TIPOS DISCRIMINADOS
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
-    addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'success_fee');
+    
+    // Êxito Final agora é 'final_success_fee'
+    addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
+    
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
+    // Êxitos Intermediários agora são 'intermediate_fee'
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
         if (val > 0) {
           installmentsToInsert.push({
             contract_id: contractId,
-            type: 'success_fee',
+            type: 'intermediate_fee', // Tipo específico
             installment_number: 1,
             total_installments: 1,
             amount: val,
@@ -305,7 +311,6 @@ export function ContractFormModal(props: Props) {
       await supabase.from('financial_installments').insert(installmentsToInsert);
     }
   };
-
   const handleSaveWithIntegrations = async () => {
     const clientId = await upsertClient();
     await onSave();
