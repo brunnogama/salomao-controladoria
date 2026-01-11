@@ -366,8 +366,6 @@ export function ContractFormModal(props: Props) {
   const handleCNJSearch = async () => { /* ... */ };
   const handleOpenJusbrasil = () => { /* ... */ };
   
-  // --- FUNÇÕES DE UPLOAD IMPLEMENTADAS AQUI ---
-  
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -379,10 +377,8 @@ export function ContractFormModal(props: Props) {
 
     setUploading(true);
     try {
-      // 1. Upload para o Storage (usando o ID do contrato como pasta para organização)
       const fileExt = file.name.split('.').pop();
       const sanitizedFileName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
-      // Caminho: contract_id/timestamp_nome_arquivo
       const filePath = `${formData.id}/${Date.now()}_${sanitizedFileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -391,7 +387,6 @@ export function ContractFormModal(props: Props) {
 
       if (uploadError) throw uploadError;
 
-      // 2. Inserir registro na tabela contract_documents
       const { data: docData, error: dbError } = await supabase
         .from('contract_documents')
         .insert({
@@ -399,26 +394,22 @@ export function ContractFormModal(props: Props) {
           file_name: file.name,
           file_path: filePath,
           file_type: type,
-          // Se tiver campo de uploaded_by ou uploaded_at, o banco deve lidar (default now())
         })
         .select()
         .single();
 
       if (dbError) throw dbError;
 
-      // 3. Atualizar estado local
       if (docData) {
           setDocuments(prev => [docData, ...prev]);
       }
-      // Feedback visual simples, ou poderia usar um toast
-      // alert("Arquivo anexado com sucesso!");
 
     } catch (error: any) {
       console.error("Upload error:", error);
       alert("Erro ao anexar arquivo: " + error.message);
     } finally {
       setUploading(false);
-      e.target.value = ''; // Reseta o input
+      e.target.value = '';
     }
   };
 
@@ -430,11 +421,9 @@ export function ContractFormModal(props: Props) {
         
       if (error) throw error;
       
-      // Cria link temporário para download
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      // Extrai o nome do arquivo original do path se possível, ou usa genérico
       const fileName = path.split('_').slice(1).join('_') || 'documento.pdf';
       a.download = fileName;
       document.body.appendChild(a);
@@ -451,7 +440,6 @@ export function ContractFormModal(props: Props) {
     if (!confirm("Tem certeza que deseja excluir este documento?")) return;
 
     try {
-      // 1. Remove do Storage
       const { error: storageError } = await supabase.storage
         .from('contract-documents')
         .remove([path]);
@@ -460,7 +448,6 @@ export function ContractFormModal(props: Props) {
           console.warn("Aviso: Erro ao remover do storage (pode já ter sido deletado)", storageError);
       }
 
-      // 2. Remove do Banco
       const { error: dbError } = await supabase
         .from('contract_documents')
         .delete()
@@ -468,7 +455,6 @@ export function ContractFormModal(props: Props) {
 
       if (dbError) throw dbError;
 
-      // 3. Atualiza UI
       setDocuments(prev => prev.filter(d => d.id !== id));
 
     } catch (error: any) {
@@ -568,7 +554,7 @@ export function ContractFormModal(props: Props) {
             {(formData.status === 'analysis') && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
                 <div><label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label><input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div>
-                <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="bg-white border-yellow-200" /></div>
+                <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
               </div>
             )}
             
@@ -652,7 +638,7 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
 
-            {(formData.status === 'proposal' || formData.status === 'active') && (
+            {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
               <div className="mb-8 mt-6">
                 <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
                 {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
