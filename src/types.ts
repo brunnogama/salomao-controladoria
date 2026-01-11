@@ -1,68 +1,4 @@
-export interface Partner {
-  id: string;
-  name: string;
-  active: boolean;
-}
-
-export interface ContractProcess {
-  id?: string;
-  process_number: string;
-  cause_value: string;
-  court: string;
-  judge: string;
-}
-
-export interface TimelineEvent {
-  id: string;
-  previous_status: string;
-  new_status: string;
-  changed_by: string;
-  changed_at: string;
-}
-
-export interface ContractDocument {
-  id: string;
-  contract_id: string;
-  file_name: string;
-  file_path: string;
-  file_type: 'proposal' | 'contract';
-  uploaded_at: string;
-  hon_number_ref?: string;
-}
-
-export interface KanbanTask {
-  id: string;
-  title: string;
-  description?: string;
-  priority: 'Alta' | 'Média' | 'Baixa';
-  status: 'todo' | 'doing' | 'done' | 'signature';
-  position: number;
-  due_date?: string;
-  contract_id?: string;
-  observation?: string;
-  created_at?: string;
-}
-
-export interface Client {
-  id?: string;
-  name: string;
-  cnpj: string;
-  is_person: boolean;
-  address?: string;
-  number?: string;
-  complement?: string;
-  city?: string;
-  uf?: string;
-  email?: string;
-  website?: string;
-  partner_id?: string; // Sócio Responsável pelo Cliente
-  created_at?: string;
-  
-  // Campos virtuais (calculados na query/frontend)
-  active_contracts_count?: number;
-  contracts_hon?: string[];
-  partner_name?: string; // Nome do sócio para exibição na lista
-}
+// ... (mantenha as outras interfaces iguais)
 
 export interface Contract {
   id?: string;
@@ -70,7 +6,7 @@ export interface Contract {
   cnpj: string;
   has_no_cnpj: boolean;
   client_name: string;
-  client_id?: string; // Vínculo com a tabela de Clientes
+  client_id?: string;
   client_position: string;
   company_name: string;
   has_legal_process: boolean;
@@ -89,18 +25,21 @@ export interface Contract {
   rejection_reason?: string;
   probono_date?: string;
   
-  // Assinatura Física (true = Sim, false = Não/Cobrar, undefined = Não preenchido)
   physical_signature?: boolean; 
-  
-  // Local de Faturamento (Ex: Salomão RJ, Salomão SP)
   billing_location?: string;
   
   pro_labore?: string;
+  pro_labore_installments?: string; // NOVO
+  
   final_success_fee?: string;
+  final_success_fee_installments?: string; // NOVO
+  
   final_success_percent?: string;
   intermediate_fees?: string[];
   timesheet?: boolean;
+  
   other_fees?: string;
+  other_fees_installments?: string; // NOVO
 
   partner_name?: string;
   process_count?: number;
