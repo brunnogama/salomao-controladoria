@@ -43,7 +43,7 @@ const FinancialInputWithInstallments = ({
             onClick={onAdd}
             className="bg-salomao-blue text-white px-2 rounded-r-lg hover:bg-blue-900 transition-colors flex items-center justify-center border-l border-blue-800"
             type="button"
-            title="Adicionar novo valor"
+            title="Adicionar valor"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -53,7 +53,7 @@ const FinancialInputWithInstallments = ({
   );
 };
 
-// ... Funções de data mantidas ...
+// ... Funções auxiliares mantidas ...
 const getEffectiveDate = (status: string, fallbackDate: string, formData: Contract) => {
   let businessDateString = null;
   switch (status) {
@@ -181,20 +181,16 @@ export function ContractFormModal(props: Props) {
     return clientId;
   };
 
-  // --- LÓGICA DE VALORES EXTRAS ---
-  const addExtra = (field: string) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      [field]: [...(prev[field] || []), '']
-    }));
-  };
+  // --- NOVA LÓGICA DE ADIÇÃO (Move o valor para a lista e limpa o input) ---
+  const handleAddToList = (listField: string, valueField: keyof Contract) => {
+    const value = (formData as any)[valueField];
+    if (!value || value === 'R$ 0,00' || value === '') return;
 
-  const updateExtra = (field: string, index: number, value: string) => {
-    setFormData((prev: any) => {
-      const newList = [...(prev[field] || [])];
-      newList[index] = value;
-      return { ...prev, [field]: newList };
-    });
+    setFormData(prev => ({
+      ...prev,
+      [listField]: [...(prev as any)[listField] || [], value],
+      [valueField]: '' // Limpa o input principal
+    }));
   };
 
   const removeExtra = (field: string, index: number) => {
@@ -220,11 +216,13 @@ export function ContractFormModal(props: Props) {
       }
     };
 
+    // Gera parcelas dos valores que ficaram no input principal (se houver)
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
     addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'pro_labore');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
+    // Gera parcelas dos valores nas listas extras
     const extrasConfig = [
       { field: 'pro_labore_extras', type: 'pro_labore' },
       { field: 'final_success_extras', type: 'final_success_fee' },
@@ -238,6 +236,7 @@ export function ContractFormModal(props: Props) {
         list.forEach((val: string) => {
           const amount = parseCurrency(val);
           if (amount > 0) {
+            // Extras sempre 1x por enquanto
             installmentsToInsert.push({ 
               contract_id: contractId, 
               type: config.type, 
@@ -377,14 +376,15 @@ export function ContractFormModal(props: Props) {
                        label="Pró-Labore (R$)" 
                        value={formData.pro_labore} onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
                        installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
-                       onAdd={() => addExtra('pro_labore_extras')} 
+                       onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore')} 
                      />
-                     {(formData as any).pro_labore_extras?.map((val: string, idx: number) => (
-                        <div key={idx} className="flex gap-1 mt-1">
-                          <input type="text" className="flex-1 border border-gray-300 rounded-lg p-1.5 text-xs" value={val} onChange={(e) => updateExtra('pro_labore_extras', idx, maskMoney(e.target.value))} placeholder="R$ +"/>
-                          <button onClick={() => removeExtra('pro_labore_extras', idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><X className="w-3 h-3" /></button>
-                        </div>
-                     ))}
+                     <div className="flex flex-wrap gap-2 mt-2">
+                       {(formData as any).pro_labore_extras?.map((val: string, idx: number) => (
+                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                           {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                         </span>
+                       ))}
+                     </div>
                    </div>
 
                    <div>
@@ -406,14 +406,15 @@ export function ContractFormModal(props: Props) {
                        label="Êxito Final (R$)" 
                        value={formData.final_success_fee} onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
                        installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
-                       onAdd={() => addExtra('final_success_extras')}
+                       onAdd={() => handleAddToList('final_success_extras', 'final_success_fee')}
                      />
-                     {(formData as any).final_success_extras?.map((val: string, idx: number) => (
-                        <div key={idx} className="flex gap-1 mt-1">
-                          <input type="text" className="flex-1 border border-gray-300 rounded-lg p-1.5 text-xs" value={val} onChange={(e) => updateExtra('final_success_extras', idx, maskMoney(e.target.value))} placeholder="R$ +"/>
-                          <button onClick={() => removeExtra('final_success_extras', idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><X className="w-3 h-3" /></button>
-                        </div>
-                     ))}
+                     <div className="flex flex-wrap gap-2 mt-2">
+                       {(formData as any).final_success_extras?.map((val: string, idx: number) => (
+                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                           {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                         </span>
+                       ))}
+                     </div>
                    </div>
                 </div>
 
@@ -422,8 +423,15 @@ export function ContractFormModal(props: Props) {
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
                     <div className="flex rounded-lg shadow-sm">
                       <input type="text" className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
-                      <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => addExtra('percent_extras')}><Plus className="w-4 h-4" /></button>
+                      <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
                     </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                       {(formData as any).percent_extras?.map((val: string, idx: number) => (
+                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                           {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                         </span>
+                       ))}
+                     </div>
                   </div>
 
                   <div>
@@ -431,14 +439,15 @@ export function ContractFormModal(props: Props) {
                       label="Outros Honorários (R$)" 
                       value={formData.other_fees} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
                       installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
-                      onAdd={() => addExtra('other_fees_extras')}
+                      onAdd={() => handleAddToList('other_fees_extras', 'other_fees')}
                     />
-                    {(formData as any).other_fees_extras?.map((val: string, idx: number) => (
-                        <div key={idx} className="flex gap-1 mt-1">
-                          <input type="text" className="flex-1 border border-gray-300 rounded-lg p-1.5 text-xs" value={val} onChange={(e) => updateExtra('other_fees_extras', idx, maskMoney(e.target.value))} placeholder="R$ +"/>
-                          <button onClick={() => removeExtra('other_fees_extras', idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><X className="w-3 h-3" /></button>
-                        </div>
-                     ))}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                       {(formData as any).other_fees_extras?.map((val: string, idx: number) => (
+                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                           {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                         </span>
+                       ))}
+                     </div>
                   </div>
 
                   <div>
@@ -446,14 +455,15 @@ export function ContractFormModal(props: Props) {
                       label="Fixo Mensal (R$)" 
                       value={formData.fixed_monthly_fee} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
                       installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
-                      onAdd={() => addExtra('fixed_monthly_extras')}
+                      onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee')}
                     />
-                    {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => (
-                        <div key={idx} className="flex gap-1 mt-1">
-                          <input type="text" className="flex-1 border border-gray-300 rounded-lg p-1.5 text-xs" value={val} onChange={(e) => updateExtra('fixed_monthly_extras', idx, maskMoney(e.target.value))} placeholder="R$ +"/>
-                          <button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><X className="w-3 h-3" /></button>
-                        </div>
-                     ))}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                       {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => (
+                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                           {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                         </span>
+                       ))}
+                     </div>
                   </div>
                 </div>
 
@@ -461,6 +471,7 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
 
+            {/* ... Resto do código mantido ... */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="mb-8 mt-6">
                 <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
