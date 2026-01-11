@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, Filter, Calendar, CheckCircle2, Circle, AlertCircle, Loader2, ArrowUpRight } from 'lucide-react';
+import { DollarSign, Search, Download, Filter, Calendar, CheckCircle2, Circle, AlertCircle, Loader2, ArrowUpRight, Clock } from 'lucide-react'; // Clock adicionado
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -21,7 +21,7 @@ export function Finance() {
   const [selectedInstallment, setSelectedInstallment] = useState<FinancialInstallment | null>(null);
   const [billingDate, setBillingDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Locations (mock ou busca do banco)
+  // Locations
   const [locations, setLocations] = useState<string[]>([]);
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export function Finance() {
               {totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </h3>
           </div>
-          <div className="bg-orange-50 p-4 rounded-full text-orange-500"><Clock className="w-8 h-8" /></div> {/* Clock icon needs import from lucide-react, assuming imported or replace */}
+          <div className="bg-orange-50 p-4 rounded-full text-orange-500"><Clock className="w-8 h-8" /></div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div>

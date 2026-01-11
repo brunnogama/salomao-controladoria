@@ -21,7 +21,7 @@ export const maskHon = (value: string) => {
   return value
     .replace(/\D/g, '')
     .replace(/(\d{7})(\d)/, '$1/$2')
-    .slice(0, 11); // Limita tamanho: 0000000/000
+    .slice(0, 11);
 };
 
 export const maskCNJ = (value: string) => {
@@ -31,7 +31,7 @@ export const maskCNJ = (value: string) => {
     .replace(/(\d{2})(\d)/, '$1.$2')
     .replace(/(\d{4})(\d)/, '$1.$2')
     .replace(/(\d{1})(\d)/, '$1.$2')
-    .replace(/(\d{2})(\d)/, '$1-$2') // Ajuste fino pode ser necessário dependendo do formato exato CNJ
+    .replace(/(\d{2})(\d)/, '$1-$2')
     .slice(0, 25);
 };
 
@@ -44,7 +44,9 @@ export const toTitleCase = (str: string) => {
 
 export const parseCurrency = (value: string | undefined): number => {
   if (!value) return 0;
-  // Remove "R$", pontos de milhar e substitui vírgula decimal por ponto
   const clean = value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
   return parseFloat(clean) || 0;
 };
+
+// Alias para manter compatibilidade com códigos que chamam unmaskMoney
+export const unmaskMoney = parseCurrency;
