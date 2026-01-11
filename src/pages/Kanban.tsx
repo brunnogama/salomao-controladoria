@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { 
+  DragDropContext, 
+  Droppable, 
+  Draggable, 
+  DropResult, 
+  DroppableProvided, 
+  DraggableProvided, 
+  DraggableStateSnapshot 
+} from '@hello-pangea/dnd';
 import { Plus, MoreHorizontal, Calendar, User, Search, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { KanbanTask, Contract } from '../types';
@@ -42,7 +50,7 @@ export function Kanban() {
     if (data) setContracts(data);
   };
 
-  const onDragEnd = async (result: any) => {
+  const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
@@ -162,7 +170,7 @@ export function Kanban() {
                     </div>
                     
                     <Droppable droppableId={columnId}>
-                      {(provided, snapshot) => (
+                      {(provided: DroppableProvided, snapshot: any) => (
                         <div
                           {...provided.droppableProps}
                           ref={provided.innerRef}
@@ -170,7 +178,7 @@ export function Kanban() {
                         >
                           {columnTasks.map((task, index) => (
                             <Draggable key={task.id} draggableId={task.id} index={index}>
-                              {(provided, snapshot) => (
+                              {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
