@@ -9,6 +9,7 @@ import { CustomSelect } from '../ui/CustomSelect';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
+// Componente ajustado: Se onAdd não for passado, ele age como um input normal com seletor de parcelas
 const FinancialInputWithInstallments = ({ 
   label, value, onChangeValue, installments, onChangeInstallments, onAdd 
 }: { 
@@ -183,15 +184,12 @@ export function ContractFormModal(props: Props) {
     return clientId;
   };
 
+  // Funções de lista apenas para intermediários agora
   const handleAddToList = (listField: string, valueField: keyof Contract) => {
+    // Mantido para compatibilidade, mas usado apenas para percent_extras se necessário
     const value = (formData as any)[valueField];
     if (!value || value === 'R$ 0,00' || value === '') return;
-
-    setFormData(prev => ({
-      ...prev,
-      [listField]: [...(prev as any)[listField] || [], value],
-      [valueField]: '' 
-    }));
+    setFormData(prev => ({ ...prev, [listField]: [...(prev as any)[listField] || [], value], [valueField]: '' }));
   };
 
   const removeExtra = (field: string, index: number) => {
@@ -211,9 +209,9 @@ export function ContractFormModal(props: Props) {
   };
 
   const generateFinancialInstallments = async (contractId: string) => {
-    // Essa função usa o formData (estado local), então funciona para o financeiro
-    // mesmo que o banco não tenha atualizado ainda.
+    // Gera parcelas apenas se estiver Ativo, MAS os valores no contrato são salvos independente disso.
     if (formData.status !== 'active') return;
+    
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
     
     const installmentsToInsert: any[] = [];
@@ -227,38 +225,13 @@ export function ContractFormModal(props: Props) {
       }
     };
 
+    // Gera parcelas baseadas nos inputs diretos (não mais em listas extras)
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
     addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
-    const extrasConfig = [
-      { field: 'pro_labore_extras', type: 'pro_labore' },
-      { field: 'final_success_extras', type: 'final_success_fee' },
-      { field: 'fixed_monthly_extras', type: 'fixed' },
-      { field: 'other_fees_extras', type: 'other' }
-    ];
-
-    extrasConfig.forEach(config => {
-      const list = (formData as any)[config.field];
-      if (list && Array.isArray(list)) {
-        list.forEach((val: string) => {
-          const amount = parseCurrency(val);
-          if (amount > 0) {
-            installmentsToInsert.push({ 
-              contract_id: contractId, 
-              type: config.type, 
-              installment_number: 1, 
-              total_installments: 1, 
-              amount: amount, 
-              status: 'pending', 
-              due_date: addMonths(new Date(), 1).toISOString() 
-            });
-          }
-        });
-      }
-    });
-
+    // Intermediários continuam como lista
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
@@ -269,23 +242,17 @@ export function ContractFormModal(props: Props) {
   };
 
   const forceUpdateFinancials = async (contractId: string) => {
-    // Garante que os valores numéricos sejam extraídos corretamente do formData (que pode ter "R$...")
-    // e enviados para as colunas do banco.
-    const cleanPL = parseCurrency(formData.pro_labore);
-    const cleanSuccess = parseCurrency(formData.final_success_fee);
-    const cleanFixed = parseCurrency(formData.fixed_monthly_fee);
-    const cleanOther = parseCurrency(formData.other_fees);
+    const cleanPL = parseCurrency(formData.pro_labore || "");
+    const cleanSuccess = parseCurrency(formData.final_success_fee || "");
+    const cleanFixed = parseCurrency(formData.fixed_monthly_fee || "");
+    const cleanOther = parseCurrency(formData.other_fees || "");
 
-    console.log("Forcing update financials:", { cleanPL, cleanSuccess, cleanFixed, cleanOther });
-
-    const { error } = await supabase.from('contracts').update({
+    await supabase.from('contracts').update({
       pro_labore: cleanPL,
       final_success_fee: cleanSuccess,
       fixed_monthly_fee: cleanFixed,
       other_fees: cleanOther
     }).eq('id', contractId);
-
-    if (error) console.error("Error updating financials:", error);
   };
 
   const handleSaveWithIntegrations = async () => {
@@ -305,30 +272,25 @@ export function ContractFormModal(props: Props) {
     try {
         const clientId = await upsertClient();
         
-        // Payload principal para o contrato
-        // NOTA: Aqui enviamos os valores, mas o forceUpdateFinancials garante a persistência caso haja erro de tipo
         const contractPayload: any = {
             ...formData,
             client_id: clientId || formData.client_id,
-            // Convertemos para float para garantir
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
-            // REMOVE CAMPOS VIRTUAIS/ESTRANGEIROS
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
             analyst: undefined,
-            analysts: undefined,
-            client: undefined,
-            partner: undefined,
+            analysts: undefined, 
+            client: undefined,   
+            partner: undefined,  
             processes: undefined,
             partners: undefined,
             id: undefined,
             
-            // Remove arrays de controle local
             pro_labore_extras: undefined,
             final_success_extras: undefined,
             fixed_monthly_extras: undefined,
@@ -336,7 +298,6 @@ export function ContractFormModal(props: Props) {
             percent_extras: undefined
         };
 
-        // Limpeza de campos undefined
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
 
         let savedId = formData.id;
@@ -351,13 +312,9 @@ export function ContractFormModal(props: Props) {
         }
 
         if (savedId) {
-            // 1. Atualiza explicitamente os valores financeiros (garantia de persistência)
             await forceUpdateFinancials(savedId);
-
-            // 2. Gera as parcelas para o módulo financeiro
             await generateFinancialInstallments(savedId);
             
-            // 3. Kanban de assinatura
             if (formData.status === 'active' && formData.physical_signature === false) {
                 const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').single();
                 if (!data) {
@@ -373,20 +330,19 @@ export function ContractFormModal(props: Props) {
     } catch (error: any) {
         console.error('Erro ao salvar contrato:', error);
         if (error.code === '23505' || error.message?.includes('contracts_hon_number_key')) {
-            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.');
+            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.\n\nPor favor, verifique se o número foi digitado corretamente ou se este caso já foi inserido anteriormente.');
         } else if (error.code === 'PGRST204') {
              console.warn('Erro de estrutura de dados:', error.message);
              const column = error.message.match(/'([^']+)'/)?.[1];
-             alert(`Erro Técnico: Tentativa de salvar campo inválido (${column}).`);
+             alert(`Erro Técnico: O sistema tentou salvar um campo inválido (${column || 'desconhecido'}).\n\nIsso geralmente ocorre ao editar dados carregados. Tente recarregar a página.`);
         } else {
-            alert('Não foi possível salvar as alterações.');
+            alert('Não foi possível salvar as alterações.\n\nVerifique sua conexão com a internet e se todos os campos obrigatórios (*) estão preenchidos.');
         }
     } finally {
         setLocalLoading(false);
     }
   };
 
-  // ... (RESTO DO COMPONENTE IGUAL AO ANTERIOR) ...
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
@@ -458,23 +414,7 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md">{editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div>
                   </div>
                 </div>
-                {processes.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    {processes.map((p, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
-                        <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
-                          <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
-                          <span className="text-gray-600">{p.court} ({formData.uf})</span>
-                          <span className="text-gray-500 truncate">{p.judge}</span>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {processes.length > 0 && (<div className="space-y-2 mt-4">{processes.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div className="grid grid-cols-3 gap-4 flex-1 text-xs"><span className="font-mono font-medium text-gray-800">{p.process_number}</span><span className="text-gray-600">{p.court} ({formData.uf})</span><span className="text-gray-500 truncate">{p.judge}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button><button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>)}
               </div>
             )}
           </section>
@@ -496,21 +436,17 @@ export function ContractFormModal(props: Props) {
                      <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
+                   
+                   {/* Pró-Labore Simplificado */}
                    <div>
                      <FinancialInputWithInstallments 
                        label="Pró-Labore (R$)" 
                        value={formData.pro_labore} onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
                        installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
-                       onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore')} 
                      />
-                     <div className="flex flex-wrap gap-2 mt-2">
-                       {(formData as any).pro_labore_extras?.map((val: string, idx: number) => (
-                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
-                           {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                         </span>
-                       ))}
-                     </div>
                    </div>
+
+                   {/* Êxito Intermediário (Mantido como Lista/Tags) */}
                    <div>
                      <FinancialInputWithInstallments 
                        label="Êxito Intermediário" 
@@ -524,22 +460,17 @@ export function ContractFormModal(props: Props) {
                        ))}
                      </div>
                    </div>
+
+                   {/* Êxito Final Simplificado */}
                    <div>
                      <FinancialInputWithInstallments 
                        label="Êxito Final (R$)" 
                        value={formData.final_success_fee} onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
                        installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
-                       onAdd={() => handleAddToList('final_success_extras', 'final_success_fee')}
                      />
-                     <div className="flex flex-wrap gap-2 mt-2">
-                       {(formData as any).final_success_extras?.map((val: string, idx: number) => (
-                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
-                           {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                         </span>
-                       ))}
-                     </div>
                    </div>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
                   <div>
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
@@ -555,35 +486,23 @@ export function ContractFormModal(props: Props) {
                        ))}
                      </div>
                   </div>
+
+                  {/* Outros Honorários Simplificado */}
                   <div>
                     <FinancialInputWithInstallments 
                       label="Outros Honorários (R$)" 
                       value={formData.other_fees} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
                       installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
-                      onAdd={() => handleAddToList('other_fees_extras', 'other_fees')}
                     />
-                    <div className="flex flex-wrap gap-2 mt-2">
-                       {(formData as any).other_fees_extras?.map((val: string, idx: number) => (
-                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
-                           {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                         </span>
-                       ))}
-                     </div>
                   </div>
+
+                  {/* Fixo Mensal Simplificado */}
                   <div>
                     <FinancialInputWithInstallments 
                       label="Fixo Mensal (R$)" 
                       value={formData.fixed_monthly_fee} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
                       installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
-                      onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee')}
                     />
-                    <div className="flex flex-wrap gap-2 mt-2">
-                       {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => (
-                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
-                           {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                         </span>
-                       ))}
-                     </div>
                   </div>
                 </div>
                 <div className="flex items-end pb-3"><div className="flex items-center"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-salomao-blue" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium whitespace-nowrap">Hon. de Timesheet</label></div></div>
