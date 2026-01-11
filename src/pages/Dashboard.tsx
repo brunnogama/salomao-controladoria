@@ -91,30 +91,45 @@ export function Dashboard() {
     setExporting(true);
 
     try {
-        const canvas = await html2canvas(dashboardRef.current, {
-            scale: 2,
+        const element = dashboardRef.current;
+        
+        // 1. Captura a tela COMPLETA
+        const canvas = await html2canvas(element, {
+            scale: 2, // Melhor qualidade
             useCORS: true,
             backgroundColor: '#F8FAFC',
-            ignoreElements: (element) => element.id === 'export-button-container'
+            // Estas propriedades garantem a captura completa mesmo com scroll
+            height: element.scrollHeight,
+            windowHeight: element.scrollHeight,
+            scrollY: -window.scrollY, 
+            ignoreElements: (el) => el.id === 'export-button-container'
         });
 
         const imgData = canvas.toDataURL('image/png');
         const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
 
+        // 2. Baixar PNG
         const linkPng = document.createElement('a');
         linkPng.href = imgData;
         linkPng.download = `Relatorio_Dashboard_${dateStr}.png`;
         linkPng.click();
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        // 3. Gerar e Baixar PDF (Página longa para caber tudo sem cortes)
+        // Calcula a altura proporcional para caber todo o canvas em um PDF de largura A4
+        const imgWidth = 210; // Largura A4 em mm
+        const pageHeight = 295; // Altura A4 em mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
         
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        // Se a imagem for maior que uma página, cria um PDF com altura personalizada (estilo "fita")
+        // ou usa A4 se couber. Aqui optamos por altura personalizada para não quebrar gráficos no meio.
+        const pdf = new jsPDF('p', 'mm', [imgWidth, imgHeight > pageHeight ? imgHeight : pageHeight]);
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
         pdf.save(`Relatorio_Dashboard_${dateStr}.pdf`);
 
-        const subject = encodeURIComponent(`Panorama dos Contratos atualizado - ${dateStr}`);
-        const body = encodeURIComponent(`Caros,\n\nSegue em anexo o panorama atualizado dos contratos.\n\nAtenciosamente,\nMarcio Gama - Controladoria.`);
+        // 4. Abrir Cliente de E-mail
+        const subject = encodeURIComponent(`Relatório de Controladoria - ${dateStr}`);
+        const body = encodeURIComponent(`Caros,\n\nSegue em anexo o panorama atualizado dos contratos (PDF e Imagem).\n\nAtenciosamente,\nSalomão Controladoria.`);
         
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
 
@@ -157,8 +172,8 @@ export function Dashboard() {
     };
     let mMes = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
-      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, totalUnico: 0,
-      analysis: 0, rejected: 0, probono: 0
+      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
+      totalUnico: 0, analysis: 0, rejected: 0, probono: 0
     };
     let mGeral = {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0,
