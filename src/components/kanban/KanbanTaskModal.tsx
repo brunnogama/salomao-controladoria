@@ -114,9 +114,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
                 >
                   <option value="todo">A Fazer</option>
                   <option value="doing">Em Andamento</option>
-                  <option value="review">Revisão</option>
                   <option value="signature">Assinatura</option>
-                  <option value="billing">Faturamento</option>
                   <option value="done">Concluído</option>
                 </select>
               </div>

@@ -5,13 +5,11 @@ import { supabase } from '../lib/supabase';
 import { KanbanTask, Contract } from '../types';
 import { KanbanTaskModal } from '../components/kanban/KanbanTaskModal';
 
-// Definição estrita das colunas para evitar erro de TS
+// REMOVIDOS: billing e review
 const columns: Record<string, { id: string; title: string; color: string }> = {
   todo: { id: 'todo', title: 'A Fazer', color: 'bg-gray-100' },
   doing: { id: 'doing', title: 'Em Andamento', color: 'bg-blue-50' },
-  review: { id: 'review', title: 'Revisão', color: 'bg-yellow-50' },
   signature: { id: 'signature', title: 'Assinatura', color: 'bg-orange-50' },
-  billing: { id: 'billing', title: 'Faturamento', color: 'bg-purple-50' },
   done: { id: 'done', title: 'Concluído', color: 'bg-green-50' }
 };
 
@@ -53,26 +51,21 @@ export function Kanban() {
       return;
     }
 
-    // Otimistic update
     const newTasks = Array.from(tasks);
     const movedTaskIndex = newTasks.findIndex(t => t.id === draggableId);
     const [movedTask] = newTasks.splice(movedTaskIndex, 1);
     
-    // Atualiza status se mudou de coluna
     const newStatus = destination.droppableId as KanbanTask['status'];
     movedTask.status = newStatus;
 
-    // Recalcula posições na coluna de destino
     const destinationTasks = newTasks.filter(t => t.status === newStatus);
     destinationTasks.splice(destination.index, 0, movedTask);
 
-    // Reconstrói o array completo
     const otherTasks = newTasks.filter(t => t.status !== newStatus);
     const finalTasks = [...otherTasks, ...destinationTasks];
     
     setTasks(finalTasks);
 
-    // Persiste no banco
     await supabase.from('kanban_tasks').update({ 
       status: newStatus, 
       position: destination.index 
@@ -107,7 +100,7 @@ export function Kanban() {
     } else {
       const { error } = await supabase
         .from('kanban_tasks')
-        .insert([{ ...taskData, position: tasks.length }]); // Simples append
+        .insert([{ ...taskData, position: tasks.length }]); 
         
       if (!error) fetchTasks();
     }

@@ -9,11 +9,9 @@ export interface Client {
   complement?: string;
   city?: string;
   email?: string;
-  // Campos adicionados para corrigir erros de build
   website?: string;
   partner_id?: string;
   created_at?: string;
-  // Campos virtuais (joins)
   active_contracts_count?: number;
   contracts_hon?: string[];
   partner_name?: string;
@@ -23,7 +21,7 @@ export interface Partner {
   id: string;
   name: string;
   email?: string;
-  active?: boolean; // Campo adicionado
+  active?: boolean;
 }
 
 export interface Analyst {
@@ -118,22 +116,22 @@ export interface Contract {
   // Financial
   pro_labore?: string;
   pro_labore_installments?: string;
-  pro_labore_extras?: string[]; // Arrays de extras
+  pro_labore_extras?: string[];
   
   final_success_fee?: string;
   final_success_fee_installments?: string;
   final_success_percent?: string;
-  final_success_extras?: string[]; // Arrays de extras
+  final_success_extras?: string[];
   
   intermediate_fees?: string[];
   
   other_fees?: string;
   other_fees_installments?: string;
-  other_fees_extras?: string[]; // Arrays de extras
+  other_fees_extras?: string[];
 
   fixed_monthly_fee?: string;
   fixed_monthly_fee_installments?: string;
-  fixed_monthly_extras?: string[]; // Arrays de extras
+  fixed_monthly_extras?: string[];
   
   percent_extras?: string[];
 
@@ -145,12 +143,13 @@ export interface KanbanTask {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'doing' | 'review' | 'done' | 'billing' | 'signature';
+  // REMOVIDOS: 'review' e 'billing'
+  status: 'todo' | 'doing' | 'done' | 'signature';
   priority: 'Baixa' | 'Média' | 'Alta';
   due_date?: string;
   assignee?: string;
   contract_id?: string;
   position: number;
   contract?: Contract;
-  observation?: string; // Campo adicionado
+  observation?: string;
 }
