@@ -21,7 +21,7 @@ const FinancialInputWithInstallments = ({
       <div className="flex rounded-lg shadow-sm">
         <input 
           type="text" 
-          className={`flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none min-w-0 ${!onAdd ? 'rounded-r-none border-r-0' : ''}`}
+          className={`flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0 ${!onAdd ? 'rounded-r-none border-r-0' : ''}`}
           value={value || ''} 
           onChange={(e) => onChangeValue(maskMoney(e.target.value))}
           placeholder="R$ 0,00"
@@ -111,7 +111,6 @@ export function ContractFormModal(props: Props) {
   const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-  // Novo estado local para controlar as parcelas do êxito intermediário
   const [interimInstallments, setInterimInstallments] = useState('1x');
 
   const isLoading = parentLoading || localLoading;
@@ -499,16 +498,16 @@ export function ContractFormModal(props: Props) {
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
                 <div className="flex gap-2">
-                  <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue disabled:bg-gray-100 bg-white" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
+                  <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
                   <button onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50"><Search className="w-4 h-4" /></button>
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
-              <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
+              <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
               <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={formData.client_position} onChange={(val: string) => setFormData({...formData, client_position: val})} options={positionOptions} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Área do Direito</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} /></div>
+              <div><label className="block text-xs font-medium text-gray-600 mb-1">Área do Direito</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} /></div>
               <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
             </div>
           </section>
@@ -556,7 +555,7 @@ export function ContractFormModal(props: Props) {
             
             {(formData.status === 'analysis') && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                <div><label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label><input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div>
+                <div><label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label><input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div>
                 <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
               </div>
             )}
@@ -566,7 +565,7 @@ export function ContractFormModal(props: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                    <div>
                      <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
-                     <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
+                     <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
                    
                    {/* Pró-Labore Simplificado */}
@@ -578,7 +577,7 @@ export function ContractFormModal(props: Props) {
                      />
                    </div>
 
-                   {/* Êxito Intermediário (Mantido como Lista/Tags) - COM CORREÇÃO DE PARCELAS */}
+                   {/* Êxito Intermediário (Mantido como Lista/Tags) */}
                    <div>
                      <FinancialInputWithInstallments 
                        label="Êxito Intermediário" 
@@ -607,7 +606,7 @@ export function ContractFormModal(props: Props) {
                   <div>
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
                     <div className="flex rounded-lg shadow-sm">
-                      <input type="text" className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
+                      <input type="text" className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
                       <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
@@ -637,7 +636,7 @@ export function ContractFormModal(props: Props) {
                     />
                   </div>
                 </div>
-                <div className="flex items-end pb-3"><div className="flex items-center"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-salomao-blue" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium whitespace-nowrap">Hon. de Timesheet</label></div></div>
+                <div className="flex items-end pb-3"><div className="flex items-center"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-0" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium whitespace-nowrap">Hon. de Timesheet</label></div></div>
               </div>
             )}
 
@@ -660,14 +659,14 @@ export function ContractFormModal(props: Props) {
 
             {formData.status === 'rejected' && (
               <div className="grid grid-cols-3 gap-4">
-                <div><label className="text-xs font-medium block mb-1">Data Rejeição</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /></div>
+                <div><label className="text-xs font-medium block mb-1">Data Rejeição</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /></div>
                 <CustomSelect label="Rejeitado por" value={formData.rejected_by || ''} onChange={(val: string) => setFormData({...formData, rejected_by: val})} options={rejectionByOptions} />
                 <CustomSelect label="Motivo" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
               </div>
             )}
           </section>
 
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:ring-2 focus:ring-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
+          <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
 
           {isEditing && timelineData.length > 0 && (
             <div className="border-t border-black/5 pt-6">
