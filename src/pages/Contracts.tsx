@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, SlidersHorizontal, Download, AlertCircle, Loader2, Edit, Trash2, ArrowUpDown, User, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, Filter, SlidersHorizontal, Download, FileText, AlertCircle, Loader2, Edit, Trash2, ArrowUpDown, User, LayoutGrid, List } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
+import { AnalystManagerModal, Analyst } from '../components/analysts/AnalystManagerModal'; // Importar
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal'; // Modal de Detalhes
 import { Contract, Partner, ContractProcess, TimelineEvent } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 
 export function Contracts() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [analysts, setAnalysts] = useState<Analyst[]>([]); // Estado dos Analistas
   const [loading, setLoading] = useState(true);
   
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -19,9 +22,14 @@ export function Contracts() {
   const [partnerFilter, setPartnerFilter] = useState<string>(''); 
   const [sortBy, setSortBy] = useState<string>('newest'); 
   
+  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false); // Modal de Analistas
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false); // Modal de Detalhes (Leitura)
   const [isEditing, setIsEditing] = useState(false);
+  
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
@@ -41,13 +49,28 @@ export function Contracts() {
   useEffect(() => {
     fetchContracts();
     fetchPartners();
+    fetchAnalysts(); // Busca Analistas ao carregar
   }, []);
 
   const fetchContracts = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('contracts').select(`*, partners (name)`).order('created_at', { ascending: false });
+    // Busca contratos com join em parceiros e analistas
+    const { data, error } = await supabase
+      .from('contracts')
+      .select(`
+        *,
+        partners (name),
+        analysts (name)
+      `)
+      .order('created_at', { ascending: false });
+
     if (data) {
-      setContracts(data.map((item: any) => ({ ...item, partner_name: item.partners?.name })));
+      const formattedData = data.map((item: any) => ({
+        ...item,
+        partner_name: item.partners?.name,
+        analyzed_by_name: item.analysts?.name // Mapeia o nome do analista
+      }));
+      setContracts(formattedData);
     }
     setLoading(false);
   };
@@ -57,11 +80,26 @@ export function Contracts() {
     if (data) setPartners(data);
   };
 
+  const fetchAnalysts = async () => {
+    const { data } = await supabase.from('analysts').select('*').order('name');
+    if (data) setAnalysts(data);
+  };
+
+  // --- ABRIR DETALHES (LEITURA) ---
+  const handleCardClick = async (contract: Contract) => {
+    setSelectedContract(contract);
+    const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
+    setProcesses(procData || []);
+    setIsDetailsOpen(true);
+  };
+
+  // --- ABRIR EDIÇÃO ---
   const handleEdit = async (contract: Contract, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsEditing(true);
     setFormData(contract);
     
+    // Limpa processos antigos
     setProcesses([]);
     const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
     if (procData) setProcesses(procData);
@@ -70,6 +108,21 @@ export function Contracts() {
     if (timeline) setTimelineData(timeline);
 
     setIsModalOpen(true);
+  };
+
+  const handleEditFromDetails = () => {
+    if (selectedContract) {
+      setIsDetailsOpen(false);
+      handleEdit(selectedContract);
+    }
+  };
+
+  const handleDeleteFromDetails = () => {
+    if (selectedContract) {
+      setIsDetailsOpen(false);
+      setContractToDelete(selectedContract);
+      setDeleteModalOpen(true);
+    }
   };
 
   const requestDelete = (contract: Contract, e: React.MouseEvent) => {
@@ -157,6 +210,7 @@ export function Contracts() {
     XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
+  // Helpers de Processo
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return alert('Preencha o número.');
     if (editingProcessIndex !== null) {
@@ -208,31 +262,21 @@ export function Contracts() {
     { label: 'Probono', value: 'probono' }
   ];
 
-  const partnerFilterOptions = [
-    { label: 'Todos os Sócios', value: '' },
-    ...partners.map(p => ({ label: p.name, value: p.id }))
-  ];
-
-  const sortOptions = [
-    { label: 'Mais Recentes', value: 'newest' },
-    { label: 'Mais Antigos', value: 'oldest' },
-    { label: 'Cliente A-Z', value: 'client' },
-    { label: 'Por Sócio', value: 'partner' }
-  ];
+  const partnerFilterOptions = [{ label: 'Todos os Sócios', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))];
+  const sortOptions = [{ label: 'Mais Recentes', value: 'newest' }, { label: 'Mais Antigos', value: 'oldest' }, { label: 'Cliente A-Z', value: 'client' }, { label: 'Por Sócio', value: 'partner' }];
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
       
+      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div><h1 className="text-3xl font-bold text-salomao-blue">Gestão de Contratos</h1><p className="text-gray-500 mt-1">Gerencie o ciclo de vida dos seus casos jurídicos.</p></div>
         <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95"><Plus className="w-5 h-5 mr-2" /> Novo Caso</button>
       </div>
 
+      {/* TOOLBAR */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-4 items-center">
-        <div className="flex-1 w-full relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input type="text" placeholder="Buscar por cliente, número HON..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
+        <div className="flex-1 w-full relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Buscar por cliente, número HON..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
           <div className="w-full sm:w-40"><CustomSelect value={statusFilter} onChange={setStatusFilter} options={statusFilterOptions} placeholder="Status" actionIcon={SlidersHorizontal} /></div>
           <div className="w-full sm:w-40"><CustomSelect value={partnerFilter} onChange={setPartnerFilter} options={partnerFilterOptions} placeholder="Sócio" actionIcon={User} /></div>
@@ -245,6 +289,7 @@ export function Contracts() {
         </div>
       </div>
 
+      {/* LISTAGEM */}
       {loading ? (
         <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : filteredContracts.length === 0 ? (
@@ -254,7 +299,7 @@ export function Contracts() {
           {viewMode === 'grid' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredContracts.map((contract) => (
-                <div key={contract.id} onClick={() => handleEdit(contract)} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer group relative overflow-hidden">
+                <div key={contract.id} onClick={() => handleCardClick(contract)} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer group relative overflow-hidden">
                   <div className="flex justify-between items-start mb-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -279,31 +324,18 @@ export function Contracts() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-600">
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase font-bold border-b border-gray-100">
-                    <tr>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4">Número HON</th>
-                      <th className="px-6 py-4">Cliente / Área</th>
-                      <th className="px-6 py-4">Sócio Resp.</th>
-                      <th className="px-6 py-4 text-right">Valor</th>
-                      <th className="px-6 py-4">Data</th>
-                      <th className="px-6 py-4 text-right">Ações</th>
-                    </tr>
+                    <tr><th className="px-6 py-4">Status</th><th className="px-6 py-4">Número HON</th><th className="px-6 py-4">Cliente / Área</th><th className="px-6 py-4">Sócio Resp.</th><th className="px-6 py-4 text-right">Valor</th><th className="px-6 py-4">Data</th><th className="px-6 py-4 text-right">Ações</th></tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {filteredContracts.map((contract) => (
-                      <tr key={contract.id} onClick={() => handleEdit(contract)} className="hover:bg-gray-50 cursor-pointer transition-colors group">
+                      <tr key={contract.id} onClick={() => handleCardClick(contract)} className="hover:bg-gray-50 cursor-pointer transition-colors group">
                         <td className="px-6 py-4"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(contract.status)} whitespace-nowrap`}>{getStatusLabel(contract.status)}</span></td>
                         <td className="px-6 py-4 font-mono text-xs">{contract.hon_number || '-'}</td>
                         <td className="px-6 py-4"><div className="font-bold text-gray-800">{contract.client_name}</div><div className="text-xs text-gray-400">{contract.area} - {contract.uf}</div></td>
                         <td className="px-6 py-4 text-salomao-blue font-medium">{contract.partner_name || '-'}</td>
                         <td className="px-6 py-4 text-right font-medium text-gray-800">{contract.final_success_fee || '-'}</td>
                         <td className="px-6 py-4 text-xs">{new Date(contract.created_at!).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => handleEdit(contract, e)} className="p-1.5 text-blue-500 hover:bg-blue-100 rounded"><Edit className="w-4 h-4" /></button>
-                            <button onClick={(e) => requestDelete(contract, e)} className="p-1.5 text-red-500 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button>
-                          </div>
-                        </td>
+                        <td className="px-6 py-4 text-right"><div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => handleEdit(contract, e)} className="p-1.5 text-blue-500 hover:bg-blue-100 rounded"><Edit className="w-4 h-4" /></button><button onClick={(e) => requestDelete(contract, e)} className="p-1.5 text-red-500 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></td>
                       </tr>
                     ))}
                   </tbody>
@@ -323,11 +355,18 @@ export function Contracts() {
         handleProcessAction={handleProcessAction} editProcess={editProcess} removeProcess={removeProcess} onCNPJSearch={async () => {}}
         newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} addIntermediateFee={addIntermediateFee} removeIntermediateFee={removeIntermediateFee}
         timelineData={timelineData} getStatusColor={getStatusColor} getStatusLabel={getStatusLabel}
-        // Props adicionais de Analista (se necessário, ou manter vazio se ainda não implementado no fluxo principal)
-        analysts={[]} onOpenAnalystManager={() => {}}
+        // AGORA SIM: Passando os analistas e a função correta
+        analysts={analysts} onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
+      />
+
+      <ContractDetailsModal 
+        isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} 
+        contract={selectedContract} onEdit={handleEditFromDetails} onDelete={handleDeleteFromDetails} 
+        processes={processes} 
       />
 
       <PartnerManagerModal isOpen={isPartnerModalOpen} onClose={() => setIsPartnerModalOpen(false)} onPartnersUpdate={fetchPartners} />
+      <AnalystManagerModal isOpen={isAnalystModalOpen} onClose={() => setIsAnalystModalOpen(false)} onAnalystsUpdate={fetchAnalysts} />
       <ConfirmModal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} title="Excluir Contrato" message={`Tem certeza que deseja remover o contrato de "${contractToDelete?.client_name}"?`} loading={deleteLoading} confirmLabel="Sim, Excluir" variant="danger" />
     </div>
   );

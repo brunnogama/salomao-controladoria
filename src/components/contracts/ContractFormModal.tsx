@@ -81,13 +81,10 @@ export function ContractFormModal(props: Props) {
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
 
-  // CORREÇÃO: useEffect separado e chamada de função void
   useEffect(() => {
     if (isOpen) {
       fetchStatuses();
-      if (formData.id) {
-        fetchDocuments(); // Chama a função, não testa seu retorno
-      }
+      if (formData.id) fetchDocuments();
     }
   }, [isOpen, formData.id]);
 
@@ -189,7 +186,7 @@ export function ContractFormModal(props: Props) {
   const handleTextChange = (field: keyof Contract, value: string) => { setFormData({ ...formData, [field]: toTitleCase(value) }); };
 
   const partnerSelectOptions = partners.map(p => ({ label: p.name, value: p.id }));
-  const analystSelectOptions = analysts.map(a => ({ label: a.name, value: a.id }));
+  const analystSelectOptions = analysts ? analysts.map(a => ({ label: a.name, value: a.id })) : []; // PROTEÇÃO AQUI
   const ufOptions = UFS.map(uf => ({ label: uf.nome, value: uf.sigla }));
   const positionOptions = [{ label: 'Autor', value: 'Autor' }, { label: 'Réu', value: 'Réu' }, { label: 'Terceiro', value: 'Terceiro' }];
 
@@ -223,30 +220,34 @@ export function ContractFormModal(props: Props) {
             </div>
           </section>
 
+          {/* SESSÃO: DETALHES DA FASE (ANALYSIS) - CORRIGIDA */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" /> Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
             
-            {/* SEMPRE MOSTRAR */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-              <div>
-                <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect</label>
-                <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
+            {/* SE O STATUS FOR 'analysis' (OU 'Sob Análise' dependendo do value salvo), MOSTRA OS CAMPOS */}
+            {(formData.status === 'analysis') && ( 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100 animate-in slide-in-from-top-2">
+                <div>
+                  <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect</label>
+                  <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
+                </div>
+                <div>
+                  {/* SELETOR DE ANALISTA */}
+                  <CustomSelect 
+                    label="Analisado Por" 
+                    value={formData.analyst_id || ''} 
+                    onChange={(val: string) => setFormData({...formData, analyst_id: val})} 
+                    options={analystSelectOptions} 
+                    onAction={onOpenAnalystManager} 
+                    actionIcon={Settings} 
+                    actionLabel="Gerenciar Analistas"
+                    className="bg-white border-yellow-200"
+                  />
+                </div>
               </div>
-              <div>
-                {/* CORREÇÃO: Usando a propriedade analyst_id que agora existe no tipo Contract */}
-                <CustomSelect 
-                  label="Analisado Por" 
-                  value={formData.analyst_id || ''} 
-                  onChange={(val: string) => setFormData({...formData, analyst_id: val})} 
-                  options={analystSelectOptions} 
-                  onAction={onOpenAnalystManager} 
-                  actionIcon={Settings} 
-                  actionLabel="Gerenciar Analistas"
-                  className="bg-white border-yellow-200"
-                />
-              </div>
-            </div>
+            )}
 
+            {/* ... Resto dos campos (proposta, financeiro) ... */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
                <div className="space-y-6">
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -258,7 +259,7 @@ export function ContractFormModal(props: Props) {
             )}
           </section>
 
-          {/* ... Restante do form (Observações, Timeline) ... */}
+          {/* ... Observações e Timeline ... */}
         </div>
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600">Cancelar</button>
