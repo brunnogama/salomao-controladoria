@@ -13,6 +13,7 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
+// ... (getStatusColor, getStatusLabel, formatMoney MANTIDOS)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -35,11 +36,19 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-// Função auxiliar para formatar exibição no Card/Tabela
 const formatMoney = (val: number | string | undefined) => {
   if (!val) return 'R$ 0,00';
   const num = typeof val === 'string' ? parseCurrency(val) : val;
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+// Nova função auxiliar para somar êxitos
+const calculateTotalSuccess = (c: Contract) => {
+    let total = parseCurrency(c.final_success_fee);
+    if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
+        c.intermediate_fees.forEach(fee => total += parseCurrency(fee));
+    }
+    return total;
 };
 
 export function Contracts() {
@@ -341,63 +350,66 @@ export function Contracts() {
         <>
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredContracts.map((contract) => (
-                <div key={contract.id} onClick={() => handleEdit(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
-                  
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1 min-w-0 pr-8">
-                      <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mt-1 border ${getStatusColor(contract.status)}`}>
-                        {getStatusLabel(contract.status)}
-                      </span>
+              {filteredContracts.map((contract) => {
+                const totalExito = calculateTotalSuccess(contract);
+                return (
+                  <div key={contract.id} onClick={() => handleEdit(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
+                    
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1 min-w-0 pr-8">
+                        <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mt-1 border ${getStatusColor(contract.status)}`}>
+                          {getStatusLabel(contract.status)}
+                        </span>
+                      </div>
+                      <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
+                          <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                          <button onClick={(e) => handleDelete(e, contract.id!)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
-                    <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
-                        <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => handleDelete(e, contract.id!)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </div>
 
-                  <div className="space-y-1.5 text-xs text-gray-600">
-                    <div className="flex items-center">
-                      <Briefcase className="w-3.5 h-3.5 mr-2 text-salomao-blue" />
-                      <span className="truncate">{contract.area || 'Área não inf.'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <User className="w-3.5 h-3.5 mr-2 text-salomao-gold" />
-                      <span className="truncate">{contract.partner_name || 'Sem sócio'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
-                      <span>{contract.process_count || 0} Processos</span>
-                    </div>
-                    {contract.status === 'active' && contract.hon_number && (
+                    <div className="space-y-1.5 text-xs text-gray-600">
                       <div className="flex items-center">
-                        <Tag className="w-3.5 h-3.5 mr-2 text-gray-400" />
-                        <span className="font-mono bg-gray-100 px-1 rounded text-[10px]">{contract.hon_number}</span>
+                        <Briefcase className="w-3.5 h-3.5 mr-2 text-salomao-blue" />
+                        <span className="truncate">{contract.area || 'Área não inf.'}</span>
                       </div>
-                    )}
-                  </div>
+                      <div className="flex items-center">
+                        <User className="w-3.5 h-3.5 mr-2 text-salomao-gold" />
+                        <span className="truncate">{contract.partner_name || 'Sem sócio'}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                        <span>{contract.process_count || 0} Processos</span>
+                      </div>
+                      {contract.status === 'active' && contract.hon_number && (
+                        <div className="flex items-center">
+                          <Tag className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                          <span className="font-mono bg-gray-100 px-1 rounded text-[10px]">{contract.hon_number}</span>
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-end">
-                    <div className="text-[10px] text-gray-400">
-                      <div className="flex items-center">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {new Date(contract.created_at || '').toLocaleDateString()}
+                    <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-end">
+                      <div className="text-[10px] text-gray-400">
+                        <div className="flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {new Date(contract.created_at || '').toLocaleDateString()}
+                        </div>
                       </div>
+                      {contract.status === 'active' && (
+                        <div className="text-right">
+                          {contract.pro_labore && parseCurrency(contract.pro_labore) > 0 && (
+                            <div className="text-xs font-bold text-green-700">{formatMoney(contract.pro_labore)}</div>
+                          )}
+                          {totalExito > 0 && (
+                            <div className="text-[10px] text-gray-500">+ {formatMoney(totalExito)} êxito (Total)</div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {contract.status === 'active' && (
-                      <div className="text-right">
-                        {contract.pro_labore && parseCurrency(contract.pro_labore) > 0 && (
-                          <div className="text-xs font-bold text-green-700">{formatMoney(contract.pro_labore)}</div>
-                        )}
-                        {contract.final_success_fee && parseCurrency(contract.final_success_fee) > 0 && (
-                          <div className="text-[10px] text-gray-500">+ {formatMoney(contract.final_success_fee)} êxito</div>
-                        )}
-                      </div>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
