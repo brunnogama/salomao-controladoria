@@ -266,8 +266,21 @@ export function ContractFormModal(props: Props) {
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
+  const forceUpdateFinancials = async (contractId: string) => {
+    const cleanPL = parseCurrency(formData.pro_labore);
+    const cleanSuccess = parseCurrency(formData.final_success_fee);
+    const cleanFixed = parseCurrency(formData.fixed_monthly_fee);
+    const cleanOther = parseCurrency(formData.other_fees);
+
+    await supabase.from('contracts').update({
+      pro_labore: cleanPL,
+      final_success_fee: cleanSuccess,
+      fixed_monthly_fee: cleanFixed,
+      other_fees: cleanOther
+    }).eq('id', contractId);
+  };
+
   const handleSaveWithIntegrations = async () => {
-    // Validações Obrigatórias
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
 
@@ -284,39 +297,36 @@ export function ContractFormModal(props: Props) {
     try {
         const clientId = await upsertClient();
         
-        // Prepara objeto limpo para salvar no DB (converte moedas para number/float)
         const contractPayload: any = {
             ...formData,
             client_id: clientId || formData.client_id,
-            // Converte strings "R$ ..." para números puros
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
-            // Campos virtuais a remover
+            // REMOVE CAMPOS VIRTUAIS OU ESTRANGEIROS QUE CAUSAM ERRO
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
-            id: undefined // ID não vai no payload se for insert, se for update usamos no .eq()
+            analysts: undefined, // CORREÇÃO DO ERRO PGRST204
+            clients: undefined,  // GARANTIA
+            partners: undefined, // GARANTIA
+            id: undefined 
         };
 
-        // Remove campos undefined para não sobrescrever com null se não necessário
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
 
         let savedId = formData.id;
 
         if (formData.id) {
-            // Update
             const { error } = await supabase.from('contracts').update(contractPayload).eq('id', formData.id);
             if (error) throw error;
         } else {
-            // Insert
             const { data, error } = await supabase.from('contracts').insert(contractPayload).select().single();
             if (error) throw error;
             savedId = data.id;
         }
 
-        // Pós-salvamento: Parcelas e Kanban
         if (savedId) {
             await generateFinancialInstallments(savedId);
             
@@ -329,7 +339,6 @@ export function ContractFormModal(props: Props) {
             }
         }
 
-        // Chama o onSave do pai para atualizar a lista e fechar modal
         onSave();
         onClose();
 
@@ -371,6 +380,7 @@ export function ContractFormModal(props: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
+          {/* ... Resto do componente permanece igual ... */}
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
             <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
           </div>
