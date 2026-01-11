@@ -51,7 +51,7 @@ const FinancialInputWithInstallments = ({
   );
 };
 
-// --- LÓGICA DE DATAS (CORRIGIDA) ---
+// --- LÓGICA DE DATAS ---
 const getEffectiveDate = (status: string, fallbackDate: string, formData: Contract) => {
   let businessDateString = null;
   switch (status) {
@@ -158,7 +158,6 @@ export function ContractFormModal(props: Props) {
     if (data) setDocuments(data);
   };
 
-  // --- FUNÇÃO RESTAURADA (CORREÇÃO DO ERRO VOID) ---
   const upsertClient = async () => {
     if (!formData.cnpj || !formData.client_name) return null;
     const clientData = {
@@ -183,7 +182,6 @@ export function ContractFormModal(props: Props) {
     return clientId;
   };
 
-  // --- FUNÇÃO DE GERAÇÃO FINANCEIRA COMPLETA ---
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
@@ -201,7 +199,7 @@ export function ContractFormModal(props: Props) {
 
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
-    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'pro_labore'); // Fixo mensal tratado como pro-labore recorrente
+    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'pro_labore');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
@@ -380,7 +378,6 @@ export function ContractFormModal(props: Props) {
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 
-                {/* LINHA 1: Data | Pro-Labore | Exito Intermediario | Exito Final */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                    <div>
                      <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta' : 'Data Assinatura'}</label>
@@ -416,12 +413,25 @@ export function ContractFormModal(props: Props) {
                    />
                 </div>
 
-                {/* LINHA 2: Exito % | Outros Honorarios | Fixo Mensal */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div>
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
-                    <div className="flex">
-                      <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
+                    <div className="flex rounded-lg shadow-sm">
+                      <input 
+                        type="text" 
+                        className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none min-w-0" 
+                        placeholder="Ex: 20%" 
+                        value={formData.final_success_percent} 
+                        onChange={e => setFormData({...formData, final_success_percent: e.target.value})} 
+                      />
+                      <button 
+                        className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 transition-colors flex items-center justify-center border-l border-blue-800"
+                        type="button"
+                        title="Adicionar valor"
+                        onClick={() => {}}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
