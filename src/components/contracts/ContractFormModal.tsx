@@ -177,13 +177,9 @@ export function ContractFormModal(props: Props) {
         const indexA = order.indexOf(a.value);
         const indexB = order.indexOf(b.value);
         
-        // Se ambos estão na lista de prioridade, ordena pelo índice
         if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-        // Se apenas A está na lista, vem primeiro
         if (indexA !== -1) return -1;
-        // Se apenas B está na lista, vem primeiro
         if (indexB !== -1) return 1;
-        // Se nenhum está (personalizados), ordena alfabeticamente
         return a.label.localeCompare(b.label);
       });
 
@@ -465,7 +461,8 @@ export function ContractFormModal(props: Props) {
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           
-          <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
+          {/* CONTAINER DO STATUS - FIX: RELATIVE Z-50 */}
+          <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
             <CustomSelect 
               label="Status Atual do Caso"
               value={formData.status}
@@ -565,7 +562,12 @@ export function ContractFormModal(props: Props) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
                 <div>
                   <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect</label>
-                  <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
+                  <input 
+                    type="date" 
+                    className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" 
+                    value={formData.prospect_date || ''} 
+                    onChange={e => setFormData({...formData, prospect_date: e.target.value})} 
+                  />
                 </div>
                 <div>
                   <CustomSelect 
