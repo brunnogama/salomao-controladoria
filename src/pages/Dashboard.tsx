@@ -38,7 +38,6 @@ const safeParseMoney = (value: string | number | undefined | null): number => {
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
 
-  // ... (Estados e useEffect mantidos iguais) ...
   const [metrics, setMetrics] = useState({
     semana: {
       novos: 0,
@@ -110,7 +109,6 @@ export function Dashboard() {
   const processarDados = (contratos: Contract[]) => {
     const hoje = new Date();
     
-    // Zera todas as métricas para recalcular
     let mSemana = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
@@ -133,7 +131,6 @@ export function Dashboard() {
     const mapaMeses: Record<string, number> = {};
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
     
-    // Inicializa mapa financeiro dos últimos 12 meses
     for (let i = 0; i < 12; i++) {
       const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
       const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
@@ -143,15 +140,10 @@ export function Dashboard() {
 
     contratos.forEach((c) => {
       const dataCriacao = new Date(c.created_at || new Date());
-      // Extrai valores numéricos garantidos
       const pl = safeParseMoney(c.pro_labore);
       const exito = safeParseMoney(c.final_success_fee);
       const mensal = safeParseMoney(c.fixed_monthly_fee);
 
-      // --- FINANCEIRO 12 MESES ---
-      // Considera Contratos Fechados (active) E Propostas (proposal) se o usuário desejar ver pipeline,
-      // mas o padrão "Evolução Financeira" geralmente reflete o realizado (active).
-      // Para o Dashboard "Valores em Negociação", usamos o acumulador mGeral.
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
         dContrato.setDate(1); dContrato.setHours(0,0,0,0);
@@ -163,7 +155,6 @@ export function Dashboard() {
             financeiroMap[key].fixo += mensal;
             financeiroMap[key].exito += exito;
             
-            // Soma intermediários se existirem (e forem array de strings)
             if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
               c.intermediate_fees.forEach(f => {
                 financeiroMap[key].exito += safeParseMoney(f);
@@ -173,20 +164,16 @@ export function Dashboard() {
         }
       }
 
-      // --- CÁLCULO GERAL (Cards Fotografia) ---
       mGeral.totalCasos++;
-      
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
       
-      // Propostas (Valores em Negociação)
       if (c.status === 'proposal') {
         mGeral.propostasAtivas++;
-        mGeral.valorEmNegociacaoPL += (pl + mensal); // Soma PL + Fixo no total de negociação
+        mGeral.valorEmNegociacaoPL += (pl + mensal); 
         mGeral.valorEmNegociacaoExito += exito;
       }
       
-      // Fechados (Carteira Ativa)
       if (c.status === 'active') {
         mGeral.fechados++;
         mGeral.receitaRecorrenteAtiva += mensal;
@@ -195,9 +182,6 @@ export function Dashboard() {
         c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
-      // --- CÁLCULO SEMANAL E MENSAL ---
-      
-      // SEMANA
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
         mSemana.propQtd++; 
@@ -214,7 +198,6 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
-      // MÊS
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
         mMes.propQtd++; 
@@ -231,19 +214,16 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) mMes.rejected++;
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) mMes.probono++;
 
-      // Contagem de Casos Únicos movimentados
       const contractDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date];
       if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
       if (contractDates.some(date => isDateInCurrentMonth(date))) mMes.totalUnico++;
 
-      // Funil
       fTotal++;
       const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
       if (chegouEmProposta) fQualificados++;
       if (c.status === 'active') fFechados++;
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
 
-      // Gráfico Entrada de Casos
       const datasDisponiveis = [
         c.created_at ? new Date(c.created_at) : null,
         c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null,
@@ -260,7 +240,6 @@ export function Dashboard() {
       mapaMeses[mesAno]++;
     });
 
-    // Finalização dos Arrays e Médias
     const finArray = Object.entries(financeiroMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); 
     const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
@@ -292,7 +271,6 @@ export function Dashboard() {
 
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
-  // ... (JSX RETORNO MANTIDO IDENTICO) ...
   return (
     <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
       <div><h1 className='text-3xl font-bold text-[#0F2C4C]'>Controladoria Jurídica</h1><p className='text-gray-500'>Visão estratégica de contratos e resultados.</p></div>
@@ -346,7 +324,20 @@ export function Dashboard() {
       <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
         <div className='flex items-center justify-between mb-6 border-b pb-4'><h3 className='font-bold text-gray-800 flex items-center gap-2'><BarChart4 className='text-[#0F2C4C]' size={20} /> Evolução Financeira (12 Meses)</h3><div className='flex gap-4'><div className='bg-blue-50 px-4 py-2 rounded-lg border border-blue-100'><p className='text-[10px] text-blue-600 font-bold uppercase'>Média Pró-labore (+ Fixos)</p><p className='text-lg font-bold text-blue-900'>{formatMoney(mediasFinanceiras.pl)}</p></div><div className='bg-green-50 px-4 py-2 rounded-lg border border-green-100'><p className='text-[10px] text-green-600 font-bold uppercase'>Média Êxitos</p><p className='text-lg font-bold text-green-900'>{formatMoney(mediasFinanceiras.exito)}</p></div></div></div>
         <div className='h-64 flex items-end justify-around gap-2'>
-          {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (financeiro12Meses.map((item, index) => (<div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end'><div className='flex items-end gap-1 h-full w-full justify-center px-1'><div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.pl)}</span></div><div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div><div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.exito)}</span></div></div><span className='text-[10px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span></div>)))}
+          {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (financeiro12Meses.map((item, index) => {
+            const totalMes = item.pl + item.fixo + item.exito;
+            return (
+              <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
+                {totalMes > 0 && (<span className='text-[9px] font-bold text-gray-600 mb-1 tracking-tighter whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
+                <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
+                  <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
+                  <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
+                  <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
+                </div>
+                <span className='text-[10px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
+              </div>
+            );
+          }))}
         </div>
         <div className='flex justify-center gap-4 mt-4 text-xs'><div className='flex items-center'><span className='w-3 h-3 bg-blue-400 rounded-full mr-1'></span> Pró-labore</div><div className='flex items-center'><span className='w-3 h-3 bg-indigo-400 rounded-full mr-1'></span> Fixo Mensal</div><div className='flex items-center'><span className='w-3 h-3 bg-green-400 rounded-full mr-1'></span> Êxito</div></div>
       </div>
