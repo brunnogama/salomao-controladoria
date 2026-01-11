@@ -78,8 +78,6 @@ export function Dashboard() {
   });
 
   const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
-  
-  // Novo Estado para o Gráfico Financeiro
   const [financeiro12Meses, setFinanceiro12Meses] = useState<any[]>([]);
   const [mediasFinanceiras, setMediasFinanceiras] = useState({ pl: 0, exito: 0 });
 
@@ -108,7 +106,7 @@ export function Dashboard() {
     if (!dateString) return false;
     const date = new Date(dateString + 'T12:00:00');
     const today = new Date();
-    const currentDay = today.getDay(); // 0-6 (Dom-Sab)
+    const currentDay = today.getDay(); 
     
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - currentDay);
@@ -125,7 +123,6 @@ export function Dashboard() {
     const hoje = new Date();
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
-    // Estruturas de métricas existentes
     let mSemana = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
@@ -149,9 +146,7 @@ export function Dashboard() {
 
     const mapaMeses: Record<string, number> = {};
 
-    // --- PREPARAÇÃO FINANCEIRO 12 MESES ---
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
-    // Inicializa últimos 12 meses
     for (let i = 0; i < 12; i++) {
       const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
       const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
@@ -168,10 +163,8 @@ export function Dashboard() {
       const exito = parseCurrency(c.final_success_fee);
       const mensal = parseCurrency(c.fixed_monthly_fee);
 
-      // --- FINANCEIRO 12 MESES ---
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
-        // Normaliza para primeiro dia do mês para agrupamento
         dContrato.setDate(1); 
         dContrato.setHours(0,0,0,0);
 
@@ -191,7 +184,6 @@ export function Dashboard() {
         }
       }
 
-      // --- RESTO DA LÓGICA (MANTIDA) ---
       fTotal++;
       const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
       if (chegouEmProposta) fQualificados++;
@@ -219,15 +211,10 @@ export function Dashboard() {
 
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
-        mSemana.propQtd++;
-        mSemana.propPL += pl;
-        mSemana.propExito += exito;
+        mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito;
       }
       if (c.status === 'active' && isDateInCurrentWeek(c.contract_date)) {
-        mSemana.fechQtd++;
-        mSemana.fechPL += pl;
-        mSemana.fechExito += exito;
-        mSemana.fechMensal += mensal;
+        mSemana.fechQtd++; mSemana.fechPL += pl; mSemana.fechExito += exito; mSemana.fechMensal += mensal;
       }
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
@@ -240,7 +227,6 @@ export function Dashboard() {
         mMes.fechQtd++; mMes.fechPL += pl; mMes.fechExito += exito; mMes.fechMensal += mensal;
       }
 
-      // Gráfico Entrada de Casos (Data mais antiga)
       const datasDisponiveis = [
         c.created_at ? new Date(c.created_at) : null,
         c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null,
@@ -259,12 +245,11 @@ export function Dashboard() {
       mapaMeses[mesAno]++;
     });
 
-    // --- FINALIZAÇÃO FINANCEIRO 12 MESES ---
     const finArray = Object.entries(financeiroMap)
       .map(([mes, vals]) => ({ mes, ...vals }))
       .sort((a, b) => a.data.getTime() - b.data.getTime());
 
-    const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); // PL + Fixo para média
+    const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); 
     const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
 
     setMediasFinanceiras({
@@ -281,7 +266,6 @@ export function Dashboard() {
     }));
     setFinanceiro12Meses(graficoFin);
 
-    // --- FINALIZAÇÃO GERAL ---
     const txProp = fTotal > 0 ? ((fQualificados / fTotal) * 100).toFixed(1) : '0';
     const txFech = fQualificados > 0 ? ((fFechados / fQualificados) * 100).toFixed(1) : '0';
 
@@ -456,7 +440,27 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ================= NOVO: GRÁFICO FINANCEIRO 12 MESES ================= */}
+      {/* ================= FOTOGRAFIA FINANCEIRA TOTAL (MOVIDO) ================= */}
+      <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-6'>
+        <h3 className='font-bold text-gray-700 border-b pb-2 flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={20} /> Fotografia Financeira Total</h3>
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
+          <div>
+            <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Valores em Negociação (Ativo)</p>
+            <div className='space-y-2'><FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} /><FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span></div></div>
+          </div>
+          <div className='md:border-l md:pl-8 border-gray-100'>
+            <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Carteira Ativa (Receita)</p>
+            <div className='space-y-2'>
+              <FinItem label='Pró-labore Total (Fechado)' value={metrics.geral.totalFechadoPL} colorClass='text-green-700' />
+              <FinItem label='Êxito Total (Fechado)' value={metrics.geral.totalFechadoExito} colorClass='text-green-700' />
+              <FinItem label='Média Mensal do Total' value={metrics.geral.receitaRecorrenteAtiva} colorClass='text-green-700' />
+              <div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= GRÁFICO FINANCEIRO 12 MESES ================= */}
       <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
         <div className='flex items-center justify-between mb-6 border-b pb-4'>
           <h3 className='font-bold text-gray-800 flex items-center gap-2'>
@@ -481,18 +485,9 @@ export function Dashboard() {
             financeiro12Meses.map((item, index) => (
               <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end'>
                 <div className='flex items-end gap-1 h-full w-full justify-center px-1'>
-                  {/* Barra Pró-labore */}
-                  <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}>
-                    <span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.pl)}</span>
-                  </div>
-                  {/* Barra Fixo */}
-                  <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}>
-                    <span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.fixo)}</span>
-                  </div>
-                  {/* Barra Êxito */}
-                  <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}>
-                    <span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.exito)}</span>
-                  </div>
+                  <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
+                  <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
+                  <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
                 </div>
                 <span className='text-[10px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
               </div>
@@ -540,25 +535,6 @@ export function Dashboard() {
                 </div>
               ))
             )}
-          </div>
-        </div>
-
-        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-6 lg:col-span-3'>
-          <h3 className='font-bold text-gray-700 border-b pb-2 flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={20} /> Fotografia Financeira Total</h3>
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
-            <div>
-              <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Valores em Negociação (Ativo)</p>
-              <div className='space-y-2'><FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} /><FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span></div></div>
-            </div>
-            <div className='md:border-l md:pl-8 border-gray-100'>
-              <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Carteira Ativa (Receita)</p>
-              <div className='space-y-2'>
-                <FinItem label='Pró-labore Total (Fechado)' value={metrics.geral.totalFechadoPL} colorClass='text-green-700' />
-                <FinItem label='Êxito Total (Fechado)' value={metrics.geral.totalFechadoExito} colorClass='text-green-700' />
-                <FinItem label='Média Mensal do Total' value={metrics.geral.receitaRecorrenteAtiva} colorClass='text-green-700' />
-                <div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span></div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
