@@ -160,12 +160,10 @@ export function ContractFormModal(props: Props) {
   };
 
   const upsertClient = async () => {
-    // Validação Básica
     if (!formData.client_name) return null;
 
     const clientData = {
       name: formData.client_name,
-      // CORREÇÃO: Envia NULL se sem cnpj ou vazio, para evitar erro de unique key com string vazia
       cnpj: (formData.has_no_cnpj || !formData.cnpj) ? null : formData.cnpj,
       is_person: clientExtraData.is_person || formData.has_no_cnpj || (formData.cnpj.length > 0 && formData.cnpj.length <= 14),
       uf: formData.uf,
@@ -177,7 +175,6 @@ export function ContractFormModal(props: Props) {
       partner_id: formData.partner_id
     };
 
-    // Caso 1: Tem CNPJ válido (não nulo e não vazio)
     if (clientData.cnpj) {
       const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
       
@@ -188,23 +185,16 @@ export function ContractFormModal(props: Props) {
         const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
         if (error) { 
             console.error('Erro ao criar cliente com CNPJ:', error); 
-            // Se erro for de duplicidade mas não achamos no select acima, algo estranho ocorreu, mas vamos deixar estourar
             return null; 
         }
         return newClient.id;
       }
-    } 
-    
-    // Caso 2: Sem CNPJ (cnpj é null)
-    else {
-      // Se já temos um client_id vinculado ao contrato (edição), atualizamos esse
+    } else {
       if (formData.client_id) {
          const { error } = await supabase.from('clients').update(clientData).eq('id', formData.client_id);
          if (error) console.error("Erro ao atualizar cliente sem CNPJ:", error);
          return formData.client_id;
-      } 
-      // Se é novo contrato sem CNPJ, cria um novo cliente
-      else {
+      } else {
          const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
          if (error) { 
              console.error('Erro ao criar cliente sem CNPJ:', error); 
@@ -215,9 +205,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // Funções de lista apenas para intermediários agora
   const handleAddToList = (listField: string, valueField: keyof Contract) => {
-    // Mantido para compatibilidade, mas usado apenas para percent_extras se necessário
     const value = (formData as any)[valueField];
     if (!value || value === 'R$ 0,00' || value === '') return;
     setFormData(prev => ({ ...prev, [listField]: [...(prev as any)[listField] || [], value], [valueField]: '' }));
@@ -241,7 +229,6 @@ export function ContractFormModal(props: Props) {
 
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
-    
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
     
     const installmentsToInsert: any[] = [];
@@ -255,13 +242,11 @@ export function ContractFormModal(props: Props) {
       }
     };
 
-    // Gera parcelas baseadas nos inputs diretos
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
     addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
-    // Intermediários continuam como lista
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
@@ -313,7 +298,6 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
-            // REMOVE CAMPOS VIRTUAIS/ESTRANGEIROS
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
@@ -325,7 +309,6 @@ export function ContractFormModal(props: Props) {
             partners: undefined,
             id: undefined,
             
-            // Remove arrays de controle local
             pro_labore_extras: undefined,
             final_success_extras: undefined,
             fixed_monthly_extras: undefined,
@@ -378,14 +361,122 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // ... (Resto do componente inalterado) ...
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
   const handleOpenJusbrasil = () => { /* ... */ };
-  const handleFileUpload = async (e: any, t: any) => { /* ... */ };
-  const handleDownload = async (p: string) => { /* ... */ };
-  const handleDeleteDocument = async (id: string, p: string) => { /* ... */ };
+  
+  // --- FUNÇÕES DE UPLOAD IMPLEMENTADAS AQUI ---
+  
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!formData.id) {
+      alert("⚠️ Você precisa salvar o contrato pelo menos uma vez antes de anexar arquivos.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // 1. Upload para o Storage (usando o ID do contrato como pasta para organização)
+      const fileExt = file.name.split('.').pop();
+      const sanitizedFileName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+      // Caminho: contract_id/timestamp_nome_arquivo
+      const filePath = `${formData.id}/${Date.now()}_${sanitizedFileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('contract-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Inserir registro na tabela contract_documents
+      const { data: docData, error: dbError } = await supabase
+        .from('contract_documents')
+        .insert({
+          contract_id: formData.id,
+          file_name: file.name,
+          file_path: filePath,
+          file_type: type,
+          // Se tiver campo de uploaded_by ou uploaded_at, o banco deve lidar (default now())
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // 3. Atualizar estado local
+      if (docData) {
+          setDocuments(prev => [docData, ...prev]);
+      }
+      // Feedback visual simples, ou poderia usar um toast
+      // alert("Arquivo anexado com sucesso!");
+
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      alert("Erro ao anexar arquivo: " + error.message);
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // Reseta o input
+    }
+  };
+
+  const handleDownload = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('contract-documents')
+        .download(path);
+        
+      if (error) throw error;
+      
+      // Cria link temporário para download
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      // Extrai o nome do arquivo original do path se possível, ou usa genérico
+      const fileName = path.split('_').slice(1).join('_') || 'documento.pdf';
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error("Download error:", error);
+      alert("Erro ao baixar arquivo: " + error.message);
+    }
+  };
+
+  const handleDeleteDocument = async (id: string, path: string) => {
+    if (!confirm("Tem certeza que deseja excluir este documento?")) return;
+
+    try {
+      // 1. Remove do Storage
+      const { error: storageError } = await supabase.storage
+        .from('contract-documents')
+        .remove([path]);
+
+      if (storageError) {
+          console.warn("Aviso: Erro ao remover do storage (pode já ter sido deletado)", storageError);
+      }
+
+      // 2. Remove do Banco
+      const { error: dbError } = await supabase
+        .from('contract_documents')
+        .delete()
+        .eq('id', id);
+
+      if (dbError) throw dbError;
+
+      // 3. Atualiza UI
+      setDocuments(prev => prev.filter(d => d.id !== id));
+
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      alert("Erro ao excluir documento: " + error.message);
+    }
+  };
+
   const handleTextChange = (field: keyof Contract, value: string) => { setFormData({ ...formData, [field]: toTitleCase(value) }); };
 
   const partnerSelectOptions = partners.map(p => ({ label: p.name, value: p.id }));
