@@ -114,7 +114,7 @@ export function Dashboard() {
         pdf.save(`Relatorio_Dashboard_${dateStr}.pdf`);
 
         const subject = encodeURIComponent(`Relatório de Controladoria - ${dateStr}`);
-        const body = encodeURIComponent(`Olá sócios,\n\nSegue em anexo o relatório atualizado do Dashboard (versões PDF e Imagem) que acabaram de ser baixados para o seu dispositivo.\n\nAtenciosamente,\nSalomão Controladoria.`);
+        const body = encodeURIComponent(`Caros,\n\nSegue em anexo o panorama atualizado dos contratos.\n\nAtenciosamente,\nMarcio Gama - Controladoria.`);
         
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
 
