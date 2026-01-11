@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, SlidersHorizontal, Download, AlertCircle, Loader2, Edit, Trash2, ArrowUpDown, User, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, Filter, SlidersHorizontal, Download, FileText, AlertCircle, Loader2, Edit, Trash2, ArrowUpDown, User, LayoutGrid, List } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
@@ -134,6 +134,7 @@ export function Contracts() {
       await supabase.from('contract_documents').delete().eq('contract_id', contractToDelete.id);
       await supabase.from('kanban_tasks').delete().eq('contract_id', contractToDelete.id);
       await supabase.from('contract_timeline').delete().eq('contract_id', contractToDelete.id);
+      await supabase.from('financial_installments').delete().eq('contract_id', contractToDelete.id);
       
       const { error } = await supabase.from('contracts').delete().eq('id', contractToDelete.id);
       if (error) throw error;
@@ -152,7 +153,21 @@ export function Contracts() {
     try {
       setLoading(true);
       
-      const { partners, analysts, partner_name, analyzed_by_name, ...cleanFormData } = formData as any;
+      // 1. LIMPEZA DE DADOS (CORREÇÃO DO ERRO)
+      // Removemos campos que não existem na tabela 'contracts'
+      const { 
+        partners, 
+        analysts, 
+        partner_name, 
+        analyzed_by_name,
+        // Remover campos temporários dos extras
+        pro_labore_extras,
+        final_success_extras,
+        fixed_monthly_extras,
+        other_fees_extras,
+        percent_extras,
+        ...cleanFormData 
+      } = formData as any;
       
       const contractData = { ...cleanFormData, process_count: processes.length };
       let contractId = formData.id;
@@ -166,6 +181,7 @@ export function Contracts() {
         isNew = true;
       }
 
+      // 2. Salvar Contrato
       if (isEditing && contractId) {
         const { error } = await supabase.from('contracts').update(contractData).eq('id', contractId);
         if (error) throw error;
@@ -175,6 +191,7 @@ export function Contracts() {
         contractId = data.id;
       }
 
+      // 3. Salvar Processos e Timeline
       if (contractId) {
         await supabase.from('contract_processes').delete().eq('contract_id', contractId);
         if (processes.length > 0) {
@@ -286,6 +303,7 @@ export function Contracts() {
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
       
+      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div><h1 className="text-3xl font-bold text-salomao-blue">Gestão de Contratos</h1><p className="text-gray-500 mt-1">Gerencie o ciclo de vida dos seus casos jurídicos.</p></div>
         <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95"><Plus className="w-5 h-5 mr-2" /> Novo Caso</button>
@@ -361,7 +379,6 @@ export function Contracts() {
         </>
       )}
 
-      {/* MODALS */}
       <ContractFormModal 
         isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
         formData={formData} setFormData={setFormData} onSave={async () => { await handleSave(); }}
