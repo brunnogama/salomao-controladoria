@@ -211,6 +211,8 @@ export function ContractFormModal(props: Props) {
   };
 
   const generateFinancialInstallments = async (contractId: string) => {
+    // Essa função usa o formData (estado local), então funciona para o financeiro
+    // mesmo que o banco não tenha atualizado ainda.
     if (formData.status !== 'active') return;
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
     
@@ -267,18 +269,23 @@ export function ContractFormModal(props: Props) {
   };
 
   const forceUpdateFinancials = async (contractId: string) => {
-    // Garante que pegamos os valores ou strings vazias, e o parseCurrency limpará
-    const cleanPL = parseCurrency(formData.pro_labore || "");
-    const cleanSuccess = parseCurrency(formData.final_success_fee || "");
-    const cleanFixed = parseCurrency(formData.fixed_monthly_fee || "");
-    const cleanOther = parseCurrency(formData.other_fees || "");
+    // Garante que os valores numéricos sejam extraídos corretamente do formData (que pode ter "R$...")
+    // e enviados para as colunas do banco.
+    const cleanPL = parseCurrency(formData.pro_labore);
+    const cleanSuccess = parseCurrency(formData.final_success_fee);
+    const cleanFixed = parseCurrency(formData.fixed_monthly_fee);
+    const cleanOther = parseCurrency(formData.other_fees);
 
-    await supabase.from('contracts').update({
+    console.log("Forcing update financials:", { cleanPL, cleanSuccess, cleanFixed, cleanOther });
+
+    const { error } = await supabase.from('contracts').update({
       pro_labore: cleanPL,
       final_success_fee: cleanSuccess,
       fixed_monthly_fee: cleanFixed,
       other_fees: cleanOther
     }).eq('id', contractId);
+
+    if (error) console.error("Error updating financials:", error);
   };
 
   const handleSaveWithIntegrations = async () => {
@@ -298,9 +305,12 @@ export function ContractFormModal(props: Props) {
     try {
         const clientId = await upsertClient();
         
+        // Payload principal para o contrato
+        // NOTA: Aqui enviamos os valores, mas o forceUpdateFinancials garante a persistência caso haja erro de tipo
         const contractPayload: any = {
             ...formData,
             client_id: clientId || formData.client_id,
+            // Convertemos para float para garantir
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
@@ -311,9 +321,9 @@ export function ContractFormModal(props: Props) {
             analyzed_by_name: undefined,
             process_count: undefined,
             analyst: undefined,
-            analysts: undefined, 
-            client: undefined,   
-            partner: undefined,  
+            analysts: undefined,
+            client: undefined,
+            partner: undefined,
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -326,6 +336,7 @@ export function ContractFormModal(props: Props) {
             percent_extras: undefined
         };
 
+        // Limpeza de campos undefined
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
 
         let savedId = formData.id;
@@ -340,12 +351,13 @@ export function ContractFormModal(props: Props) {
         }
 
         if (savedId) {
-            // --- AQUI ESTAVA FALTANDO A CHAMADA ---
-            await forceUpdateFinancials(savedId); 
-            // -------------------------------------
+            // 1. Atualiza explicitamente os valores financeiros (garantia de persistência)
+            await forceUpdateFinancials(savedId);
 
+            // 2. Gera as parcelas para o módulo financeiro
             await generateFinancialInstallments(savedId);
             
+            // 3. Kanban de assinatura
             if (formData.status === 'active' && formData.physical_signature === false) {
                 const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').single();
                 if (!data) {
@@ -361,20 +373,20 @@ export function ContractFormModal(props: Props) {
     } catch (error: any) {
         console.error('Erro ao salvar contrato:', error);
         if (error.code === '23505' || error.message?.includes('contracts_hon_number_key')) {
-            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.\n\nPor favor, verifique se o número foi digitado corretamente ou se este caso já foi inserido anteriormente.');
+            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.');
         } else if (error.code === 'PGRST204') {
              console.warn('Erro de estrutura de dados:', error.message);
              const column = error.message.match(/'([^']+)'/)?.[1];
-             alert(`Erro Técnico: O sistema tentou salvar um campo inválido (${column || 'desconhecido'}).\n\nIsso geralmente ocorre ao editar dados carregados. Tente recarregar a página.`);
+             alert(`Erro Técnico: Tentativa de salvar campo inválido (${column}).`);
         } else {
-            alert('Não foi possível salvar as alterações.\n\nVerifique sua conexão com a internet e se todos os campos obrigatórios (*) estão preenchidos.');
+            alert('Não foi possível salvar as alterações.');
         }
     } finally {
         setLocalLoading(false);
     }
   };
 
-  // ... (Resto do componente inalterado) ...
+  // ... (RESTO DO COMPONENTE IGUAL AO ANTERIOR) ...
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
@@ -446,7 +458,23 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md">{editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div>
                   </div>
                 </div>
-                {processes.length > 0 && (<div className="space-y-2 mt-4">{processes.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div className="grid grid-cols-3 gap-4 flex-1 text-xs"><span className="font-mono font-medium text-gray-800">{p.process_number}</span><span className="text-gray-600">{p.court} ({formData.uf})</span><span className="text-gray-500 truncate">{p.judge}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button><button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>)}
+                {processes.length > 0 && (
+                  <div className="space-y-2 mt-4">
+                    {processes.map((p, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
+                        <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
+                          <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
+                          <span className="text-gray-600">{p.court} ({formData.uf})</span>
+                          <span className="text-gray-500 truncate">{p.judge}</span>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>

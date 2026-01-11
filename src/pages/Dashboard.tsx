@@ -25,11 +25,11 @@ import {
 } from 'lucide-react';
 import { Contract } from '../types';
 
-// Função de parse segura para garantir que valores vindos do banco (números ou strings formatadas) sejam tratados corretamente
+// Função de parse robusta para garantir que o dashboard leia os números corretamente
 const safeParseMoney = (value: string | number | undefined | null): number => {
   if (!value) return 0;
   if (typeof value === 'number') return value;
-  // Limpa formatação brasileira (R$ 1.000,00 -> 1000.00) caso venha como string formatada
+  // Limpa strings que vierem formatadas do banco (caso aconteça) ou strings numéricas simples
   const cleanStr = value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
   const floatVal = parseFloat(cleanStr);
   return isNaN(floatVal) ? 0 : floatVal;
@@ -38,6 +38,7 @@ const safeParseMoney = (value: string | number | undefined | null): number => {
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
 
+  // ... (Estados e useEffect mantidos iguais) ...
   const [metrics, setMetrics] = useState({
     semana: {
       novos: 0,
@@ -108,8 +109,8 @@ export function Dashboard() {
 
   const processarDados = (contratos: Contract[]) => {
     const hoje = new Date();
-    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-
+    
+    // Zera todas as métricas para recalcular
     let mSemana = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
@@ -132,6 +133,7 @@ export function Dashboard() {
     const mapaMeses: Record<string, number> = {};
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
     
+    // Inicializa mapa financeiro dos últimos 12 meses
     for (let i = 0; i < 12; i++) {
       const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
       const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
@@ -141,47 +143,50 @@ export function Dashboard() {
 
     contratos.forEach((c) => {
       const dataCriacao = new Date(c.created_at || new Date());
-      const dataProp = c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : dataCriacao;
-      const dataFechamento = c.contract_date ? new Date(c.contract_date + 'T12:00:00') : dataCriacao;
-      
+      // Extrai valores numéricos garantidos
       const pl = safeParseMoney(c.pro_labore);
       const exito = safeParseMoney(c.final_success_fee);
       const mensal = safeParseMoney(c.fixed_monthly_fee);
 
-      const contractDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date];
-      if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
-      if (contractDates.some(date => isDateInCurrentMonth(date))) mMes.totalUnico++;
-
+      // --- FINANCEIRO 12 MESES ---
+      // Considera Contratos Fechados (active) E Propostas (proposal) se o usuário desejar ver pipeline,
+      // mas o padrão "Evolução Financeira" geralmente reflete o realizado (active).
+      // Para o Dashboard "Valores em Negociação", usamos o acumulador mGeral.
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
         dContrato.setDate(1); dContrato.setHours(0,0,0,0);
+        
         if (dContrato >= dataLimite12Meses) {
           const key = dContrato.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
           if (financeiroMap[key]) {
             financeiroMap[key].pl += pl;
             financeiroMap[key].fixo += mensal;
             financeiroMap[key].exito += exito;
+            
+            // Soma intermediários se existirem (e forem array de strings)
             if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
-              c.intermediate_fees.forEach(f => financeiroMap[key].exito += safeParseMoney(f));
+              c.intermediate_fees.forEach(f => {
+                financeiroMap[key].exito += safeParseMoney(f);
+              });
             }
           }
         }
       }
 
-      fTotal++;
-      const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
-      if (chegouEmProposta) fQualificados++;
-      if (c.status === 'active') fFechados++;
-      else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
-
+      // --- CÁLCULO GERAL (Cards Fotografia) ---
       mGeral.totalCasos++;
+      
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
+      
+      // Propostas (Valores em Negociação)
       if (c.status === 'proposal') {
         mGeral.propostasAtivas++;
-        mGeral.valorEmNegociacaoPL += pl;
+        mGeral.valorEmNegociacaoPL += (pl + mensal); // Soma PL + Fixo no total de negociação
         mGeral.valorEmNegociacaoExito += exito;
       }
+      
+      // Fechados (Carteira Ativa)
       if (c.status === 'active') {
         mGeral.fechados++;
         mGeral.receitaRecorrenteAtiva += mensal;
@@ -190,26 +195,55 @@ export function Dashboard() {
         c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
+      // --- CÁLCULO SEMANAL E MENSAL ---
+      
+      // SEMANA
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
-        mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; mSemana.propMensal += mensal;
+        mSemana.propQtd++; 
+        mSemana.propPL += pl; 
+        mSemana.propExito += exito; 
+        mSemana.propMensal += mensal;
       }
       if (c.status === 'active' && isDateInCurrentWeek(c.contract_date)) {
-        mSemana.fechQtd++; mSemana.fechPL += pl; mSemana.fechExito += exito; mSemana.fechMensal += mensal;
+        mSemana.fechQtd++; 
+        mSemana.fechPL += pl; 
+        mSemana.fechExito += exito; 
+        mSemana.fechMensal += mensal;
       }
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
+      // MÊS
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
-        mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; mMes.propMensal += mensal;
+        mMes.propQtd++; 
+        mMes.propPL += pl; 
+        mMes.propExito += exito; 
+        mMes.propMensal += mensal;
       }
       if (c.status === 'active' && isDateInCurrentMonth(c.contract_date)) {
-        mMes.fechQtd++; mMes.fechPL += pl; mMes.fechExito += exito; mMes.fechMensal += mensal;
+        mMes.fechQtd++; 
+        mMes.fechPL += pl; 
+        mMes.fechExito += exito; 
+        mMes.fechMensal += mensal;
       }
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) mMes.rejected++;
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) mMes.probono++;
 
+      // Contagem de Casos Únicos movimentados
+      const contractDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date];
+      if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
+      if (contractDates.some(date => isDateInCurrentMonth(date))) mMes.totalUnico++;
+
+      // Funil
+      fTotal++;
+      const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
+      if (chegouEmProposta) fQualificados++;
+      if (c.status === 'active') fFechados++;
+      else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
+
+      // Gráfico Entrada de Casos
       const datasDisponiveis = [
         c.created_at ? new Date(c.created_at) : null,
         c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null,
@@ -226,6 +260,7 @@ export function Dashboard() {
       mapaMeses[mesAno]++;
     });
 
+    // Finalização dos Arrays e Médias
     const finArray = Object.entries(financeiroMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); 
     const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
@@ -242,6 +277,7 @@ export function Dashboard() {
     const maxQtd = Math.max(...mesesGrafico.map((m) => m.qtd), 1);
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
     setEvolucaoMensal(mesesGrafico.reverse().slice(0, 12).reverse());
+    
     setMetrics({ semana: mSemana, mes: mMes, geral: mGeral });
   };
 
@@ -256,6 +292,7 @@ export function Dashboard() {
 
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
+  // ... (JSX RETORNO MANTIDO IDENTICO) ...
   return (
     <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
       <div><h1 className='text-3xl font-bold text-[#0F2C4C]'>Controladoria Jurídica</h1><p className='text-gray-500'>Visão estratégica de contratos e resultados.</p></div>
