@@ -53,7 +53,7 @@ const FinancialInputWithInstallments = ({
   );
 };
 
-// ... Funções auxiliares mantidas ...
+// ... (Funções getEffectiveDate, getDurationBetween, getTotalDuration, getThemeBackground mantidas iguais)
 const getEffectiveDate = (status: string, fallbackDate: string, formData: Contract) => {
   let businessDateString = null;
   switch (status) {
@@ -181,7 +181,6 @@ export function ContractFormModal(props: Props) {
     return clientId;
   };
 
-  // --- NOVA LÓGICA DE ADIÇÃO (Move o valor para a lista e limpa o input) ---
   const handleAddToList = (listField: string, valueField: keyof Contract) => {
     const value = (formData as any)[valueField];
     if (!value || value === 'R$ 0,00' || value === '') return;
@@ -189,7 +188,7 @@ export function ContractFormModal(props: Props) {
     setFormData(prev => ({
       ...prev,
       [listField]: [...(prev as any)[listField] || [], value],
-      [valueField]: '' // Limpa o input principal
+      [valueField]: ''
     }));
   };
 
@@ -197,6 +196,14 @@ export function ContractFormModal(props: Props) {
     setFormData((prev: any) => {
       const newList = [...(prev[field] || [])];
       newList.splice(index, 1);
+      return { ...prev, [field]: newList };
+    });
+  };
+
+  const updateExtra = (field: string, index: number, value: string) => {
+    setFormData((prev: any) => {
+      const newList = [...(prev[field] || [])];
+      newList[index] = value;
       return { ...prev, [field]: newList };
     });
   };
@@ -216,17 +223,16 @@ export function ContractFormModal(props: Props) {
       }
     };
 
-    // Gera parcelas dos valores que ficaram no input principal (se houver)
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
-    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'pro_labore');
+    // MUDANÇA: 'fixed' para diferenciar no Financeiro
+    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed'); 
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
-    // Gera parcelas dos valores nas listas extras
     const extrasConfig = [
       { field: 'pro_labore_extras', type: 'pro_labore' },
       { field: 'final_success_extras', type: 'final_success_fee' },
-      { field: 'fixed_monthly_extras', type: 'pro_labore' },
+      { field: 'fixed_monthly_extras', type: 'fixed' }, // MUDANÇA
       { field: 'other_fees_extras', type: 'other' }
     ];
 
@@ -236,7 +242,6 @@ export function ContractFormModal(props: Props) {
         list.forEach((val: string) => {
           const amount = parseCurrency(val);
           if (amount > 0) {
-            // Extras sempre 1x por enquanto
             installmentsToInsert.push({ 
               contract_id: contractId, 
               type: config.type, 
@@ -276,6 +281,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // ... (Resto do arquivo mantido igual, sem alterações nas demais funções e layout)
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
@@ -365,6 +371,7 @@ export function ContractFormModal(props: Props) {
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 
+                {/* LINHA 1 */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                    <div>
                      <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta' : 'Data Assinatura'}</label>
@@ -418,6 +425,7 @@ export function ContractFormModal(props: Props) {
                    </div>
                 </div>
 
+                {/* LINHA 2 */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
                   <div>
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
@@ -471,7 +479,6 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
 
-            {/* ... Resto do código mantido ... */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="mb-8 mt-6">
                 <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
