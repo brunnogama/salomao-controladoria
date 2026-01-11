@@ -15,7 +15,7 @@ export function Clients() {
   const [loading, setLoading] = useState(true);
   
   // VISUALIZAÇÃO, FILTROS & ORDENAÇÃO
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // NOVO
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPartner, setSelectedPartner] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
@@ -107,7 +107,9 @@ export function Clients() {
     return matchesSearch && matchesPartner && matchesType;
   }).sort((a, b) => {
     if (sortBy === 'name') return a.name.localeCompare(b.name);
-    return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
+    if (sortBy === 'newest') return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
+    if (sortBy === 'partner') return (a.partner_name || '').localeCompare(b.partner_name || '');
+    return 0;
   });
 
   return (
@@ -151,17 +153,13 @@ export function Clients() {
             <CustomSelect value={selectedType} onChange={setSelectedType} options={[{ label: 'Todos Tipos', value: '' }, { label: 'Pessoa Física', value: 'pf' }, { label: 'Pessoa Jurídica', value: 'pj' }]} placeholder="Tipo" actionIcon={SlidersHorizontal} />
           </div>
           <div className="w-full sm:w-40">
-            <CustomSelect value={sortBy} onChange={setSortBy} options={[{ label: 'Cliente A-Z', value: 'name' }, { label: 'Mais Recentes', value: 'newest' }]} placeholder="Ordenar" actionIcon={ArrowUpDown} />
+            <CustomSelect value={sortBy} onChange={setSortBy} options={[{ label: 'Cliente A-Z', value: 'name' }, { label: 'Mais Recentes', value: 'newest' }, { label: 'Por Sócio', value: 'partner' }]} placeholder="Ordenar" actionIcon={ArrowUpDown} />
           </div>
           
           {/* TOGGLE VIEW BUTTONS */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white text-salomao-blue shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white text-salomao-blue shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-              <List className="w-4 h-4" />
-            </button>
+            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white text-salomao-blue shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
+            <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white text-salomao-blue shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
           </div>
 
           <button onClick={exportToExcel} className="bg-green-600 border border-transparent text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium flex items-center justify-center min-w-[100px]">
@@ -177,7 +175,6 @@ export function Clients() {
         <div className="text-center py-20 text-gray-400">Nenhum cliente encontrado.</div>
       ) : (
         <>
-          {/* MODO GRADE (CARDS) */}
           {viewMode === 'grid' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredClients.map((client) => (
@@ -215,7 +212,6 @@ export function Clients() {
             </div>
           )}
 
-          {/* MODO LISTA (TABELA) */}
           {viewMode === 'list' && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
