@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   CalendarDays,
+  CalendarRange, // Adicionado aqui para corrigir o erro
   ArrowRight,
   TrendingUp,
   Briefcase,
@@ -34,7 +35,7 @@ export function Dashboard() {
       propQtd: 0,
       propPL: 0,
       propExito: 0,
-      propMensal: 0, // Novo: Fixo nas propostas
+      propMensal: 0,
       fechQtd: 0,
       fechPL: 0,
       fechExito: 0,
@@ -48,7 +49,7 @@ export function Dashboard() {
       propQtd: 0,
       propPL: 0,
       propExito: 0,
-      propMensal: 0, // Novo: Fixo nas propostas
+      propMensal: 0,
       fechQtd: 0,
       fechPL: 0,
       fechExito: 0,
@@ -339,7 +340,7 @@ export function Dashboard() {
     }).format(val);
 
   const FinItem = ({ label, value, colorClass = 'text-gray-700' }: any) => {
-    if (!value || value === 0) return null; // Retorna null se não houver valor
+    if (!value || value === 0) return null;
     return (
       <div className='flex justify-between items-end text-sm mt-1 border-b border-gray-100 pb-1 last:border-0 last:pb-0'>
         <span className='text-gray-500 text-xs'>{label}</span>
