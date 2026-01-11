@@ -24,15 +24,17 @@ export const maskHon = (value: string) => {
     .slice(0, 11);
 };
 
+// CORREÇÃO DA MÁSCARA CNJ
+// Formato: 0000000-00.0000.0.00.0000
 export const maskCNJ = (value: string) => {
   return value
-    .replace(/\D/g, '')
-    .replace(/(\d{7})(\d)/, '$1-$2')
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{4})(\d)/, '$1.$2')
-    .replace(/(\d{1})(\d)/, '$1.$2')
-    .replace(/(\d{2})(\d)/, '$1-$2')
-    .slice(0, 25);
+    .replace(/\D/g, '') // Remove tudo o que não é dígito
+    .replace(/^(\d{7})(\d)/, '$1-$2') // Adiciona hífen após os primeiros 7 dígitos
+    .replace(/^(\d{7}-\d{2})(\d)/, '$1.$2') // Adiciona ponto após o dígito verificador
+    .replace(/^(\d{7}-\d{2}\.\d{4})(\d)/, '$1.$2') // Adiciona ponto após o ano
+    .replace(/^(\d{7}-\d{2}\.\d{4}\.\d)(\d)/, '$1.$2') // Adiciona ponto após o dígito de justiça
+    .replace(/^(\d{7}-\d{2}\.\d{4}\.\d\.\d{2})(\d)/, '$1.$2') // Adiciona ponto após o tribunal
+    .slice(0, 25); // Limita ao tamanho máximo da string formatada
 };
 
 export const toTitleCase = (str: string) => {
@@ -44,9 +46,10 @@ export const toTitleCase = (str: string) => {
 
 export const parseCurrency = (value: string | undefined): number => {
   if (!value) return 0;
+  // Remove "R$", pontos de milhar e substitui vírgula decimal por ponto
   const clean = value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
   return parseFloat(clean) || 0;
 };
 
-// Alias para manter compatibilidade com códigos que chamam unmaskMoney
+// Alias para manter compatibilidade
 export const unmaskMoney = parseCurrency;
