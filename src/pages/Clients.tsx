@@ -159,7 +159,11 @@ export function Clients() {
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredClients.map((client) => (
-                <div key={client.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative">
+                <div 
+                  key={client.id} 
+                  onClick={() => handleEdit(client)} // ADICIONADO: Clique no card
+                  className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative cursor-pointer" // ADICIONADO: cursor-pointer
+                >
                   
                   {/* Header */}
                   <div className="flex justify-between items-start mb-3">
@@ -171,7 +175,7 @@ export function Clients() {
                       </div>
                     </div>
                     <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
-                      <button onClick={() => handleEdit(client)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleEdit(client); }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit className="w-3.5 h-3.5" /></button>
                       <button onClick={(e) => client.id && handleDelete(e, client.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -223,7 +227,7 @@ export function Clients() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredClients.map(client => (
-                            <tr key={client.id} className="hover:bg-gray-50 group">
+                            <tr key={client.id} onClick={() => handleEdit(client)} className="hover:bg-gray-50 group cursor-pointer">
                                 <td className="p-3 font-medium text-gray-800">{client.name}</td>
                                 <td className="p-3 font-mono text-gray-500">{maskCNPJ(client.cnpj || '')}</td>
                                 <td className="p-3 text-gray-600">{client.partner_name || '-'}</td>
@@ -236,7 +240,7 @@ export function Clients() {
                                 </td>
                                 <td className="p-3 text-right">
                                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
-                                        <button onClick={() => handleEdit(client)} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleEdit(client); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
                                         <button onClick={(e) => client.id && handleDelete(e, client.id)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
                                     </div>
                                 </td>
