@@ -42,9 +42,7 @@ export function Clients() {
       if (data) {
         const formattedClients = data.map((client: any) => ({
           ...client,
-          // Safety check for partner name (handles null or array)
           partner_name: Array.isArray(client.partner) ? client.partner[0]?.name : client.partner?.name,
-          // Safety check for contract count
           active_contracts_count: client.contracts?.[0]?.count || 0
         }));
         setClients(formattedClients);
@@ -95,7 +93,6 @@ export function Clients() {
     (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (client.cnpj || '').includes(searchTerm)
   ).sort((a, b) => {
-    // CRITICAL FIX: Safe navigation for localeCompare to prevent white screen
     const nameA = a.name || '';
     const nameB = b.name || '';
     return sortOrder === 'asc' 
@@ -175,7 +172,7 @@ export function Clients() {
                     </div>
                     <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
                       <button onClick={() => handleEdit(client)} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => client.id && handleDelete(e, client.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={(e) => client.id && handleDelete(e, client.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
 
