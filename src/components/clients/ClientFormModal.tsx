@@ -65,17 +65,27 @@ export function ClientFormModal({ isOpen, onClose, clientToEdit, onSave, partner
     
     setLoading(true);
     try {
-      // Fix: Send null if empty string to avoid unique constraint error
+      // CORREÇÃO: Criamos um payload limpo apenas com os campos da tabela.
+      // Isso remove campos virtuais como 'partner_name' ou 'contracts' que causam erro 400.
       const payload = {
-          ...formData,
+          name: formData.name,
           cnpj: formData.cnpj || null,
-          partner_id: formData.partner_id || null
+          is_person: formData.is_person,
+          uf: formData.uf,
+          address: formData.address,
+          number: formData.number,
+          complement: formData.complement,
+          city: formData.city,
+          email: formData.email,
+          partner_id: formData.partner_id || null // Garante envio correto do sócio
       };
 
       if (clientToEdit?.id) {
-        await supabase.from('clients').update(payload).eq('id', clientToEdit.id);
+        const { error } = await supabase.from('clients').update(payload).eq('id', clientToEdit.id);
+        if (error) throw error;
       } else {
-        await supabase.from('clients').insert([payload]);
+        const { error } = await supabase.from('clients').insert([payload]);
+        if (error) throw error;
       }
       onSave();
     } catch (error: any) {
@@ -83,7 +93,7 @@ export function ClientFormModal({ isOpen, onClose, clientToEdit, onSave, partner
       if (error.code === '23505') {
           alert('Erro: Já existe um cliente com este CNPJ cadastrado.');
       } else {
-          alert('Erro ao salvar cliente.');
+          alert('Erro ao salvar cliente: ' + (error.message || 'Erro desconhecido'));
       }
     } finally {
       setLoading(false);
