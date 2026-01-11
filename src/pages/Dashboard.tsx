@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   CalendarDays,
+  CalendarRange, // Novo icone importado
   ArrowRight,
   TrendingUp,
   Briefcase,
@@ -20,7 +21,7 @@ import {
   Loader2,
   BarChart4,
   Layers,
-  FileText // Icone para Sob Analise (igual semana)
+  FileText
 } from 'lucide-react';
 import { Contract } from '../types';
 import { parseCurrency } from '../utils/masks';
@@ -43,7 +44,7 @@ export function Dashboard() {
       totalUnico: 0,
     },
     mes: {
-      novos: 0, // Sob Analise
+      novos: 0,
       propQtd: 0,
       propPL: 0,
       propExito: 0,
@@ -52,9 +53,9 @@ export function Dashboard() {
       fechExito: 0,
       fechMensal: 0,
       totalUnico: 0,
-      analysis: 0, // Novo
-      rejected: 0, // Novo
-      probono: 0   // Novo
+      analysis: 0,
+      rejected: 0,
+      probono: 0
     },
     geral: {
       totalCasos: 0,
@@ -238,7 +239,6 @@ export function Dashboard() {
         if (c.physical_signature === true) mGeral.assinados++; else mGeral.naoAssinados++;
       }
 
-      // --- SEMANA ---
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
         mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito;
@@ -249,24 +249,18 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
-      // --- MÊS ---
-      // Sob Analise
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) {
         mMes.analysis++;
       }
-      // Proposta
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
         mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito;
       }
-      // Fechado
       if (c.status === 'active' && isDateInCurrentMonth(c.contract_date)) {
         mMes.fechQtd++; mMes.fechPL += pl; mMes.fechExito += exito; mMes.fechMensal += mensal;
       }
-      // Rejeitado
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) {
         mMes.rejected++;
       }
-      // Probono
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) {
         mMes.probono++;
       }
@@ -414,12 +408,10 @@ export function Dashboard() {
           <h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2>
         </div>
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-          {/* Card Total Casos Semana */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
             <div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div>
             <div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div>
           </div>
-
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div>
             <div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades Jurídicas</div>
@@ -445,7 +437,7 @@ export function Dashboard() {
 
       <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
         <div className='flex items-center gap-2 mb-4'>
-          <TrendingUp className='text-blue-700' size={24} />
+          <CalendarRange className='text-blue-700' size={24} />
           <h2 className='text-xl font-bold text-blue-900'>Resumo do Mês</h2>
         </div>
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
@@ -455,10 +447,10 @@ export function Dashboard() {
             <div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div>
           </div>
 
-          {/* Sob Analise Mes */}
+          {/* Sob Analise Mes (NOVO CARD) */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div>
-            <div className='h-10 w-10 rounded-full bg-yellow-50 flex items-center justify-center text-salomao-gold self-end mt-2'><FileText className="w-5 h-5" /></div>
+            <div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades Jurídicas</div>
           </div>
 
           {/* Propostas Mês */}
@@ -473,16 +465,16 @@ export function Dashboard() {
             <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='Pró-labore' value={metrics.mes.fechPL} colorClass='text-green-700' /><FinItem label='Fixos' value={metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div>
           </div>
 
-          {/* Rejeitados Mês */}
+          {/* Rejeitados Mês (NOVO CARD) */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div>
-            <div className='h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 self-end mt-2'><XCircle className="w-5 h-5" /></div>
+            <div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div>
           </div>
 
-          {/* Probono Mês */}
+          {/* Probono Mês (NOVO CARD) */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div>
-            <div className='h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 self-end mt-2'><HeartHandshake className="w-5 h-5" /></div>
+            <div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div>
           </div>
         </div>
       </div>
