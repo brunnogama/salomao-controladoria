@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -19,6 +19,7 @@ const UFS = [
   { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' }
 ];
 
+// Componente para inputs financeiros com parcelas
 const FinancialInputWithInstallments = ({ 
   label, value, onChangeValue, installments, onChangeInstallments 
 }: { 
@@ -41,10 +42,10 @@ const FinancialInputWithInstallments = ({
   );
 };
 
-// ... (Resto das funções auxiliares getEffectiveDate, getDuration, etc. permanecem iguais)
-// Vou omitir para brevidade, mas devem estar no arquivo completo.
+// Funções auxiliares de data
 const getEffectiveDate = (status: string, defaultDate: string, formData: Contract) => {
   let businessDate = null;
+  // Mapeia datas baseado no status (incluindo status customizados se seguirem padrão, senão usa data de criação)
   switch (status) {
     case 'analysis': businessDate = formData.prospect_date; break;
     case 'proposal': businessDate = formData.proposal_date; break;
@@ -77,13 +78,14 @@ const getTotalDuration = (timelineData: TimelineEvent[], formData: Contract) => 
 };
 
 const getThemeBackground = (status: string) => {
+  // Retorna cores padrão para status conhecidos, ou branco para novos
   switch (status) {
     case 'analysis': return 'bg-yellow-50';
     case 'proposal': return 'bg-blue-50';
     case 'active': return 'bg-green-50';
     case 'rejected': return 'bg-red-50';
     case 'probono': return 'bg-purple-50';
-    default: return 'bg-white';
+    default: return 'bg-gray-50'; // Cor genérica para novos status
   }
 };
 
@@ -127,6 +129,9 @@ export function ContractFormModal(props: Props) {
   const [uploading, setUploading] = useState(false);
   const [searchingCNJ, setSearchingCNJ] = useState(false);
   
+  // Estado para Status Dinâmicos
+  const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
+  
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   
   const [clientExtraData, setClientExtraData] = useState({ 
@@ -134,13 +139,55 @@ export function ContractFormModal(props: Props) {
   });
 
   useEffect(() => {
-    if (isOpen && formData.id) {
-      fetchDocuments();
+    if (isOpen) {
+      fetchStatuses();
+      if (formData.id) fetchDocuments();
     } else {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
     }
   }, [isOpen, formData.id]);
+
+  // --- CARREGAR STATUS DO BANCO ---
+  const fetchStatuses = async () => {
+    const { data } = await supabase.from('contract_statuses').select('*').order('label');
+    if (data) {
+      const options = data.map(s => ({ label: s.label, value: s.value }));
+      setStatusOptions(options);
+    }
+  };
+
+  // --- CRIAR NOVO STATUS ---
+  const handleCreateStatus = async () => {
+    const newLabel = window.prompt("Digite o nome do novo Status:");
+    if (!newLabel) return;
+
+    // Gera um value simplificado (sem acentos, minúsculo)
+    const newValue = newLabel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_");
+
+    // Verifica duplicidade local
+    if (statusOptions.some(s => s.value === newValue)) {
+      alert("Este status já existe.");
+      return;
+    }
+
+    try {
+      // Salva no banco
+      const { error } = await supabase.from('contract_statuses').insert({
+        label: toTitleCase(newLabel),
+        value: newValue,
+        color: 'bg-gray-100 text-gray-800 border-gray-200' // Cor padrão
+      });
+
+      if (error) throw error;
+
+      // Atualiza lista e seleciona o novo
+      await fetchStatuses();
+      setFormData({ ...formData, status: newValue as any }); // Cast as any pois o TS espera os literais
+    } catch (err) {
+      alert("Erro ao criar status. Tente novamente.");
+    }
+  };
 
   const fetchDocuments = async () => {
     const { data } = await supabase.from('contract_documents').select('*').eq('contract_id', formData.id).order('uploaded_at', { ascending: false });
@@ -149,6 +196,7 @@ export function ContractFormModal(props: Props) {
 
   const upsertClient = async () => {
     if (!formData.cnpj || !formData.client_name) return null;
+    // ... (lógica upsert mantida igual)
     const clientData = {
       name: formData.client_name,
       cnpj: formData.cnpj,
@@ -171,24 +219,15 @@ export function ContractFormModal(props: Props) {
     return clientId;
   };
 
-  // --- GERAÇÃO DE PARCELAS NO FINANCEIRO ---
   const generateFinancialInstallments = async (contractId: string) => {
-    // Só gera se for ativo
     if (formData.status !== 'active') return;
-
-    // Remove parcelas pendentes antigas para evitar duplicidade ao editar valores
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
-
     const installmentsToInsert: any[] = [];
-
-    // Helper para gerar linhas
     const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string) => {
       const totalValue = parseCurrency(totalValueStr);
       if (totalValue <= 0) return;
-
       const numInstallments = parseInt((installmentsStr || '1x').replace('x', '')) || 1;
       const amountPerInstallment = totalValue / numInstallments;
-
       for (let i = 1; i <= numInstallments; i++) {
         installmentsToInsert.push({
           contract_id: contractId,
@@ -197,34 +236,21 @@ export function ContractFormModal(props: Props) {
           total_installments: numInstallments,
           amount: amountPerInstallment,
           status: 'pending',
-          // Data de vencimento estimada: +30 dias por parcela
           due_date: addMonths(new Date(), i).toISOString() 
         });
       }
     };
-
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'success_fee');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
-
-    // Êxitos Intermediários (considera 1x para cada)
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
         if (val > 0) {
-          installmentsToInsert.push({
-            contract_id: contractId,
-            type: 'success_fee',
-            installment_number: 1,
-            total_installments: 1,
-            amount: val,
-            status: 'pending',
-            due_date: addMonths(new Date(), 1).toISOString()
-          });
+          installmentsToInsert.push({ contract_id: contractId, type: 'success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         }
       });
     }
-
     if (installmentsToInsert.length > 0) {
       await supabase.from('financial_installments').insert(installmentsToInsert);
     }
@@ -232,43 +258,20 @@ export function ContractFormModal(props: Props) {
 
   const handleSaveWithIntegrations = async () => {
     const clientId = await upsertClient();
-    onSave(); // Salva o contrato e timeline
-
-    // Como onSave do pai não retorna o ID síncrono facilmente sem refatoração profunda,
-    // assumimos que se é edição (formData.id), usamos ele. 
-    // Se for novo, o onSave do Contracts.tsx atualiza o estado, mas aqui pode ser arriscado.
-    // O ideal seria o onSave retornar o ID.
-    // Neste contexto, a geração financeira funcionará 100% na EDIÇÃO para "Ativo".
-    // Se o usuário criar "Novo" já como "Ativo", o ID pode não estar disponível imediatamente aqui
-    // sem uma pequena mudança no Contracts.tsx.
-    // Mas vamos tentar usar o formData.id se disponível.
-    
+    onSave(); 
     if (formData.id) {
-        if (clientId) {
-            await supabase.from('contracts').update({ client_id: clientId }).eq('id', formData.id);
-        }
+        if (clientId) await supabase.from('contracts').update({ client_id: clientId }).eq('id', formData.id);
         await generateFinancialInstallments(formData.id);
     }
-
-    // Kanban Logic
     if (formData.status === 'active' && formData.physical_signature === false && formData.id) {
         const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', formData.id).eq('status', 'signature').single();
         if (!data) {
           const dueDate = addDays(new Date(), 5);
-          await supabase.from('kanban_tasks').insert({
-            title: `Coletar Assinatura: ${formData.client_name}`,
-            description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`,
-            priority: 'Alta',
-            status: 'signature',
-            contract_id: formData.id,
-            due_date: dueDate.toISOString(),
-            position: 0
-          });
+          await supabase.from('kanban_tasks').insert({ title: `Coletar Assinatura: ${formData.client_name}`, description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`, priority: 'Alta', status: 'signature', contract_id: formData.id, due_date: dueDate.toISOString(), position: 0 });
         }
     }
   };
 
-  // ... (Resto das funções: handleAddLocation, handleCNPJSearch, etc. - IGUAIS AO ANTERIOR)
   const handleAddLocation = () => {
     const newLoc = window.prompt("Digite o nome do novo local de faturamento:");
     if (newLoc && !billingLocations.includes(newLoc)) {
@@ -340,7 +343,7 @@ export function ContractFormModal(props: Props) {
     setFormData({ ...formData, [field]: toTitleCase(value) });
   };
 
-  const statusOptions = [{ label: 'Sob Análise', value: 'analysis' }, { label: 'Proposta Enviada', value: 'proposal' }, { label: 'Contrato Fechado', value: 'active' }, { label: 'Rejeitada', value: 'rejected' }, { label: 'Probono', value: 'probono' }];
+  // --- OPÇÕES FIXAS DE OUTROS SELECTS ---
   const positionOptions = [{ label: 'Autor', value: 'Autor' }, { label: 'Réu', value: 'Réu' }, { label: 'Terceiro Interessado', value: 'Terceiro' }];
   const ufOptions = UFS.map(uf => ({ label: uf.nome, value: uf.sigla }));
   const partnerOptions = partners.map(p => ({ label: p.name, value: p.id }));
@@ -362,8 +365,19 @@ export function ContractFormModal(props: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
+          
+          {/* SELETOR DE STATUS COM BOTÃO DE ADICIONAR */}
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
-            <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} />
+            <CustomSelect 
+              label="Status Atual do Caso" 
+              value={formData.status} 
+              onChange={(val: any) => setFormData({...formData, status: val})} 
+              options={statusOptions}
+              // Botão de Ação "Novo Status"
+              onAction={handleCreateStatus}
+              actionIcon={Plus}
+              actionLabel="Adicionar Novo Status"
+            />
           </div>
 
           <section className="space-y-5">
@@ -416,8 +430,8 @@ export function ContractFormModal(props: Props) {
                 {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
               </div>
             )}
-            {formData.status === 'analysis' && (<div className="grid grid-cols-2 gap-5"><div><label className="text-xs font-medium block mb-1">Data Prospect</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div><div><label className="text-xs font-medium block mb-1">Analisado Por</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.analyzed_by} onChange={e => setFormData({...formData, analyzed_by: toTitleCase(e.target.value)})} /></div></div>)}
             
+            {/* Campos de Valores e Parcelas */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
