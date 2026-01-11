@@ -111,6 +111,8 @@ export function ContractFormModal(props: Props) {
   const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
+  // Novo estado local para controlar as parcelas do êxito intermediário
+  const [interimInstallments, setInterimInstallments] = useState('1x');
 
   const isLoading = parentLoading || localLoading;
 
@@ -121,6 +123,7 @@ export function ContractFormModal(props: Props) {
     } else {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
+      setInterimInstallments('1x');
     }
   }, [isOpen, formData.id]);
 
@@ -575,13 +578,13 @@ export function ContractFormModal(props: Props) {
                      />
                    </div>
 
-                   {/* Êxito Intermediário (Mantido como Lista/Tags) */}
+                   {/* Êxito Intermediário (Mantido como Lista/Tags) - COM CORREÇÃO DE PARCELAS */}
                    <div>
                      <FinancialInputWithInstallments 
                        label="Êxito Intermediário" 
                        value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
-                       installments="1x" onChangeInstallments={() => {}} 
-                       onAdd={addIntermediateFee}
+                       installments={interimInstallments} onChangeInstallments={setInterimInstallments}
+                       onAdd={() => { addIntermediateFee(); setInterimInstallments('1x'); }}
                      />
                      <div className="flex flex-wrap gap-2 mt-2">
                        {formData.intermediate_fees?.map((fee, idx) => (
