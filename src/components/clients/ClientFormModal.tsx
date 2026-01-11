@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Building2, MapPin, Mail, Phone, User, AlertCircle, Search, Loader2 } from 'lucide-react';
+import { X, Save, Building2, MapPin, Mail, User, AlertCircle, Search, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Client, Partner } from '../../types';
-import { maskCNPJ, maskPhone, maskCEP } from '../../utils/masks';
+import { maskCNPJ } from '../../utils/masks';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  clientToEdit: Client | null; // Propriedade corrigida para casar com a chamada
+  clientToEdit: Client | null;
   onSave: () => void;
   partners: Partner[];
 }
@@ -65,15 +65,26 @@ export function ClientFormModal({ isOpen, onClose, clientToEdit, onSave, partner
     
     setLoading(true);
     try {
+      // Fix: Send null if empty string to avoid unique constraint error
+      const payload = {
+          ...formData,
+          cnpj: formData.cnpj || null,
+          partner_id: formData.partner_id || null
+      };
+
       if (clientToEdit?.id) {
-        await supabase.from('clients').update(formData).eq('id', clientToEdit.id);
+        await supabase.from('clients').update(payload).eq('id', clientToEdit.id);
       } else {
-        await supabase.from('clients').insert([formData]);
+        await supabase.from('clients').insert([payload]);
       }
       onSave();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao salvar cliente.');
+      if (error.code === '23505') {
+          alert('Erro: Já existe um cliente com este CNPJ cadastrado.');
+      } else {
+          alert('Erro ao salvar cliente.');
+      }
     } finally {
       setLoading(false);
     }
@@ -97,7 +108,7 @@ export function ClientFormModal({ isOpen, onClose, clientToEdit, onSave, partner
                 <input 
                   type="text" 
                   className="flex-1 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-salomao-blue outline-none"
-                  value={formData.cnpj}
+                  value={formData.cnpj || ''}
                   onChange={e => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}
                   placeholder="00.000.000/0000-00"
                 />
