@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2 } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Edit2 } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import * as XLSX from 'xlsx';
@@ -15,10 +15,15 @@ export function Finance() {
   const [selectedPartner, setSelectedPartner] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   
-  // Modal de Data de Faturamento
+  // Modal de Data de Faturamento (Faturar)
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<FinancialInstallment | null>(null);
   const [billingDate, setBillingDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Modal de Alteração de Vencimento
+  const [isDueDateModalOpen, setIsDueDateModalOpen] = useState(false);
+  const [installmentToEdit, setInstallmentToEdit] = useState<FinancialInstallment | null>(null);
+  const [newDueDate, setNewDueDate] = useState('');
 
   // Locations
   const [locations, setLocations] = useState<string[]>([]);
@@ -30,11 +35,9 @@ export function Finance() {
   const fetchData = async () => {
     setLoading(true);
     
-    // Busca Parceiros
     const { data: partnersData } = await supabase.from('partners').select('*').order('name');
     if (partnersData) setPartners(partnersData);
 
-    // Busca Parcelas com Join em Contratos
     const { data: installmentsData } = await supabase
       .from('financial_installments')
       .select(`
@@ -51,7 +54,6 @@ export function Finance() {
       .order('due_date', { ascending: true });
 
     if (installmentsData) {
-      // Normaliza dados
       const formatted = installmentsData.map((i: any) => ({
         ...i,
         contract: {
@@ -61,13 +63,13 @@ export function Finance() {
       }));
       setInstallments(formatted);
 
-      // Extrai Locais de Faturamento únicos
       const locs = Array.from(new Set(formatted.map((i: any) => i.contract?.billing_location).filter(Boolean))) as string[];
       setLocations(locs);
     }
     setLoading(false);
   };
 
+  // --- AÇÕES DE FATURAMENTO ---
   const handleMarkAsPaid = (installment: FinancialInstallment) => {
     setSelectedInstallment(installment);
     setBillingDate(new Date().toISOString().split('T')[0]);
@@ -86,11 +88,30 @@ export function Finance() {
     fetchData();
   };
 
-  // --- FUNÇÃO QUE TRADUZ OS TIPOS (AQUI ESTÁ ELA) ---
+  // --- AÇÕES DE ALTERAÇÃO DE VENCIMENTO ---
+  const handleEditDueDate = (installment: FinancialInstallment) => {
+    setInstallmentToEdit(installment);
+    // Pega a data atual da parcela para iniciar o input
+    setNewDueDate(installment.due_date ? installment.due_date.split('T')[0] : '');
+    setIsDueDateModalOpen(true);
+  };
+
+  const confirmDueDateChange = async () => {
+    if (!installmentToEdit || !newDueDate) return;
+
+    await supabase
+      .from('financial_installments')
+      .update({ due_date: newDueDate })
+      .eq('id', installmentToEdit.id);
+
+    setIsDueDateModalOpen(false);
+    fetchData();
+  };
+
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'pro_labore': return 'Pró-Labore';
-      case 'success_fee': return 'Êxito (Geral)'; // Para compatibilidade
+      case 'success_fee': return 'Êxito (Geral)';
       case 'final_success_fee': return 'Êxito Final';
       case 'intermediate_fee': return 'Êxito Intermediário';
       case 'other': return 'Outros';
@@ -102,7 +123,7 @@ export function Finance() {
     const data = filteredInstallments.map(i => ({
       'Cliente': i.contract?.client_name,
       'HON': i.contract?.hon_number,
-      'Tipo': getTypeLabel(i.type), // Usa a função aqui
+      'Tipo': getTypeLabel(i.type),
       'Parcela': `${i.installment_number}/${i.total_installments}`,
       'Valor': i.amount,
       'Vencimento': new Date(i.due_date!).toLocaleDateString(),
@@ -126,10 +147,20 @@ export function Finance() {
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
   const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
 
+  // Cálculo por Sócio (Baseado nos dados filtrados ou totais, conforme UX. Aqui usaremos os dados disponíveis)
+  const partnerStats = partners.map(p => {
+    const pending = filteredInstallments
+      .filter(i => i.contract?.partner_id === p.id && i.status === 'pending')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+    const paid = filteredInstallments
+      .filter(i => i.contract?.partner_id === p.id && i.status === 'paid')
+      .reduce((acc, curr) => acc + curr.amount, 0);
+    return { name: p.name, pending, paid };
+  }).filter(s => s.pending > 0 || s.paid > 0); // Mostra apenas sócios com movimento
+
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
       
-      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue">Controle Financeiro</h1>
@@ -137,25 +168,53 @@ export function Finance() {
         </div>
       </div>
 
-      {/* KPI CARDS */}
+      {/* KPI CARDS (COM TOTAL POR SÓCIO) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (Pendente)</p>
-            <h3 className="text-3xl font-bold text-gray-800 mt-1">
-              {totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </h3>
+        
+        {/* CARD A FATURAR */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (Pendente)</p>
+              <h3 className="text-3xl font-bold text-gray-800 mt-1">
+                {totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </h3>
+            </div>
+            <div className="bg-orange-50 p-3 rounded-full text-orange-500"><Clock className="w-6 h-6" /></div>
           </div>
-          <div className="bg-orange-50 p-4 rounded-full text-orange-500"><Clock className="w-8 h-8" /></div>
+          {/* Detalhamento por Sócio */}
+          <div className="border-t border-gray-100 pt-3 mt-2 space-y-1">
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Por Sócio:</p>
+            {partnerStats.map((stat, idx) => stat.pending > 0 && (
+              <div key={idx} className="flex justify-between text-xs">
+                <span className="text-gray-600">{stat.name}</span>
+                <span className="font-medium text-gray-800">{stat.pending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Faturado</p>
-            <h3 className="text-3xl font-bold text-green-600 mt-1">
-              {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </h3>
+
+        {/* CARD FATURADO */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Faturado</p>
+              <h3 className="text-3xl font-bold text-green-600 mt-1">
+                {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </h3>
+            </div>
+            <div className="bg-green-50 p-3 rounded-full text-green-500"><CheckCircle2 className="w-6 h-6" /></div>
           </div>
-          <div className="bg-green-50 p-4 rounded-full text-green-500"><CheckCircle2 className="w-8 h-8" /></div>
+          {/* Detalhamento por Sócio */}
+          <div className="border-t border-gray-100 pt-3 mt-2 space-y-1">
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Por Sócio:</p>
+            {partnerStats.map((stat, idx) => stat.paid > 0 && (
+              <div key={idx} className="flex justify-between text-xs">
+                <span className="text-gray-600">{stat.name}</span>
+                <span className="font-medium text-green-600">{stat.paid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -178,7 +237,7 @@ export function Finance() {
         </div>
       </div>
 
-      {/* LISTA DE PARCELAS */}
+      {/* LISTA */}
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : (
@@ -205,7 +264,6 @@ export function Finance() {
                       ) : (
                         <span className="flex items-center text-orange-500 font-bold text-xs uppercase mb-1"><Circle className="w-4 h-4 mr-1" /> Pendente</span>
                       )}
-                      {/* HON MOVIDO PARA CÁ */}
                       <div className="text-xs font-mono text-gray-500">HON: {item.contract?.hon_number || '-'}</div>
                     </td>
                     <td className="px-6 py-4 text-xs font-mono">
@@ -219,7 +277,6 @@ export function Finance() {
                       <div className="font-bold text-gray-800">{item.contract?.client_name}</div>
                     </td>
                     <td className="px-6 py-4">
-                      {/* USO DA FUNÇÃO DE TRADUÇÃO */}
                       <div className="text-gray-700 font-medium">{getTypeLabel(item.type)}</div>
                       <div className="text-xs text-gray-400">Parcela {item.installment_number}/{item.total_installments}</div>
                     </td>
@@ -232,12 +289,21 @@ export function Finance() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       {item.status === 'pending' && (
-                        <button 
-                          onClick={() => handleMarkAsPaid(item)}
-                          className="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors text-xs font-bold flex items-center ml-auto"
-                        >
-                          <DollarSign className="w-3 h-3 mr-1" /> Faturar
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => handleEditDueDate(item)}
+                            className="bg-blue-50 text-blue-700 border border-blue-200 p-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+                            title="Alterar Vencimento"
+                          >
+                            <CalendarDays className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleMarkAsPaid(item)}
+                            className="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors text-xs font-bold flex items-center"
+                          >
+                            <DollarSign className="w-3 h-3 mr-1" /> Faturar
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -252,7 +318,9 @@ export function Finance() {
       {isDateModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
           <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm animate-in zoom-in-95">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Faturamento</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Confirmar Faturamento</h3>
+            <p className="text-sm text-gray-500 mb-4">Tem certeza que deseja faturar esta parcela?</p>
+            
             <label className="block text-sm font-medium text-gray-600 mb-2">Data do Faturamento</label>
             <input 
               type="date" 
@@ -262,7 +330,28 @@ export function Finance() {
             />
             <div className="flex justify-end gap-3">
               <button onClick={() => setIsDateModalOpen(false)} className="text-gray-500 hover:text-gray-800 font-medium text-sm">Cancelar</button>
-              <button onClick={confirmPayment} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow-lg font-bold text-sm">Confirmar</button>
+              <button onClick={confirmPayment} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow-lg font-bold text-sm">Confirmar Faturamento</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ALTERAR VENCIMENTO */}
+      {isDueDateModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm animate-in zoom-in-95">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Alterar Vencimento</h3>
+            
+            <label className="block text-sm font-medium text-gray-600 mb-2">Nova Data de Vencimento</label>
+            <input 
+              type="date" 
+              className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-salomao-blue outline-none mb-6"
+              value={newDueDate}
+              onChange={(e) => setNewDueDate(e.target.value)}
+            />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setIsDueDateModalOpen(false)} className="text-gray-500 hover:text-gray-800 font-medium text-sm">Cancelar</button>
+              <button onClick={confirmDueDateChange} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-lg font-bold text-sm">Salvar Nova Data</button>
             </div>
           </div>
         </div>
