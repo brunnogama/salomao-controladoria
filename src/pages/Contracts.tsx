@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, Filter, SlidersHorizontal, Download, FileText, AlertCircle, Loader2, Edit, Trash2, ArrowUpDown, User, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, SlidersHorizontal, Download, AlertCircle, Loader2, Edit, Trash2, ArrowUpDown, User, LayoutGrid, List } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
@@ -78,22 +78,18 @@ export function Contracts() {
     if (data) setAnalysts(data);
   };
 
-  // --- ABRIR DETALHES (LEITURA) ---
   const handleCardClick = async (contract: Contract) => {
     setSelectedContract(contract);
     
-    // Busca Processos
     const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
     setProcesses(procData || []);
 
-    // Busca Timeline (CORREÇÃO: Agora buscamos a timeline aqui também)
     const { data: timeline } = await supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false });
     setTimelineData(timeline || []);
 
     setIsDetailsOpen(true);
   };
 
-  // --- ABRIR EDIÇÃO ---
   const handleEdit = async (contract: Contract, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsEditing(true);
@@ -156,7 +152,6 @@ export function Contracts() {
     try {
       setLoading(true);
       
-      // 1. Limpeza de dados
       const { partners, analysts, partner_name, analyzed_by_name, ...cleanFormData } = formData as any;
       
       const contractData = { ...cleanFormData, process_count: processes.length };
@@ -164,7 +159,6 @@ export function Contracts() {
       let isNew = false;
       let previousStatus = null;
 
-      // Detectar status anterior
       if (contractId) {
         const oldContract = contracts.find(c => c.id === contractId);
         if (oldContract) previousStatus = oldContract.status;
@@ -172,7 +166,6 @@ export function Contracts() {
         isNew = true;
       }
 
-      // 2. Salvar Contrato
       if (isEditing && contractId) {
         const { error } = await supabase.from('contracts').update(contractData).eq('id', contractId);
         if (error) throw error;
@@ -182,7 +175,6 @@ export function Contracts() {
         contractId = data.id;
       }
 
-      // 3. Salvar Processos e Timeline
       if (contractId) {
         await supabase.from('contract_processes').delete().eq('contract_id', contractId);
         if (processes.length > 0) {
@@ -294,7 +286,6 @@ export function Contracts() {
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
       
-      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div><h1 className="text-3xl font-bold text-salomao-blue">Gestão de Contratos</h1><p className="text-gray-500 mt-1">Gerencie o ciclo de vida dos seus casos jurídicos.</p></div>
         <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95"><Plus className="w-5 h-5 mr-2" /> Novo Caso</button>
@@ -386,7 +377,7 @@ export function Contracts() {
         isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} 
         contract={selectedContract} onEdit={handleEditFromDetails} onDelete={handleDeleteFromDetails} 
         processes={processes}
-        timelineData={timelineData} // <--- CORREÇÃO: Passando a timeline para o modal de detalhes
+        timelineData={timelineData} 
       />
 
       <PartnerManagerModal isOpen={isPartnerModalOpen} onClose={() => setIsPartnerModalOpen(false)} onPartnersUpdate={fetchPartners} />
