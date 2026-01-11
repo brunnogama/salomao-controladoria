@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+// ... [MANTÉM TODAS AS IMPORTAÇÕES EXISTENTES] ...
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
@@ -9,6 +10,7 @@ import { CustomSelect } from '../ui/CustomSelect';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
+// ... [MANTÉM O COMPONENTE FinancialInputWithInstallments E OUTROS HELPERS IGUAIS] ...
 const FinancialInputWithInstallments = ({ 
   label, value, onChangeValue, installments, onChangeInstallments, onAdd 
 }: { 
@@ -53,7 +55,6 @@ const FinancialInputWithInstallments = ({
   );
 };
 
-// ... Funções auxiliares mantidas ...
 const getEffectiveDate = (status: string, fallbackDate: string, formData: Contract) => {
   let businessDateString = null;
   switch (status) {
@@ -264,8 +265,24 @@ export function ContractFormModal(props: Props) {
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
+  // --- FUNÇÃO PATCH PARA GARANTIR SALVAMENTO FINANCEIRO CORRETO ---
+  const forceUpdateFinancials = async (contractId: string) => {
+    // Essa função força a atualização dos campos financeiros com valores limpos (float)
+    // para garantir que o banco receba números, caso o save principal tenha enviado strings formatadas.
+    const cleanPL = parseCurrency(formData.pro_labore);
+    const cleanSuccess = parseCurrency(formData.final_success_fee);
+    const cleanFixed = parseCurrency(formData.fixed_monthly_fee);
+    const cleanOther = parseCurrency(formData.other_fees);
+
+    await supabase.from('contracts').update({
+      pro_labore: cleanPL,
+      final_success_fee: cleanSuccess,
+      fixed_monthly_fee: cleanFixed,
+      other_fees: cleanOther
+    }).eq('id', contractId);
+  };
+
   const handleSaveWithIntegrations = async () => {
-    // --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ---
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
 
@@ -283,14 +300,23 @@ export function ContractFormModal(props: Props) {
       if (!formData.billing_location) return alert('O "Local Faturamento" é obrigatório para Contratos Fechados.');
       if (formData.physical_signature === undefined) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
     }
-    // ----------------------------------------
 
     const clientId = await upsertClient();
-    await onSave();
+    
+    // 1. Salva o contrato (chamada original do pai)
+    await onSave(); 
+
+    // 2. Lógica pós-save
     if (formData.id) {
         if (clientId) await supabase.from('contracts').update({ client_id: clientId }).eq('id', formData.id);
+        
+        // --- PATCH CRÍTICO: Força atualização dos valores financeiros limpos ---
+        await forceUpdateFinancials(formData.id);
+        // ----------------------------------------------------------------------
+
         await generateFinancialInstallments(formData.id);
     }
+    
     if (formData.status === 'active' && formData.physical_signature === false && formData.id) {
         const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', formData.id).eq('status', 'signature').single();
         if (!data) {
@@ -320,6 +346,7 @@ export function ContractFormModal(props: Props) {
 
   if (!isOpen) return null;
 
+  // ... [O RESTANTE DO COMPONENTE (RETURN/JSX) PERMANECE O MESMO, APENAS LÓGICA ACIMA ALTERADA] ...
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
       <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
@@ -388,14 +415,11 @@ export function ContractFormModal(props: Props) {
             
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
-                
-                {/* LINHA 1 */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                    <div>
                      <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
-
                    <div>
                      <FinancialInputWithInstallments 
                        label="Pró-Labore (R$)" 
@@ -411,7 +435,6 @@ export function ContractFormModal(props: Props) {
                        ))}
                      </div>
                    </div>
-
                    <div>
                      <FinancialInputWithInstallments 
                        label="Êxito Intermediário" 
@@ -425,7 +448,6 @@ export function ContractFormModal(props: Props) {
                        ))}
                      </div>
                    </div>
-
                    <div>
                      <FinancialInputWithInstallments 
                        label="Êxito Final (R$)" 
@@ -442,8 +464,6 @@ export function ContractFormModal(props: Props) {
                      </div>
                    </div>
                 </div>
-
-                {/* LINHA 2 */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
                   <div>
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
@@ -459,7 +479,6 @@ export function ContractFormModal(props: Props) {
                        ))}
                      </div>
                   </div>
-
                   <div>
                     <FinancialInputWithInstallments 
                       label="Outros Honorários (R$)" 
@@ -475,7 +494,6 @@ export function ContractFormModal(props: Props) {
                        ))}
                      </div>
                   </div>
-
                   <div>
                     <FinancialInputWithInstallments 
                       label="Fixo Mensal (R$)" 
@@ -492,7 +510,6 @@ export function ContractFormModal(props: Props) {
                      </div>
                   </div>
                 </div>
-
                 <div className="flex items-end pb-3"><div className="flex items-center"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-salomao-blue" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium whitespace-nowrap">Hon. de Timesheet</label></div></div>
               </div>
             )}
