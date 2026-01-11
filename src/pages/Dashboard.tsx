@@ -113,7 +113,7 @@ export function Dashboard() {
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         pdf.save(`Relatorio_Dashboard_${dateStr}.pdf`);
 
-        const subject = encodeURIComponent(`Relatório de Controladoria - ${dateStr}`);
+        const subject = encodeURIComponent(`Panorama dos Contratos atualizado - ${dateStr}`);
         const body = encodeURIComponent(`Caros,\n\nSegue em anexo o panorama atualizado dos contratos.\n\nAtenciosamente,\nMarcio Gama - Controladoria.`);
         
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
