@@ -4,16 +4,16 @@ import { Plus, Search, Filter, SlidersHorizontal, Download, FileText, AlertCircl
 import * as XLSX from 'xlsx';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
-import { AnalystManagerModal, Analyst } from '../components/analysts/AnalystManagerModal'; // Importar
+import { AnalystManagerModal, Analyst } from '../components/analysts/AnalystManagerModal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal'; // Modal de Detalhes
+import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
 import { Contract, Partner, ContractProcess, TimelineEvent } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 
 export function Contracts() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [analysts, setAnalysts] = useState<Analyst[]>([]); // Estado dos Analistas
+  const [analysts, setAnalysts] = useState<Analyst[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -22,15 +22,13 @@ export function Contracts() {
   const [partnerFilter, setPartnerFilter] = useState<string>(''); 
   const [sortBy, setSortBy] = useState<string>('newest'); 
   
-  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
-  const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false); // Modal de Analistas
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false); // Modal de Detalhes (Leitura)
+  const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
-  
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -49,26 +47,21 @@ export function Contracts() {
   useEffect(() => {
     fetchContracts();
     fetchPartners();
-    fetchAnalysts(); // Busca Analistas ao carregar
+    fetchAnalysts();
   }, []);
 
   const fetchContracts = async () => {
     setLoading(true);
-    // Busca contratos com join em parceiros e analistas
     const { data, error } = await supabase
       .from('contracts')
-      .select(`
-        *,
-        partners (name),
-        analysts (name)
-      `)
+      .select(`*, partners (name), analysts (name)`)
       .order('created_at', { ascending: false });
 
     if (data) {
       const formattedData = data.map((item: any) => ({
         ...item,
         partner_name: item.partners?.name,
-        analyzed_by_name: item.analysts?.name // Mapeia o nome do analista
+        analyzed_by_name: item.analysts?.name
       }));
       setContracts(formattedData);
     }
@@ -85,7 +78,6 @@ export function Contracts() {
     if (data) setAnalysts(data);
   };
 
-  // --- ABRIR DETALHES (LEITURA) ---
   const handleCardClick = async (contract: Contract) => {
     setSelectedContract(contract);
     const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
@@ -93,13 +85,11 @@ export function Contracts() {
     setIsDetailsOpen(true);
   };
 
-  // --- ABRIR EDIÇÃO ---
   const handleEdit = async (contract: Contract, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsEditing(true);
     setFormData(contract);
     
-    // Limpa processos antigos
     setProcesses([]);
     const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
     if (procData) setProcesses(procData);
@@ -138,6 +128,7 @@ export function Contracts() {
       await supabase.from('contract_processes').delete().eq('contract_id', contractToDelete.id);
       await supabase.from('contract_documents').delete().eq('contract_id', contractToDelete.id);
       await supabase.from('kanban_tasks').delete().eq('contract_id', contractToDelete.id);
+      await supabase.from('contract_timeline').delete().eq('contract_id', contractToDelete.id);
       
       const { error } = await supabase.from('contracts').delete().eq('id', contractToDelete.id);
       if (error) throw error;
@@ -156,20 +147,23 @@ export function Contracts() {
     try {
       setLoading(true);
       
-      // 1. LIMPEZA DOS DADOS (Correção do Erro)
-      // Removemos os objetos e campos virtuais que vêm do "join" e não existem na tabela contracts
-      const { 
-        partners,           // Objeto vindo do join
-        analysts,           // Objeto vindo do join
-        partner_name,       // Campo virtual frontend
-        analyzed_by_name,   // Campo virtual frontend
-        ...cleanFormData    // O resto são os dados reais da tabela
-      } = formData as any;
-
+      // 1. Limpeza de dados (Remove campos virtuais do join)
+      const { partners, analysts, partner_name, analyzed_by_name, ...cleanFormData } = formData as any;
+      
       const contractData = { ...cleanFormData, process_count: processes.length };
       let contractId = formData.id;
+      let isNew = false;
+      let previousStatus = null;
 
-      // 2. Salva ou Atualiza o Contrato Principal
+      // Detectar status anterior (se edição)
+      if (contractId) {
+        const oldContract = contracts.find(c => c.id === contractId);
+        if (oldContract) previousStatus = oldContract.status;
+      } else {
+        isNew = true;
+      }
+
+      // 2. Salvar Contrato
       if (isEditing && contractId) {
         const { error } = await supabase.from('contracts').update(contractData).eq('id', contractId);
         if (error) throw error;
@@ -179,13 +173,9 @@ export function Contracts() {
         contractId = data.id;
       }
 
-      // 3. Salva os Processos
+      // 3. Salvar Processos
       if (contractId) {
-        // Remove antigos para garantir sincronia
-        const { error: deleteError } = await supabase.from('contract_processes').delete().eq('contract_id', contractId);
-        if (deleteError) throw new Error("Erro ao limpar processos antigos: " + deleteError.message);
-        
-        // Insere novos
+        await supabase.from('contract_processes').delete().eq('contract_id', contractId);
         if (processes.length > 0) {
           const processesToSave = processes.map(p => ({
             contract_id: contractId,
@@ -194,9 +184,21 @@ export function Contracts() {
             judge: p.judge,
             cause_value: p.cause_value
           }));
-          
-          const { error: insertError } = await supabase.from('contract_processes').insert(processesToSave);
-          if (insertError) throw new Error("Erro ao salvar processos: " + insertError.message);
+          await supabase.from('contract_processes').insert(processesToSave);
+        }
+
+        // 4. TIMELINE (A PARTE QUE FALTAVA)
+        const currentStatus = contractData.status;
+        
+        // Se for novo OU se o status mudou
+        if (isNew || (previousStatus && previousStatus !== currentStatus)) {
+          await supabase.from('contract_timeline').insert({
+            contract_id: contractId,
+            previous_status: previousStatus,
+            new_status: currentStatus,
+            changed_by: 'Sistema', // Futuramente: pegar usuário logado
+            changed_at: new Date().toISOString()
+          });
         }
       }
 
@@ -229,7 +231,6 @@ export function Contracts() {
     XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
-  // Helpers de Processo
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return alert('Preencha o número.');
     if (editingProcessIndex !== null) {
@@ -286,14 +287,11 @@ export function Contracts() {
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
-      
-      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div><h1 className="text-3xl font-bold text-salomao-blue">Gestão de Contratos</h1><p className="text-gray-500 mt-1">Gerencie o ciclo de vida dos seus casos jurídicos.</p></div>
         <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95"><Plus className="w-5 h-5 mr-2" /> Novo Caso</button>
       </div>
 
-      {/* TOOLBAR */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-4 items-center">
         <div className="flex-1 w-full relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Buscar por cliente, número HON..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
@@ -308,7 +306,6 @@ export function Contracts() {
         </div>
       </div>
 
-      {/* LISTAGEM */}
       {loading ? (
         <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : filteredContracts.length === 0 ? (
@@ -365,7 +362,6 @@ export function Contracts() {
         </>
       )}
 
-      {/* MODALS */}
       <ContractFormModal 
         isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
         formData={formData} setFormData={setFormData} onSave={async () => { await handleSave(); }}
@@ -374,7 +370,6 @@ export function Contracts() {
         handleProcessAction={handleProcessAction} editProcess={editProcess} removeProcess={removeProcess} onCNPJSearch={async () => {}}
         newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} addIntermediateFee={addIntermediateFee} removeIntermediateFee={removeIntermediateFee}
         timelineData={timelineData} getStatusColor={getStatusColor} getStatusLabel={getStatusLabel}
-        // AGORA SIM: Passando os analistas e a função correta
         analysts={analysts} onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
       />
 
