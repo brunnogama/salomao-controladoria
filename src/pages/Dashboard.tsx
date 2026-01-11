@@ -36,8 +36,8 @@ export function Dashboard() {
       fechPL: 0,
       fechExito: 0,
       fechMensal: 0,
-      rejeitados: 0, // Novo
-      probono: 0,    // Novo
+      rejeitados: 0,
+      probono: 0,
     },
     mes: {
       novos: 0,
@@ -57,10 +57,9 @@ export function Dashboard() {
       rejeitados: 0,
       valorEmNegociacaoPL: 0,
       valorEmNegociacaoExito: 0,
-      receitaRecorrenteAtiva: 0, // Soma dos fixos (Média Mensal)
+      receitaRecorrenteAtiva: 0,
       totalFechadoPL: 0,
       totalFechadoExito: 0,
-      // Novos contadores de assinatura
       assinados: 0,
       naoAssinados: 0,
     },
@@ -100,7 +99,6 @@ export function Dashboard() {
     }
   };
 
-  // Helper para verificar semana atual
   const isDateInCurrentWeek = (dateString?: string) => {
     if (!dateString) return false;
     const date = new Date(dateString + 'T12:00:00');
@@ -122,7 +120,6 @@ export function Dashboard() {
     const hoje = new Date();
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
-    // Acumuladores
     let mSemana = {
       novos: 0,
       propQtd: 0, propPL: 0, propExito: 0,
@@ -149,7 +146,6 @@ export function Dashboard() {
       naoAssinados: 0,
     };
 
-    // Funil
     let fTotal = 0;
     let fQualificados = 0;
     let fFechados = 0;
@@ -160,7 +156,7 @@ export function Dashboard() {
 
     contratos.forEach((c) => {
       const dataCriacao = new Date(c.created_at || new Date());
-      // Mapeando datas específicas para uso correto no gráfico
+      // Datas para comparação de métricas da semana/mês
       const dataProp = c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : dataCriacao;
       const dataFechamento = c.contract_date ? new Date(c.contract_date + 'T12:00:00') : dataCriacao;
       
@@ -193,11 +189,10 @@ export function Dashboard() {
       
       if (c.status === 'active') {
         mGeral.fechados++;
-        mGeral.receitaRecorrenteAtiva += mensal; // Soma para média mensal
+        mGeral.receitaRecorrenteAtiva += mensal;
         mGeral.totalFechadoPL += pl;
         mGeral.totalFechadoExito += exito;
 
-        // CONTAGEM DE ASSINATURAS
         if (c.physical_signature === true) {
           mGeral.assinados++;
         } else {
@@ -205,36 +200,29 @@ export function Dashboard() {
         }
       }
 
-      // --- SEMANA (Usando datas dos status) ---
-      // Análise
+      // --- SEMANA ---
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) {
         mSemana.novos++;
       }
-      // Proposta
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
         mSemana.propQtd++;
         mSemana.propPL += pl;
         mSemana.propExito += exito;
       }
-      // Fechado
       if (c.status === 'active' && isDateInCurrentWeek(c.contract_date)) {
         mSemana.fechQtd++;
         mSemana.fechPL += pl;
         mSemana.fechExito += exito;
         mSemana.fechMensal += mensal;
       }
-      // Rejeitado (Novo)
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) {
         mSemana.rejeitados++;
       }
-      // Probono (Novo)
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) {
         mSemana.probono++;
       }
 
-      // --- MÊS (Usa data do status se disponível, senão criação) ---
-      const refDate = c.contract_date ? new Date(c.contract_date + 'T12:00:00') : dataCriacao;
-      
+      // --- MÊS ---
       if (dataCriacao >= inicioMes) mMes.novos++;
       
       if (c.status === 'proposal' && dataProp >= inicioMes) {
@@ -250,8 +238,24 @@ export function Dashboard() {
         mMes.fechMensal += mensal;
       }
 
-      // Gráfico - Agrupamento por mês de criação
-      const mesAno = dataCriacao.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      // --- GRÁFICO (DATA MAIS ANTIGA) ---
+      // Coleta todas as datas relevantes disponíveis
+      const datasDisponiveis = [
+        c.created_at ? new Date(c.created_at) : null,
+        c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null,
+        c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : null,
+        c.contract_date ? new Date(c.contract_date + 'T12:00:00') : null,
+        c.rejection_date ? new Date(c.rejection_date + 'T12:00:00') : null,
+        c.probono_date ? new Date(c.probono_date + 'T12:00:00') : null
+      ].filter((d): d is Date => d !== null && !isNaN(d.getTime()));
+
+      // Encontra a menor data (mais antiga)
+      let dataMaisAntiga = dataCriacao;
+      if (datasDisponiveis.length > 0) {
+        dataMaisAntiga = new Date(Math.min(...datasDisponiveis.map(d => d.getTime())));
+      }
+
+      const mesAno = dataMaisAntiga.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
       if (!mapaMeses[mesAno]) mapaMeses[mesAno] = 0;
       mapaMeses[mesAno]++;
     });
@@ -279,7 +283,7 @@ export function Dashboard() {
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
 
     setMetrics({ semana: mSemana, mes: mMes, geral: mGeral });
-    setEvolucaoMensal(mesesGrafico.reverse().slice(0, 12).reverse()); // Ordem cronológica
+    setEvolucaoMensal(mesesGrafico.reverse().slice(0, 12).reverse());
   };
 
   const formatMoney = (val: number) =>
@@ -400,10 +404,9 @@ export function Dashboard() {
           <h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2>
         </div>
         
-        {/* Grid ajustado para 5 colunas para caber os novos cards */}
         <div className='grid grid-cols-1 md:grid-cols-5 gap-4'>
           
-          {/* Card 1 - Novas Oportunidades (Texto alterado) */}
+          {/* Card 1 - Novas Oportunidades */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
             <div>
               <p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>
@@ -454,7 +457,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* Card 4 - Rejeitados (Novo) */}
+          {/* Card 4 - Rejeitados */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>
             <div>
               <p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>
@@ -469,7 +472,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* Card 5 - Probono (Novo) */}
+          {/* Card 5 - Probono */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'>
             <div>
               <p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>
@@ -603,9 +606,8 @@ export function Dashboard() {
                   value={metrics.geral.totalFechadoPL}
                   colorClass='text-green-800'
                 />
-                {/* Aqui está a Média Mensal solicitada */}
                 <FinItem
-                  label='Média Mensal (Total)'
+                  label='Média Mensal do Total'
                   value={metrics.geral.receitaRecorrenteAtiva}
                   colorClass='text-green-800'
                 />
@@ -765,7 +767,6 @@ export function Dashboard() {
                   value={metrics.geral.totalFechadoExito}
                   colorClass='text-green-700'
                 />
-                {/* Média Mensal Adicionada Aqui */}
                 <FinItem
                   label='Média Mensal do Total'
                   value={metrics.geral.receitaRecorrenteAtiva}
