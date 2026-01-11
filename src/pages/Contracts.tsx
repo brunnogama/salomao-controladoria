@@ -62,10 +62,13 @@ export function Contracts() {
     setIsEditing(true);
     setFormData(contract);
     
-    // Limpa processos antigos do estado antes de buscar os novos
+    // Limpa estado anterior
     setProcesses([]);
-    const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
+    
+    // Busca processos vinculados
+    const { data: procData, error } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
     if (procData) setProcesses(procData);
+    if (error) console.error("Erro ao carregar processos:", error);
 
     const { data: timeline } = await supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false });
     if (timeline) setTimelineData(timeline);
@@ -106,19 +109,23 @@ export function Contracts() {
       const contractData = { ...formData, process_count: processes.length };
       let contractId = formData.id;
 
+      // 1. Salva ou Atualiza o Contrato Principal
       if (isEditing && contractId) {
-        await supabase.from('contracts').update(contractData).eq('id', contractId);
+        const { error } = await supabase.from('contracts').update(contractData).eq('id', contractId);
+        if (error) throw error;
       } else {
         const { data, error } = await supabase.from('contracts').insert(contractData).select().single();
         if (error) throw error;
         contractId = data.id;
       }
 
+      // 2. Salva os Processos (ESSENCIAL: Checagem de erro adicionada)
       if (contractId) {
-        // Exclui processos antigos
-        await supabase.from('contract_processes').delete().eq('contract_id', contractId);
+        // Remove antigos para garantir sincronia
+        const { error: deleteError } = await supabase.from('contract_processes').delete().eq('contract_id', contractId);
+        if (deleteError) throw new Error("Erro ao limpar processos antigos: " + deleteError.message);
         
-        // Insere os novos se houver
+        // Insere novos
         if (processes.length > 0) {
           const processesToSave = processes.map(p => ({
             contract_id: contractId,
@@ -127,9 +134,12 @@ export function Contracts() {
             judge: p.judge,
             cause_value: p.cause_value
           }));
-          await supabase.from('contract_processes').insert(processesToSave);
+          
+          const { error: insertError } = await supabase.from('contract_processes').insert(processesToSave);
+          if (insertError) throw new Error("Erro ao salvar processos: " + insertError.message);
         }
       }
+
       setIsModalOpen(false);
       resetForm();
       fetchContracts();
