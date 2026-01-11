@@ -305,7 +305,6 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
-            // REMOVE CAMPOS VIRTUAIS, ESTRANGEIROS OU TEMPORÁRIOS
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
@@ -314,7 +313,6 @@ export function ContractFormModal(props: Props) {
             partners: undefined,
             id: undefined,
             
-            // CORREÇÃO: Remove os arrays de extras que não existem no banco
             pro_labore_extras: undefined,
             final_success_extras: undefined,
             fixed_monthly_extras: undefined,
@@ -350,9 +348,19 @@ export function ContractFormModal(props: Props) {
         onSave();
         onClose();
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Erro ao salvar contrato:', error);
-        alert('Erro ao salvar o contrato. Verifique os dados.');
+        
+        // TRATAMENTO DE ERROS MAIS ELEGANTE E DIDÁTICO
+        if (error.code === '23505' || error.message?.includes('contracts_hon_number_key')) {
+            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.\n\nPor favor, verifique se o número foi digitado corretamente ou se este caso já foi inserido anteriormente.');
+        } else if (error.code === 'PGRST204') {
+             // Erro de coluna inexistente (raro com a limpeza feita, mas bom ter)
+             console.warn('Erro de estrutura de dados:', error.message);
+             alert('Ocorreu um erro técnico ao processar os dados do formulário.\n\nNossa equipe técnica foi notificada. Por favor, tente novamente em instantes.');
+        } else {
+            alert('Não foi possível salvar as alterações.\n\nVerifique sua conexão com a internet e se todos os campos obrigatórios (*) estão preenchidos.');
+        }
     } finally {
         setLocalLoading(false);
     }
