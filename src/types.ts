@@ -9,12 +9,21 @@ export interface Client {
   complement?: string;
   city?: string;
   email?: string;
+  // Campos adicionados para corrigir erros de build
+  website?: string;
+  partner_id?: string;
+  created_at?: string;
+  // Campos virtuais (joins)
+  active_contracts_count?: number;
+  contracts_hon?: string[];
+  partner_name?: string;
 }
 
 export interface Partner {
   id: string;
   name: string;
   email?: string;
+  active?: boolean; // Campo adicionado
 }
 
 export interface Analyst {
@@ -55,7 +64,6 @@ export interface TimelineEvent {
 export interface FinancialInstallment {
   id: string;
   contract_id: string;
-  // AQUI ESTÁ A CORREÇÃO: Adicionado 'fixed'
   type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'other' | 'fixed';
   installment_number: number;
   total_installments: number;
@@ -79,17 +87,17 @@ export interface Contract {
   client_position: string;
   area: string;
   uf: string;
-  company_name?: string; // Parte contrária
+  company_name?: string;
   
   // Internal
   partner_id: string;
-  analyst_id?: string; // Novo campo
-  partner_name?: string; // Virtual
-  analyzed_by_name?: string; // Virtual
+  analyst_id?: string;
+  partner_name?: string;
+  analyzed_by_name?: string;
   
   // Process
   has_legal_process: boolean;
-  process_count?: number; // Virtual
+  process_count?: number;
 
   // Dates
   prospect_date?: string;
@@ -110,21 +118,26 @@ export interface Contract {
   // Financial
   pro_labore?: string;
   pro_labore_installments?: string;
+  pro_labore_extras?: string[]; // Arrays de extras
   
   final_success_fee?: string;
   final_success_fee_installments?: string;
   final_success_percent?: string;
+  final_success_extras?: string[]; // Arrays de extras
   
   intermediate_fees?: string[];
   
   other_fees?: string;
   other_fees_installments?: string;
+  other_fees_extras?: string[]; // Arrays de extras
 
-  // Novos campos adicionados recentemente
   fixed_monthly_fee?: string;
   fixed_monthly_fee_installments?: string;
-  timesheet?: boolean;
+  fixed_monthly_extras?: string[]; // Arrays de extras
+  
+  percent_extras?: string[];
 
+  timesheet?: boolean;
   observations?: string;
 }
 
@@ -139,4 +152,5 @@ export interface KanbanTask {
   contract_id?: string;
   position: number;
   contract?: Contract;
+  observation?: string; // Campo adicionado
 }
