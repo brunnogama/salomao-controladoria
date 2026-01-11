@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   CalendarDays,
-  CalendarRange, // Novo icone importado
   ArrowRight,
   TrendingUp,
   Briefcase,
@@ -35,6 +34,7 @@ export function Dashboard() {
       propQtd: 0,
       propPL: 0,
       propExito: 0,
+      propMensal: 0, // Novo: Fixo nas propostas
       fechQtd: 0,
       fechPL: 0,
       fechExito: 0,
@@ -48,6 +48,7 @@ export function Dashboard() {
       propQtd: 0,
       propPL: 0,
       propExito: 0,
+      propMensal: 0, // Novo: Fixo nas propostas
       fechQtd: 0,
       fechPL: 0,
       fechExito: 0,
@@ -137,12 +138,12 @@ export function Dashboard() {
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
     let mSemana = {
-      novos: 0, propQtd: 0, propPL: 0, propExito: 0,
+      novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
       rejeitados: 0, probono: 0, totalUnico: 0
     };
     let mMes = {
-      novos: 0, propQtd: 0, propPL: 0, propExito: 0,
+      novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, totalUnico: 0,
       analysis: 0, rejected: 0, probono: 0
     };
@@ -239,9 +240,10 @@ export function Dashboard() {
         if (c.physical_signature === true) mGeral.assinados++; else mGeral.naoAssinados++;
       }
 
+      // --- SEMANA ---
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
-        mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito;
+        mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; mSemana.propMensal += mensal;
       }
       if (c.status === 'active' && isDateInCurrentWeek(c.contract_date)) {
         mSemana.fechQtd++; mSemana.fechPL += pl; mSemana.fechExito += exito; mSemana.fechMensal += mensal;
@@ -249,11 +251,12 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
+      // --- MÊS ---
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) {
         mMes.analysis++;
       }
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
-        mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito;
+        mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; mMes.propMensal += mensal;
       }
       if (c.status === 'active' && isDateInCurrentMonth(c.contract_date)) {
         mMes.fechQtd++; mMes.fechPL += pl; mMes.fechExito += exito; mMes.fechMensal += mensal;
@@ -336,10 +339,11 @@ export function Dashboard() {
     }).format(val);
 
   const FinItem = ({ label, value, colorClass = 'text-gray-700' }: any) => {
+    if (!value || value === 0) return null; // Retorna null se não houver valor
     return (
       <div className='flex justify-between items-end text-sm mt-1 border-b border-gray-100 pb-1 last:border-0 last:pb-0'>
         <span className='text-gray-500 text-xs'>{label}</span>
-        <span className={`font-bold ${colorClass}`}>{formatMoney(value || 0)}</span>
+        <span className={`font-bold ${colorClass}`}>{formatMoney(value)}</span>
       </div>
     );
   };
@@ -418,11 +422,17 @@ export function Dashboard() {
           </div>
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
             <div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><div className='flex items-baseline gap-2'><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p></div></div>
-            <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='Pró-labore' value={metrics.semana.propPL} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div>
+            <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'>
+              <FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' />
+              <FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' />
+            </div>
           </div>
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
             <div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><div className='flex items-baseline gap-2'><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p></div></div>
-            <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='Pró-labore' value={metrics.semana.fechPL} colorClass='text-green-700' /><FinItem label='Fixos' value={metrics.semana.fechMensal} colorClass='text-green-700' /></div>
+            <div className='bg-green-50/50 p-2 rounded-lg space-y-1'>
+              <FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' />
+              <FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' />
+            </div>
           </div>
           <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p></div>
@@ -447,7 +457,7 @@ export function Dashboard() {
             <div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div>
           </div>
 
-          {/* Sob Analise Mes (NOVO CARD) */}
+          {/* Sob Analise Mes */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div>
             <div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades Jurídicas</div>
@@ -456,22 +466,28 @@ export function Dashboard() {
           {/* Propostas Mês */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
             <div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><div className='flex items-baseline gap-2'><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div></div>
-            <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='Pró-labore' value={metrics.mes.propPL} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div>
+            <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'>
+              <FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' />
+              <FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' />
+            </div>
           </div>
 
           {/* Fechados Mês */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
             <div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><div className='flex items-baseline gap-2'><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div></div>
-            <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='Pró-labore' value={metrics.mes.fechPL} colorClass='text-green-700' /><FinItem label='Fixos' value={metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div>
+            <div className='bg-green-50/50 p-2 rounded-lg space-y-1'>
+              <FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' />
+              <FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' />
+            </div>
           </div>
 
-          {/* Rejeitados Mês (NOVO CARD) */}
+          {/* Rejeitados Mês */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div>
             <div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div>
           </div>
 
-          {/* Probono Mês (NOVO CARD) */}
+          {/* Probono Mês */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div>
             <div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div>
