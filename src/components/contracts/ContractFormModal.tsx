@@ -9,7 +9,6 @@ import { CustomSelect } from '../ui/CustomSelect';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
-// Componente ajustado: Se onAdd não for passado, ele age como um input normal com seletor de parcelas
 const FinancialInputWithInstallments = ({ 
   label, value, onChangeValue, installments, onChangeInstallments, onAdd 
 }: { 
@@ -161,32 +160,67 @@ export function ContractFormModal(props: Props) {
   };
 
   const upsertClient = async () => {
-    if (!formData.cnpj || !formData.client_name) return null;
+    // Validação Básica
+    if (!formData.client_name) return null;
+
+    // Se NÃO for 'sem cnpj' e o CNPJ estiver vazio, isso é um erro, a menos que seja um rascunho.
+    // Mas vamos permitir salvar se o CNPJ estiver vazio se has_no_cnpj for false, assumindo que pode ser preenchido depois? 
+    // NÃO, o fluxo pede cnpj. Se has_no_cnpj é false, cnpj deve existir para chave.
+    if (!formData.has_no_cnpj && !formData.cnpj) {
+        // Se o usuário não marcou "Sem CNPJ" mas deixou vazio, marcamos como sem cnpj para salvar como PF/Nome
+        // Ou retornamos null? Melhor deixar flexível: se vazio, tenta salvar pelo nome.
+    }
+
     const clientData = {
       name: formData.client_name,
       cnpj: formData.cnpj,
-      is_person: clientExtraData.is_person || (!formData.has_no_cnpj && formData.cnpj.length <= 14),
+      is_person: clientExtraData.is_person || formData.has_no_cnpj || (formData.cnpj.length > 0 && formData.cnpj.length <= 14),
       uf: formData.uf,
       address: clientExtraData.address || undefined,
       city: clientExtraData.city || undefined,
       complement: clientExtraData.complement || undefined,
       number: clientExtraData.number || undefined,
-      email: clientExtraData.email || undefined
+      email: clientExtraData.email || undefined,
+      partner_id: formData.partner_id // Replicando o sócio responsável
     };
-    const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', formData.cnpj).single();
-    let clientId = existingClient?.id;
-    if (clientId) {
-      await supabase.from('clients').update(clientData).eq('id', clientId);
-    } else {
-      const { data: newClient } = await supabase.from('clients').insert(clientData).select().single();
-      clientId = newClient?.id;
+
+    // Caso 1: Tem CNPJ válido
+    if (!formData.has_no_cnpj && formData.cnpj) {
+      const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', formData.cnpj).single();
+      
+      if (existingClient) {
+        await supabase.from('clients').update(clientData).eq('id', existingClient.id);
+        return existingClient.id;
+      } else {
+        const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
+        if (error) { 
+            console.error('Erro ao criar cliente com CNPJ:', error); 
+            return null; 
+        }
+        return newClient.id;
+      }
+    } 
+    
+    // Caso 2: Sem CNPJ (Salva um novo registro sempre ou atualiza o vinculado ao contrato)
+    else {
+      // Se já temos um client_id vinculado ao contrato (edição), atualizamos esse
+      if (formData.client_id) {
+         await supabase.from('clients').update(clientData).eq('id', formData.client_id);
+         return formData.client_id;
+      } 
+      // Se é novo contrato sem CNPJ, cria um novo cliente
+      else {
+         const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
+         if (error) { 
+             console.error('Erro ao criar cliente sem CNPJ:', error); 
+             return null; 
+         }
+         return newClient.id;
+      }
     }
-    return clientId;
   };
 
-  // Funções de lista apenas para intermediários agora
   const handleAddToList = (listField: string, valueField: keyof Contract) => {
-    // Mantido para compatibilidade, mas usado apenas para percent_extras se necessário
     const value = (formData as any)[valueField];
     if (!value || value === 'R$ 0,00' || value === '') return;
     setFormData(prev => ({ ...prev, [listField]: [...(prev as any)[listField] || [], value], [valueField]: '' }));
@@ -209,9 +243,7 @@ export function ContractFormModal(props: Props) {
   };
 
   const generateFinancialInstallments = async (contractId: string) => {
-    // Gera parcelas apenas se estiver Ativo, MAS os valores no contrato são salvos independente disso.
     if (formData.status !== 'active') return;
-    
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
     
     const installmentsToInsert: any[] = [];
@@ -225,13 +257,11 @@ export function ContractFormModal(props: Props) {
       }
     };
 
-    // Gera parcelas baseadas nos inputs diretos (não mais em listas extras)
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
     addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
-    // Intermediários continuam como lista
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
@@ -270,11 +300,15 @@ export function ContractFormModal(props: Props) {
 
     setLocalLoading(true);
     try {
+        // Tenta salvar/buscar o cliente. Se falhar, avisa.
         const clientId = await upsertClient();
+        if (!clientId) {
+            throw new Error("Falha ao salvar dados do cliente.");
+        }
         
         const contractPayload: any = {
             ...formData,
-            client_id: clientId || formData.client_id,
+            client_id: clientId, // Usa o ID retornado do upsert
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
@@ -336,7 +370,7 @@ export function ContractFormModal(props: Props) {
              const column = error.message.match(/'([^']+)'/)?.[1];
              alert(`Erro Técnico: O sistema tentou salvar um campo inválido (${column || 'desconhecido'}).\n\nIsso geralmente ocorre ao editar dados carregados. Tente recarregar a página.`);
         } else {
-            alert('Não foi possível salvar as alterações.\n\nVerifique sua conexão com a internet e se todos os campos obrigatórios (*) estão preenchidos.');
+            alert(`Não foi possível salvar as alterações.\n\nDetalhe: ${error.message || 'Erro desconhecido'}`);
         }
     } finally {
         setLocalLoading(false);
