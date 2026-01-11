@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-// ... [MANTÉM TODAS AS IMPORTAÇÕES EXISTENTES] ...
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
@@ -10,7 +9,6 @@ import { CustomSelect } from '../ui/CustomSelect';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
-// ... [MANTÉM O COMPONENTE FinancialInputWithInstallments E OUTROS HELPERS IGUAIS] ...
 const FinancialInputWithInstallments = ({ 
   label, value, onChangeValue, installments, onChangeInstallments, onAdd 
 }: { 
@@ -99,19 +97,22 @@ interface Props {
 
 export function ContractFormModal(props: Props) {
   const { 
-    isOpen, onClose, formData, setFormData, onSave, loading, isEditing,
+    isOpen, onClose, formData, setFormData, onSave, loading: parentLoading, isEditing,
     partners, onOpenPartnerManager, analysts, onOpenAnalystManager,
     processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
     newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
     timelineData, getStatusLabel
   } = props;
   
+  const [localLoading, setLocalLoading] = useState(false);
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
   const [searchingCNJ, setSearchingCNJ] = useState(false);
   const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
+
+  const isLoading = parentLoading || localLoading;
 
   useEffect(() => {
     if (isOpen) {
@@ -265,35 +266,13 @@ export function ContractFormModal(props: Props) {
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
-  // --- FUNÇÃO PATCH PARA GARANTIR SALVAMENTO FINANCEIRO CORRETO ---
-  const forceUpdateFinancials = async (contractId: string) => {
-    // Essa função força a atualização dos campos financeiros com valores limpos (float)
-    // para garantir que o banco receba números, caso o save principal tenha enviado strings formatadas.
-    const cleanPL = parseCurrency(formData.pro_labore);
-    const cleanSuccess = parseCurrency(formData.final_success_fee);
-    const cleanFixed = parseCurrency(formData.fixed_monthly_fee);
-    const cleanOther = parseCurrency(formData.other_fees);
-
-    await supabase.from('contracts').update({
-      pro_labore: cleanPL,
-      final_success_fee: cleanSuccess,
-      fixed_monthly_fee: cleanFixed,
-      other_fees: cleanOther
-    }).eq('id', contractId);
-  };
-
   const handleSaveWithIntegrations = async () => {
+    // Validações Obrigatórias
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
 
-    if (formData.status === 'analysis') {
-      if (!formData.prospect_date) return alert('A "Data Prospect" é obrigatória para contratos em Análise.');
-    }
-
-    if (formData.status === 'proposal') {
-      if (!formData.proposal_date) return alert('A "Data Proposta" é obrigatória para Propostas Enviadas.');
-    }
-
+    if (formData.status === 'analysis' && !formData.prospect_date) return alert('A "Data Prospect" é obrigatória para contratos em Análise.');
+    if (formData.status === 'proposal' && !formData.proposal_date) return alert('A "Data Proposta" é obrigatória para Propostas Enviadas.');
     if (formData.status === 'active') {
       if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
       if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
@@ -301,28 +280,64 @@ export function ContractFormModal(props: Props) {
       if (formData.physical_signature === undefined) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
     }
 
-    const clientId = await upsertClient();
-    
-    // 1. Salva o contrato (chamada original do pai)
-    await onSave(); 
-
-    // 2. Lógica pós-save
-    if (formData.id) {
-        if (clientId) await supabase.from('contracts').update({ client_id: clientId }).eq('id', formData.id);
+    setLocalLoading(true);
+    try {
+        const clientId = await upsertClient();
         
-        // --- PATCH CRÍTICO: Força atualização dos valores financeiros limpos ---
-        await forceUpdateFinancials(formData.id);
-        // ----------------------------------------------------------------------
+        // Prepara objeto limpo para salvar no DB (converte moedas para number/float)
+        const contractPayload: any = {
+            ...formData,
+            client_id: clientId || formData.client_id,
+            // Converte strings "R$ ..." para números puros
+            pro_labore: parseCurrency(formData.pro_labore),
+            final_success_fee: parseCurrency(formData.final_success_fee),
+            fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
+            other_fees: parseCurrency(formData.other_fees),
+            // Campos virtuais a remover
+            partner_name: undefined,
+            analyzed_by_name: undefined,
+            process_count: undefined,
+            id: undefined // ID não vai no payload se for insert, se for update usamos no .eq()
+        };
 
-        await generateFinancialInstallments(formData.id);
-    }
-    
-    if (formData.status === 'active' && formData.physical_signature === false && formData.id) {
-        const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', formData.id).eq('status', 'signature').single();
-        if (!data) {
-          const dueDate = addDays(new Date(), 5);
-          await supabase.from('kanban_tasks').insert({ title: `Coletar Assinatura: ${formData.client_name}`, description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`, priority: 'Alta', status: 'signature', contract_id: formData.id, due_date: dueDate.toISOString(), position: 0 });
+        // Remove campos undefined para não sobrescrever com null se não necessário
+        Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
+
+        let savedId = formData.id;
+
+        if (formData.id) {
+            // Update
+            const { error } = await supabase.from('contracts').update(contractPayload).eq('id', formData.id);
+            if (error) throw error;
+        } else {
+            // Insert
+            const { data, error } = await supabase.from('contracts').insert(contractPayload).select().single();
+            if (error) throw error;
+            savedId = data.id;
         }
+
+        // Pós-salvamento: Parcelas e Kanban
+        if (savedId) {
+            await generateFinancialInstallments(savedId);
+            
+            if (formData.status === 'active' && formData.physical_signature === false) {
+                const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').single();
+                if (!data) {
+                  const dueDate = addDays(new Date(), 5);
+                  await supabase.from('kanban_tasks').insert({ title: `Coletar Assinatura: ${formData.client_name}`, description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`, priority: 'Alta', status: 'signature', contract_id: savedId, due_date: dueDate.toISOString(), position: 0 });
+                }
+            }
+        }
+
+        // Chama o onSave do pai para atualizar a lista e fechar modal
+        onSave();
+        onClose();
+
+    } catch (error) {
+        console.error('Erro ao salvar contrato:', error);
+        alert('Erro ao salvar o contrato. Verifique os dados.');
+    } finally {
+        setLocalLoading(false);
     }
   };
 
@@ -346,7 +361,6 @@ export function ContractFormModal(props: Props) {
 
   if (!isOpen) return null;
 
-  // ... [O RESTANTE DO COMPONENTE (RETURN/JSX) PERMANECE O MESMO, APENAS LÓGICA ACIMA ALTERADA] ...
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
       <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
@@ -575,7 +589,7 @@ export function ContractFormModal(props: Props) {
         </div>
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
-          <button onClick={handleSaveWithIntegrations} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
+          <button onClick={handleSaveWithIntegrations} disabled={isLoading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{isLoading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
         </div>
       </div>
     </div>

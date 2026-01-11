@@ -25,11 +25,11 @@ import {
 } from 'lucide-react';
 import { Contract } from '../types';
 
-// Função de parse robusta local para o Dashboard
+// Função de parse segura para garantir que valores vindos do banco (números ou strings formatadas) sejam tratados corretamente
 const safeParseMoney = (value: string | number | undefined | null): number => {
   if (!value) return 0;
   if (typeof value === 'number') return value;
-  // Se for string, limpa formatação brasileira (R$ 1.000,00 -> 1000.00)
+  // Limpa formatação brasileira (R$ 1.000,00 -> 1000.00) caso venha como string formatada
   const cleanStr = value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
   const floatVal = parseFloat(cleanStr);
   return isNaN(floatVal) ? 0 : floatVal;
@@ -152,7 +152,6 @@ export function Dashboard() {
       if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
       if (contractDates.some(date => isDateInCurrentMonth(date))) mMes.totalUnico++;
 
-      // Financeiro 12 Meses
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
         dContrato.setDate(1); dContrato.setHours(0,0,0,0);
@@ -169,14 +168,12 @@ export function Dashboard() {
         }
       }
 
-      // Funil
       fTotal++;
       const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
       if (chegouEmProposta) fQualificados++;
       if (c.status === 'active') fFechados++;
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
 
-      // Geral
       mGeral.totalCasos++;
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
@@ -193,7 +190,6 @@ export function Dashboard() {
         c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
-      // Semana
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
         mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; mSemana.propMensal += mensal;
@@ -204,7 +200,6 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
-      // Mês
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
         mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; mMes.propMensal += mensal;
@@ -215,7 +210,6 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) mMes.rejected++;
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) mMes.probono++;
 
-      // Gráfico
       const datasDisponiveis = [
         c.created_at ? new Date(c.created_at) : null,
         c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null,
@@ -232,7 +226,6 @@ export function Dashboard() {
       mapaMeses[mesAno]++;
     });
 
-    // Finalização
     const finArray = Object.entries(financeiroMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); 
     const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
@@ -318,6 +311,7 @@ export function Dashboard() {
         <div className='h-64 flex items-end justify-around gap-2'>
           {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (financeiro12Meses.map((item, index) => (<div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end'><div className='flex items-end gap-1 h-full w-full justify-center px-1'><div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.pl)}</span></div><div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div><div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-10 whitespace-nowrap'>{formatMoney(item.exito)}</span></div></div><span className='text-[10px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span></div>)))}
         </div>
+        <div className='flex justify-center gap-4 mt-4 text-xs'><div className='flex items-center'><span className='w-3 h-3 bg-blue-400 rounded-full mr-1'></span> Pró-labore</div><div className='flex items-center'><span className='w-3 h-3 bg-indigo-400 rounded-full mr-1'></span> Fixo Mensal</div><div className='flex items-center'><span className='w-3 h-3 bg-green-400 rounded-full mr-1'></span> Êxito</div></div>
       </div>
 
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
