@@ -18,7 +18,8 @@ import {
   Activity,
   HeartHandshake,
   Loader2,
-  BarChart4
+  BarChart4,
+  Layers // Icone para o total
 } from 'lucide-react';
 import { Contract } from '../types';
 import { parseCurrency } from '../utils/masks';
@@ -26,7 +27,6 @@ import { parseCurrency } from '../utils/masks';
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
 
-  // Estado Unificado das Métricas
   const [metrics, setMetrics] = useState({
     semana: {
       novos: 0,
@@ -39,6 +39,7 @@ export function Dashboard() {
       fechMensal: 0,
       rejeitados: 0,
       probono: 0,
+      totalUnico: 0, // Novo: Casos únicos movimentados na semana
     },
     mes: {
       novos: 0,
@@ -49,6 +50,7 @@ export function Dashboard() {
       fechPL: 0,
       fechExito: 0,
       fechMensal: 0,
+      totalUnico: 0, // Novo: Casos únicos movimentados no mês
     },
     geral: {
       totalCasos: 0,
@@ -66,7 +68,6 @@ export function Dashboard() {
     },
   });
 
-  // Estado do Funil
   const [funil, setFunil] = useState({
     totalEntrada: 0,
     qualificadosProposta: 0,
@@ -119,6 +120,13 @@ export function Dashboard() {
     return date >= startOfWeek && date <= endOfWeek;
   };
 
+  const isDateInCurrentMonth = (dateString?: string) => {
+    if (!dateString) return false;
+    const date = new Date(dateString + 'T12:00:00');
+    const today = new Date();
+    return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+  };
+
   const processarDados = (contratos: Contract[]) => {
     const hoje = new Date();
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -126,11 +134,11 @@ export function Dashboard() {
     let mSemana = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
-      rejeitados: 0, probono: 0
+      rejeitados: 0, probono: 0, totalUnico: 0
     };
     let mMes = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0,
-      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
+      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, totalUnico: 0
     };
     let mGeral = {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0,
@@ -162,6 +170,27 @@ export function Dashboard() {
       const pl = parseCurrency(c.pro_labore);
       const exito = parseCurrency(c.final_success_fee);
       const mensal = parseCurrency(c.fixed_monthly_fee);
+
+      // --- CHECAGEM DE CASOS ÚNICOS (SEMANA E MÊS) ---
+      // Lista de todas as datas relevantes para o contrato
+      const contractDates = [
+        c.prospect_date, 
+        c.proposal_date, 
+        c.contract_date, 
+        c.rejection_date, 
+        c.probono_date
+      ];
+
+      // Se qualquer data cair na semana, conta como 1 caso movimentado na semana
+      if (contractDates.some(date => isDateInCurrentWeek(date))) {
+        mSemana.totalUnico++;
+      }
+
+      // Se qualquer data cair no mês, conta como 1 caso movimentado no mês
+      if (contractDates.some(date => isDateInCurrentMonth(date))) {
+        mMes.totalUnico++;
+      }
+      // -----------------------------------------------
 
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
@@ -298,7 +327,6 @@ export function Dashboard() {
     }).format(val);
 
   const FinItem = ({ label, value, colorClass = 'text-gray-700' }: any) => {
-    // CORREÇÃO: Removemos a condição que escondia o item se fosse 0 para garantir que apareça mesmo que seja 0
     return (
       <div className='flex justify-between items-end text-sm mt-1 border-b border-gray-100 pb-1 last:border-0 last:pb-0'>
         <span className='text-gray-500 text-xs'>{label}</span>
@@ -370,7 +398,13 @@ export function Dashboard() {
           <CalendarDays className='text-blue-700' size={24} />
           <h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2>
         </div>
-        <div className='grid grid-cols-1 md:grid-cols-5 gap-4'>
+        <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
+          {/* Card Total Casos Semana (NOVO) */}
+          <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
+            <div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div>
+            <div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div>
+          </div>
+
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
             <div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Entrada de Casos</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div>
             <div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades Jurídicas</div>
@@ -396,11 +430,21 @@ export function Dashboard() {
 
       <div>
         <h2 className='text-xl font-bold text-gray-800 mb-4 flex items-center gap-2'>
-          <TrendingUp size={20} className='text-[#0F2C4C]' /> Performance Comercial
+          <TrendingUp size={20} className='text-[#0F2C4C]' /> Resumo do Mês
         </h2>
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-          {/* CARD ESQUERDA: MENSAL (Propostas) */}
-          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 relative'>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+          {/* Card Total Casos Mes (NOVO) */}
+          <div className='bg-white p-6 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
+            <div>
+              <p className='text-sm text-blue-800 font-medium mb-1'>Total Casos do Mês</p>
+              <h3 className='text-4xl font-bold text-blue-900'>{metrics.mes.totalUnico} <span className='text-base font-normal text-gray-400'>movimentados</span></h3>
+            </div>
+            <div className='mt-4 flex items-center text-xs text-blue-500 bg-blue-50 p-2 rounded-lg'>
+              <Layers className="w-4 h-4 mr-2" /> Casos com atividade no mês
+            </div>
+          </div>
+
+          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative'>
             <div className='absolute top-0 right-0 bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>MÊS ATUAL</div>
             <div className='flex-1'>
               <p className='text-sm text-gray-500 font-medium mb-1'>Propostas Enviadas</p>
@@ -412,8 +456,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* CARD DIREITA: MENSAL (Fechados) */}
-          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 relative'>
+          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative'>
             <div className='absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>MÊS ATUAL (REALIZADO)</div>
             <div className='flex-1'>
               <p className='text-sm text-gray-500 font-medium mb-1'>Contratos Fechados</p>
