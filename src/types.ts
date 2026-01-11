@@ -109,3 +109,16 @@ export interface Contract {
   process_count?: number;
   created_at?: string;
 }
+
+export interface FinancialInstallment {
+  id: string;
+  contract_id: string;
+  type: 'pro_labore' | 'success_fee' | 'other';
+  installment_number: number;
+  total_installments: number;
+  amount: number;
+  due_date?: string;
+  status: 'pending' | 'paid';
+  paid_at?: string;
+  contract?: Contract; // Join
+}

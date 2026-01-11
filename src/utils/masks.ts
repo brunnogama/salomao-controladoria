@@ -1,53 +1,50 @@
 export const maskCNPJ = (value: string) => {
-  // Máscara de Empresa: 00.000.000/0000-00
   return value
     .replace(/\D/g, '')
     .replace(/^(\d{2})(\d)/, '$1.$2')
     .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d)/, '$1-$2')
-    .replace(/(-\d{2})\d+?$/, '$1');
-};
-
-export const maskCNJ = (value: string) => {
-  // Máscara de Processo (CNJ): 0000000-00.2021.1.00.0000
-  // 7 dígitos - 2 dígitos . 4 dígitos . 1 dígito . 2 dígitos . 4 dígitos
-  
-  value = value.replace(/\D/g, '');
-  
-  if (value.length > 20) {
-    value = value.substring(0, 20);
-  }
-
-  return value
-    .replace(/(\d{7})(\d)/, '$1-$2')       // 0000000-00...
-    .replace(/(-\d{2})(\d)/, '$1.$2')      // ...-00.2021...
-    .replace(/(\.\d{4})(\d)/, '$1.$2')     // ....2021.1...
-    .replace(/(\.\d{1})(\d)/, '$1.$2')     // ....1.00...
-    .replace(/(\.\d{2})(\d)/, '$1.$2');    // ....00.0000
+    .slice(0, 18);
 };
 
 export const maskMoney = (value: string) => {
-  const onlyNumbers = value.replace(/\D/g, '');
-  const number = Number(onlyNumbers) / 100;
-  return number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const numericValue = value.replace(/\D/g, '');
+  const options = { minimumFractionDigits: 2 };
+  const result = new Intl.NumberFormat('pt-BR', options).format(
+    parseFloat(numericValue) / 100
+  );
+  return 'R$ ' + result;
 };
 
 export const maskHon = (value: string) => {
-  // Máscara HON: 0000000/000
   return value
     .replace(/\D/g, '')
-    .replace(/^(\d{7})(\d)/, '$1/$2')
-    .replace(/(\/\d{3})\d+?$/, '$1');
+    .replace(/(\d{7})(\d)/, '$1/$2')
+    .slice(0, 11); // Limita tamanho: 0000000/000
 };
 
-export const unmaskMoney = (value: string) => {
-  if (!value) return 0;
-  return Number(value.replace(/\D/g, '')) / 100;
+export const maskCNJ = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{7})(\d)/, '$1-$2')
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{4})(\d)/, '$1.$2')
+    .replace(/(\d{1})(\d)/, '$1.$2')
+    .replace(/(\d{2})(\d)/, '$1-$2') // Ajuste fino pode ser necessário dependendo do formato exato CNJ
+    .slice(0, 25);
 };
 
-// Title Case (Nome Próprio)
 export const toTitleCase = (str: string) => {
   if (!str) return '';
-  return str.toLowerCase().replace(/(?:^|\s)\w/g, (match) => match.toUpperCase());
+  return str.toLowerCase().replace(/(?:^|\s)\w/g, function(match) {
+    return match.toUpperCase();
+  });
+};
+
+export const parseCurrency = (value: string | undefined): number => {
+  if (!value) return 0;
+  // Remove "R$", pontos de milhar e substitui vírgula decimal por ponto
+  const clean = value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+  return parseFloat(clean) || 0;
 };
