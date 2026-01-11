@@ -6,7 +6,8 @@ import { GED } from './pages/GED';
 import { Dashboard } from './pages/Dashboard';
 import { Kanban } from './pages/Kanban';
 import { Clients } from './pages/Clients';
-import { Finance } from './pages/Finance';
+import { Finance } from './pages/Financial'; // Ajustado para o arquivo criado anteriormente (Financial.tsx) ou Finance.tsx se já existir
+import { Settings } from './pages/Settings'; // Importando a página criada
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -28,14 +29,16 @@ function App() {
           <Route path="/contratos" element={<Contracts />} />
           <Route path="/clientes" element={<Clients />} />
           <Route path="/kanban" element={<Kanban />} />
-          <Route path="/financeiro" element={<Finance />} />
+          <Route path="/financeiro" element={<Finance />} /> {/* Certifique-se que o componente exportado em Financial.tsx se chama Finance ou Financial */}
           <Route path="/ged" element={<GED />} />
           
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
           <Route path="/volumetria" element={<PagePlaceholder title="Análise de Volumetria" />} />
           <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
           <Route path="/historico" element={<PagePlaceholder title="Histórico de Atividades" />} />
-          <Route path="/configuracoes" element={<PagePlaceholder title="Configurações do Sistema" />} />
+          
+          {/* Rota Conectada */}
+          <Route path="/configuracoes" element={<Settings />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
