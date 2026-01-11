@@ -53,7 +53,7 @@ const FinancialInputWithInstallments = ({
   );
 };
 
-// ... (Funções getEffectiveDate, getDurationBetween, getTotalDuration, getThemeBackground mantidas iguais)
+// ... Funções auxiliares mantidas ...
 const getEffectiveDate = (status: string, fallbackDate: string, formData: Contract) => {
   let businessDateString = null;
   switch (status) {
@@ -188,7 +188,7 @@ export function ContractFormModal(props: Props) {
     setFormData(prev => ({
       ...prev,
       [listField]: [...(prev as any)[listField] || [], value],
-      [valueField]: ''
+      [valueField]: '' 
     }));
   };
 
@@ -225,14 +225,13 @@ export function ContractFormModal(props: Props) {
 
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
-    // MUDANÇA: 'fixed' para diferenciar no Financeiro
-    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed'); 
+    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
     const extrasConfig = [
       { field: 'pro_labore_extras', type: 'pro_labore' },
       { field: 'final_success_extras', type: 'final_success_fee' },
-      { field: 'fixed_monthly_extras', type: 'fixed' }, // MUDANÇA
+      { field: 'fixed_monthly_extras', type: 'fixed' },
       { field: 'other_fees_extras', type: 'other' }
     ];
 
@@ -266,6 +265,26 @@ export function ContractFormModal(props: Props) {
   };
 
   const handleSaveWithIntegrations = async () => {
+    // --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ---
+    if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
+    if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
+
+    if (formData.status === 'analysis') {
+      if (!formData.prospect_date) return alert('A "Data Prospect" é obrigatória para contratos em Análise.');
+    }
+
+    if (formData.status === 'proposal') {
+      if (!formData.proposal_date) return alert('A "Data Proposta" é obrigatória para Propostas Enviadas.');
+    }
+
+    if (formData.status === 'active') {
+      if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
+      if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
+      if (!formData.billing_location) return alert('O "Local Faturamento" é obrigatório para Contratos Fechados.');
+      if (formData.physical_signature === undefined) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
+    }
+    // ----------------------------------------
+
     const clientId = await upsertClient();
     await onSave();
     if (formData.id) {
@@ -281,7 +300,6 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // ... (Resto do arquivo mantido igual, sem alterações nas demais funções e layout)
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
@@ -327,12 +345,12 @@ export function ContractFormModal(props: Props) {
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
-              <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
+              <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
               <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={formData.client_position} onChange={(val: string) => setFormData({...formData, client_position: val})} options={positionOptions} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div><label className="block text-xs font-medium text-gray-600 mb-1">Área do Direito</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} /></div>
-              <div><CustomSelect label="Responsável (Sócio)" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
+              <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
             </div>
           </section>
 
@@ -363,7 +381,7 @@ export function ContractFormModal(props: Props) {
             
             {(formData.status === 'analysis') && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                <div><label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect</label><input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div>
+                <div><label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label><input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div>
                 <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="bg-white border-yellow-200" /></div>
               </div>
             )}
@@ -374,7 +392,7 @@ export function ContractFormModal(props: Props) {
                 {/* LINHA 1 */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                    <div>
-                     <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta' : 'Data Assinatura'}</label>
+                     <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
 
@@ -489,9 +507,9 @@ export function ContractFormModal(props: Props) {
             {formData.status === 'active' && (
               <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                  <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único)</label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                  <div className="md:col-span-4"><CustomSelect label="Local Faturamento" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
-                  <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física?" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
+                  <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
+                  <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
+                  <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
                 </div>
               </div>
             )}
