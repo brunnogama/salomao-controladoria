@@ -19,7 +19,6 @@ const UFS = [
   { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' }
 ];
 
-// Componente para inputs financeiros com parcelas
 const FinancialInputWithInstallments = ({ 
   label, value, onChangeValue, installments, onChangeInstallments 
 }: { 
@@ -42,10 +41,8 @@ const FinancialInputWithInstallments = ({
   );
 };
 
-// Funções auxiliares de data
 const getEffectiveDate = (status: string, defaultDate: string, formData: Contract) => {
   let businessDate = null;
-  // Mapeia datas baseado no status (incluindo status customizados se seguirem padrão, senão usa data de criação)
   switch (status) {
     case 'analysis': businessDate = formData.prospect_date; break;
     case 'proposal': businessDate = formData.proposal_date; break;
@@ -78,14 +75,13 @@ const getTotalDuration = (timelineData: TimelineEvent[], formData: Contract) => 
 };
 
 const getThemeBackground = (status: string) => {
-  // Retorna cores padrão para status conhecidos, ou branco para novos
   switch (status) {
     case 'analysis': return 'bg-yellow-50';
     case 'proposal': return 'bg-blue-50';
     case 'active': return 'bg-green-50';
     case 'rejected': return 'bg-red-50';
     case 'probono': return 'bg-purple-50';
-    default: return 'bg-gray-50'; // Cor genérica para novos status
+    default: return 'bg-gray-50';
   }
 };
 
@@ -128,15 +124,9 @@ export function ContractFormModal(props: Props) {
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
   const [searchingCNJ, setSearchingCNJ] = useState(false);
-  
-  // Estado para Status Dinâmicos
   const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
-  
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
-  
-  const [clientExtraData, setClientExtraData] = useState({ 
-    address: '', number: '', complement: '', city: '', email: '', is_person: false
-  });
+  const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
 
   useEffect(() => {
     if (isOpen) {
@@ -148,7 +138,6 @@ export function ContractFormModal(props: Props) {
     }
   }, [isOpen, formData.id]);
 
-  // --- CARREGAR STATUS DO BANCO ---
   const fetchStatuses = async () => {
     const { data } = await supabase.from('contract_statuses').select('*').order('label');
     if (data) {
@@ -157,36 +146,17 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // --- CRIAR NOVO STATUS ---
   const handleCreateStatus = async () => {
     const newLabel = window.prompt("Digite o nome do novo Status:");
     if (!newLabel) return;
-
-    // Gera um value simplificado (sem acentos, minúsculo)
     const newValue = newLabel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_");
-
-    // Verifica duplicidade local
-    if (statusOptions.some(s => s.value === newValue)) {
-      alert("Este status já existe.");
-      return;
-    }
-
+    if (statusOptions.some(s => s.value === newValue)) return alert("Este status já existe.");
     try {
-      // Salva no banco
-      const { error } = await supabase.from('contract_statuses').insert({
-        label: toTitleCase(newLabel),
-        value: newValue,
-        color: 'bg-gray-100 text-gray-800 border-gray-200' // Cor padrão
-      });
-
+      const { error } = await supabase.from('contract_statuses').insert({ label: toTitleCase(newLabel), value: newValue, color: 'bg-gray-100 text-gray-800 border-gray-200' });
       if (error) throw error;
-
-      // Atualiza lista e seleciona o novo
       await fetchStatuses();
-      setFormData({ ...formData, status: newValue as any }); // Cast as any pois o TS espera os literais
-    } catch (err) {
-      alert("Erro ao criar status. Tente novamente.");
-    }
+      setFormData({ ...formData, status: newValue as any });
+    } catch (err) { alert("Erro ao criar status."); }
   };
 
   const fetchDocuments = async () => {
@@ -196,7 +166,6 @@ export function ContractFormModal(props: Props) {
 
   const upsertClient = async () => {
     if (!formData.cnpj || !formData.client_name) return null;
-    // ... (lógica upsert mantida igual)
     const clientData = {
       name: formData.client_name,
       cnpj: formData.cnpj,
@@ -229,15 +198,7 @@ export function ContractFormModal(props: Props) {
       const numInstallments = parseInt((installmentsStr || '1x').replace('x', '')) || 1;
       const amountPerInstallment = totalValue / numInstallments;
       for (let i = 1; i <= numInstallments; i++) {
-        installmentsToInsert.push({
-          contract_id: contractId,
-          type: type,
-          installment_number: i,
-          total_installments: numInstallments,
-          amount: amountPerInstallment,
-          status: 'pending',
-          due_date: addMonths(new Date(), i).toISOString() 
-        });
+        installmentsToInsert.push({ contract_id: contractId, type: type, installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString() });
       }
     };
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
@@ -246,14 +207,10 @@ export function ContractFormModal(props: Props) {
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
-        if (val > 0) {
-          installmentsToInsert.push({ contract_id: contractId, type: 'success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
-        }
+        if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
       });
     }
-    if (installmentsToInsert.length > 0) {
-      await supabase.from('financial_installments').insert(installmentsToInsert);
-    }
+    if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
   const handleSaveWithIntegrations = async () => {
@@ -343,7 +300,6 @@ export function ContractFormModal(props: Props) {
     setFormData({ ...formData, [field]: toTitleCase(value) });
   };
 
-  // --- OPÇÕES FIXAS DE OUTROS SELECTS ---
   const positionOptions = [{ label: 'Autor', value: 'Autor' }, { label: 'Réu', value: 'Réu' }, { label: 'Terceiro Interessado', value: 'Terceiro' }];
   const ufOptions = UFS.map(uf => ({ label: uf.nome, value: uf.sigla }));
   const partnerOptions = partners.map(p => ({ label: p.name, value: p.id }));
@@ -357,29 +313,14 @@ export function ContractFormModal(props: Props) {
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
       <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
-        
-        {/* HEADER */}
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-2xl">
           <div><h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2><p className="text-xs text-gray-500 uppercase tracking-wider">{isEditing ? 'Visualização e Edição Completa' : 'Cadastro Unificado'}</p></div>
           <button onClick={onClose} className="text-gray-400 hover:text-red-500"><X className="w-6 h-6" /></button>
         </div>
-
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          
-          {/* SELETOR DE STATUS COM BOTÃO DE ADICIONAR */}
           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
-            <CustomSelect 
-              label="Status Atual do Caso" 
-              value={formData.status} 
-              onChange={(val: any) => setFormData({...formData, status: val})} 
-              options={statusOptions}
-              // Botão de Ação "Novo Status"
-              onAction={handleCreateStatus}
-              actionIcon={Plus}
-              actionLabel="Adicionar Novo Status"
-            />
+            <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
           </div>
-
           <section className="space-y-5">
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
@@ -387,7 +328,8 @@ export function ContractFormModal(props: Props) {
                 <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
                 <div className="flex gap-2">
                   <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue disabled:bg-gray-100 bg-white" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
-                  <button onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50"><Plus className="w-4 h-4" /></button>
+                  {/* ÍCONE DE LUPA AQUI */}
+                  <button onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50"><Search className="w-4 h-4" /></button>
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
@@ -399,7 +341,6 @@ export function ContractFormModal(props: Props) {
               <div><CustomSelect label="Responsável (Sócio)" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
             </div>
           </section>
-
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
             {formData.has_legal_process && (
@@ -421,7 +362,7 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
           </section>
-
+          {/* ... Resto do componente mantido ... */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
             {(formData.status === 'proposal' || formData.status === 'active') && (
@@ -430,8 +371,6 @@ export function ContractFormModal(props: Props) {
                 {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
               </div>
             )}
-            
-            {/* Campos de Valores e Parcelas */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -449,7 +388,6 @@ export function ContractFormModal(props: Props) {
                 </div>
               </div>
             )}
-
             {formData.status === 'active' && (
               <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -459,7 +397,6 @@ export function ContractFormModal(props: Props) {
                 </div>
               </div>
             )}
-
             {formData.status === 'rejected' && (
               <div className="grid grid-cols-3 gap-4">
                 <div><label className="text-xs font-medium block mb-1">Data Rejeição</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /></div>
@@ -468,9 +405,7 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
           </section>
-
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:ring-2 focus:ring-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
-
           {isEditing && timelineData.length > 0 && (
             <div className="border-t border-black/5 pt-6">
               <div className="flex justify-between items-center mb-6"><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center"><HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso</h3><span className="bg-white/80 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center"><Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, formData)}</span></div>
@@ -498,7 +433,6 @@ export function ContractFormModal(props: Props) {
             </div>
           )}
         </div>
-
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
           <button onClick={handleSaveWithIntegrations} disabled={loading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{loading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>

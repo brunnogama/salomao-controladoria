@@ -13,24 +13,20 @@ export function Contracts() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Visualização, Filtros e Ordenação
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [partnerFilter, setPartnerFilter] = useState<string>(''); 
   const [sortBy, setSortBy] = useState<string>('newest'); 
   
-  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Exclusão
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Form States
   const [formData, setFormData] = useState<Contract>({
     status: 'analysis', cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor',
     company_name: '', has_legal_process: true, uf: '', area: '', partner_id: '', observations: '', physical_signature: undefined
@@ -49,21 +45,9 @@ export function Contracts() {
 
   const fetchContracts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('contracts')
-      .select(`
-        *,
-        partners (name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) console.error('Erro ao buscar contratos:', error);
-    else {
-      const formattedData = data.map((item: any) => ({
-        ...item,
-        partner_name: item.partners?.name
-      }));
-      setContracts(formattedData);
+    const { data, error } = await supabase.from('contracts').select(`*, partners (name)`).order('created_at', { ascending: false });
+    if (data) {
+      setContracts(data.map((item: any) => ({ ...item, partner_name: item.partners?.name })));
     }
     setLoading(false);
   };
@@ -78,6 +62,8 @@ export function Contracts() {
     setIsEditing(true);
     setFormData(contract);
     
+    // Limpa processos antigos do estado antes de buscar os novos
+    setProcesses([]);
     const { data: procData } = await supabase.from('contract_processes').select('*').eq('contract_id', contract.id);
     if (procData) setProcesses(procData);
 
@@ -129,9 +115,19 @@ export function Contracts() {
       }
 
       if (contractId) {
+        // Exclui processos antigos
         await supabase.from('contract_processes').delete().eq('contract_id', contractId);
+        
+        // Insere os novos se houver
         if (processes.length > 0) {
-          await supabase.from('contract_processes').insert(processes.map(p => ({ contract_id: contractId, ...p })));
+          const processesToSave = processes.map(p => ({
+            contract_id: contractId,
+            process_number: p.process_number,
+            court: p.court,
+            judge: p.judge,
+            cause_value: p.cause_value
+          }));
+          await supabase.from('contract_processes').insert(processesToSave);
         }
       }
       setIsModalOpen(false);
@@ -228,15 +224,9 @@ export function Contracts() {
 
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
-      
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-salomao-blue">Gestão de Contratos</h1>
-          <p className="text-gray-500 mt-1">Gerencie o ciclo de vida dos seus casos jurídicos.</p>
-        </div>
-        <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95">
-          <Plus className="w-5 h-5 mr-2" /> Novo Caso
-        </button>
+        <div><h1 className="text-3xl font-bold text-salomao-blue">Gestão de Contratos</h1><p className="text-gray-500 mt-1">Gerencie o ciclo de vida dos seus casos jurídicos.</p></div>
+        <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-salomao-gold hover:bg-yellow-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center font-bold active:scale-95"><Plus className="w-5 h-5 mr-2" /> Novo Caso</button>
       </div>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-4 items-center">
@@ -244,23 +234,22 @@ export function Contracts() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input type="text" placeholder="Buscar por cliente, número HON..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
-        
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
           <div className="w-full sm:w-40"><CustomSelect value={statusFilter} onChange={setStatusFilter} options={statusFilterOptions} placeholder="Status" actionIcon={SlidersHorizontal} /></div>
           <div className="w-full sm:w-40"><CustomSelect value={partnerFilter} onChange={setPartnerFilter} options={partnerFilterOptions} placeholder="Sócio" actionIcon={User} /></div>
           <div className="w-full sm:w-40"><CustomSelect value={sortBy} onChange={setSortBy} options={sortOptions} placeholder="Ordenar" actionIcon={ArrowUpDown} /></div>
-
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white text-salomao-blue shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
             <button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white text-salomao-blue shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
           </div>
-
           <button onClick={exportToExcel} className="bg-green-600 border border-transparent text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium flex items-center justify-center min-w-[100px]"><Download className="w-4 h-4 mr-2" /> XLS</button>
         </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
+      ) : filteredContracts.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">Nenhum contrato encontrado.</div>
       ) : (
         <>
           {viewMode === 'grid' && (
@@ -286,7 +275,6 @@ export function Contracts() {
               ))}
             </div>
           )}
-
           {viewMode === 'list' && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
