@@ -7,7 +7,6 @@ import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
 import { CustomSelect } from '../ui/CustomSelect';
 
-// ... (Mantenha as constantes UFS e as funções auxiliares FinancialInputWithInstallments, getEffectiveDate, etc. IGUAIS) ...
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
 const FinancialInputWithInstallments = ({ 
@@ -142,7 +141,6 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // ... (Manter handleCreateStatus, fetchDocuments, upsertClient, handleAddToList, removeExtra, updateExtra iguais) ...
   const handleCreateStatus = async () => {
     const newLabel = window.prompt("Digite o nome do novo Status:");
     if (!newLabel) return;
@@ -212,7 +210,6 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  // ... (Manter generateFinancialInstallments igual) ...
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
@@ -269,6 +266,21 @@ export function ContractFormModal(props: Props) {
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
+  const forceUpdateFinancials = async (contractId: string) => {
+    // Garante que pegamos os valores ou strings vazias, e o parseCurrency limpará
+    const cleanPL = parseCurrency(formData.pro_labore || "");
+    const cleanSuccess = parseCurrency(formData.final_success_fee || "");
+    const cleanFixed = parseCurrency(formData.fixed_monthly_fee || "");
+    const cleanOther = parseCurrency(formData.other_fees || "");
+
+    await supabase.from('contracts').update({
+      pro_labore: cleanPL,
+      final_success_fee: cleanSuccess,
+      fixed_monthly_fee: cleanFixed,
+      other_fees: cleanOther
+    }).eq('id', contractId);
+  };
+
   const handleSaveWithIntegrations = async () => {
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
@@ -286,7 +298,6 @@ export function ContractFormModal(props: Props) {
     try {
         const clientId = await upsertClient();
         
-        // PAYLOAD LIMPO (SEM OBJETOS JOINADOS)
         const contractPayload: any = {
             ...formData,
             client_id: clientId || formData.client_id,
@@ -295,15 +306,15 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
-            // REMOVE CAMPOS VIRTUAIS/ESTRANGEIROS PARA EVITAR ERRO PGRST204
+            // REMOVE CAMPOS VIRTUAIS/ESTRANGEIROS
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
-            analyst: undefined,  // Correção CRÍTICA: singular
-            analysts: undefined, // Plural (por segurança)
-            client: undefined,   // Objeto client joinado
-            partner: undefined,  // Objeto partner joinado
-            processes: undefined, // Objeto processes joinado
+            analyst: undefined,
+            analysts: undefined, 
+            client: undefined,   
+            partner: undefined,  
+            processes: undefined,
             partners: undefined,
             id: undefined,
             
@@ -329,6 +340,10 @@ export function ContractFormModal(props: Props) {
         }
 
         if (savedId) {
+            // --- AQUI ESTAVA FALTANDO A CHAMADA ---
+            await forceUpdateFinancials(savedId); 
+            // -------------------------------------
+
             await generateFinancialInstallments(savedId);
             
             if (formData.status === 'active' && formData.physical_signature === false) {
@@ -349,7 +364,6 @@ export function ContractFormModal(props: Props) {
             alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.\n\nPor favor, verifique se o número foi digitado corretamente ou se este caso já foi inserido anteriormente.');
         } else if (error.code === 'PGRST204') {
              console.warn('Erro de estrutura de dados:', error.message);
-             // Tenta extrair o nome da coluna problemática para ajudar
              const column = error.message.match(/'([^']+)'/)?.[1];
              alert(`Erro Técnico: O sistema tentou salvar um campo inválido (${column || 'desconhecido'}).\n\nIsso geralmente ocorre ao editar dados carregados. Tente recarregar a página.`);
         } else {
@@ -360,7 +374,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // ... (Resto do componente: handleAddLocation, handleCNPJSearch, etc. IGUAL) ...
+  // ... (Resto do componente inalterado) ...
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
