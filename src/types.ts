@@ -4,6 +4,12 @@ export interface Partner {
   active: boolean;
 }
 
+export interface Analyst {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
 export interface ContractProcess {
   id?: string;
   process_number: string;
@@ -77,10 +83,11 @@ export interface Contract {
   uf: string;
   area: string;
   partner_id: string;
+  analyst_id?: string; // NOVO CAMPO
   observations: string;
   
   prospect_date?: string;
-  analyzed_by?: string;
+  analyzed_by?: string; // Mantido para legado, mas analyst_id é o principal agora
   proposal_date?: string;
   contract_date?: string;
   hon_number?: string;
@@ -106,6 +113,7 @@ export interface Contract {
   other_fees_installments?: string;
 
   partner_name?: string;
+  analyzed_by_name?: string; // NOVO CAMPO VIRTUAL
   process_count?: number;
   created_at?: string;
 }
@@ -120,5 +128,5 @@ export interface FinancialInstallment {
   due_date?: string;
   status: 'pending' | 'paid';
   paid_at?: string;
-  contract?: Contract; // Join
+  contract?: Contract; 
 }

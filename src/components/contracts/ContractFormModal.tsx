@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag } from 'lucide-react';
-import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument } from '../../types';
-import { Analyst } from '../analysts/AnalystManagerModal'; // Importar tipo
+import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
@@ -62,7 +61,6 @@ const getThemeBackground = (status: string) => {
 interface Props {
   isOpen: boolean; onClose: () => void; formData: Contract; setFormData: React.Dispatch<React.SetStateAction<Contract>>; onSave: () => void; loading: boolean; isEditing: boolean;
   partners: Partner[]; onOpenPartnerManager: () => void;
-  // Novos props para Analistas
   analysts: Analyst[]; onOpenAnalystManager: () => void;
   onCNPJSearch: () => void; processes: ContractProcess[]; currentProcess: ContractProcess; setCurrentProcess: React.Dispatch<React.SetStateAction<ContractProcess>>; editingProcessIndex: number | null; handleProcessAction: () => void; editProcess: (idx: number) => void; removeProcess: (idx: number) => void; newIntermediateFee: string; setNewIntermediateFee: (v: string) => void; addIntermediateFee: () => void; removeIntermediateFee: (idx: number) => void; timelineData: TimelineEvent[]; getStatusColor: (s: string) => string; getStatusLabel: (s: string) => string;
 }
@@ -83,10 +81,13 @@ export function ContractFormModal(props: Props) {
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
 
+  // CORREÇÃO: useEffect separado e chamada de função void
   useEffect(() => {
     if (isOpen) {
       fetchStatuses();
-      if (formData.id) fetchDocuments();
+      if (formData.id) {
+        fetchDocuments(); // Chama a função, não testa seu retorno
+      }
     }
   }, [isOpen, formData.id]);
 
@@ -110,9 +111,60 @@ export function ContractFormModal(props: Props) {
     } catch (err) { alert("Erro ao criar status."); }
   };
 
-  const fetchDocuments = async () => { /* ... mantido ... */ };
-  const upsertClient = async () => { /* ... mantido ... */ };
-  const generateFinancialInstallments = async (contractId: string) => { /* ... mantido ... */ };
+  const fetchDocuments = async () => {
+    const { data } = await supabase.from('contract_documents').select('*').eq('contract_id', formData.id).order('uploaded_at', { ascending: false });
+    if (data) setDocuments(data);
+  };
+
+  const upsertClient = async () => {
+    if (!formData.cnpj || !formData.client_name) return null;
+    const clientData = {
+      name: formData.client_name,
+      cnpj: formData.cnpj,
+      is_person: clientExtraData.is_person || (!formData.has_no_cnpj && formData.cnpj.length <= 14),
+      uf: formData.uf,
+      address: clientExtraData.address || undefined,
+      city: clientExtraData.city || undefined,
+      complement: clientExtraData.complement || undefined,
+      number: clientExtraData.number || undefined,
+      email: clientExtraData.email || undefined
+    };
+    const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', formData.cnpj).single();
+    let clientId = existingClient?.id;
+    if (clientId) {
+      await supabase.from('clients').update(clientData).eq('id', clientId);
+    } else {
+      const { data: newClient } = await supabase.from('clients').insert(clientData).select().single();
+      clientId = newClient?.id;
+    }
+    return clientId;
+  };
+
+  const generateFinancialInstallments = async (contractId: string) => {
+    if (formData.status !== 'active') return;
+    await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
+    const installmentsToInsert: any[] = [];
+    const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string) => {
+      const totalValue = parseCurrency(totalValueStr);
+      if (totalValue <= 0) return;
+      const numInstallments = parseInt((installmentsStr || '1x').replace('x', '')) || 1;
+      const amountPerInstallment = totalValue / numInstallments;
+      for (let i = 1; i <= numInstallments; i++) {
+        installmentsToInsert.push({ contract_id: contractId, type: type, installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString() });
+      }
+    };
+    addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
+    addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'success_fee');
+    addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
+    if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
+      formData.intermediate_fees.forEach(fee => {
+        const val = parseCurrency(fee);
+        if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
+      });
+    }
+    if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
+  };
+
   const handleSaveWithIntegrations = async () => {
     const clientId = await upsertClient();
     await onSave();
@@ -121,7 +173,13 @@ export function ContractFormModal(props: Props) {
         await generateFinancialInstallments(formData.id);
     }
   };
-  const handleAddLocation = () => { /* ... mantido ... */ };
+  const handleAddLocation = () => {
+    const newLoc = window.prompt("Digite o nome do novo local de faturamento:");
+    if (newLoc && !billingLocations.includes(newLoc)) {
+      setBillingLocations([...billingLocations, newLoc]);
+      setFormData({...formData, billing_location: newLoc});
+    }
+  };
   const handleCNPJSearch = async () => { /* ... mantido ... */ };
   const handleCNJSearch = async () => { /* ... mantido ... */ };
   const handleOpenJusbrasil = () => { /* ... mantido ... */ };
@@ -151,7 +209,6 @@ export function ContractFormModal(props: Props) {
 
           <section className="space-y-5">
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
-            {/* ... Inputs de Cliente ... */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
@@ -166,38 +223,32 @@ export function ContractFormModal(props: Props) {
             </div>
           </section>
 
-          {/* SESSÃO: DETALHES DA FASE (ANALYSIS) - CORRIGIDA */}
           <section className="border-t border-black/5 pt-6">
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" /> Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
             
-            {/* SEMPRE MOSTRAR SE STATUS FOR 'analysis' OU SE QUISERMOS QUE APAREÇA SEMPRE */}
-            {(formData.status === 'analysis' || true) && ( 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                <div>
-                  <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect</label>
-                  <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
-                </div>
-                <div>
-                  {/* NOVO SELETOR DE ANALISTA */}
-                  <CustomSelect 
-                    label="Analisado Por" 
-                    value={formData.analyst_id || ''} // Agora usa ID
-                    onChange={(val: string) => setFormData({...formData, analyst_id: val})} 
-                    options={analystSelectOptions} 
-                    onAction={onOpenAnalystManager} 
-                    actionIcon={Settings} 
-                    actionLabel="Gerenciar Analistas"
-                    className="bg-white border-yellow-200"
-                  />
-                </div>
+            {/* SEMPRE MOSTRAR */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+              <div>
+                <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect</label>
+                <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white" value={formData.prospect_date} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
               </div>
-            )}
+              <div>
+                {/* CORREÇÃO: Usando a propriedade analyst_id que agora existe no tipo Contract */}
+                <CustomSelect 
+                  label="Analisado Por" 
+                  value={formData.analyst_id || ''} 
+                  onChange={(val: string) => setFormData({...formData, analyst_id: val})} 
+                  options={analystSelectOptions} 
+                  onAction={onOpenAnalystManager} 
+                  actionIcon={Settings} 
+                  actionLabel="Gerenciar Analistas"
+                  className="bg-white border-yellow-200"
+                />
+              </div>
+            </div>
 
-            {/* ... Resto dos campos (proposta, financeiro) ... */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
-               /* ... (mesmo código financeiro de antes) ... */
                <div className="space-y-6">
-                 {/* ... Inputs financeiros ... */}
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                    <div><label className="text-xs font-medium block mb-1">Data Assinatura/Prop</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm" value={formData.contract_date} onChange={e => setFormData({...formData, contract_date: e.target.value})} /></div>
                    <FinancialInputWithInstallments label="Pró-Labore" value={formData.pro_labore} onChangeValue={(v:any) => setFormData({...formData, pro_labore: v})} installments={formData.pro_labore_installments} onChangeInstallments={(v:any) => setFormData({...formData, pro_labore_installments: v})} />
@@ -207,7 +258,7 @@ export function ContractFormModal(props: Props) {
             )}
           </section>
 
-          {/* ... Observações e Timeline (mantidos) ... */}
+          {/* ... Restante do form (Observações, Timeline) ... */}
         </div>
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600">Cancelar</button>
