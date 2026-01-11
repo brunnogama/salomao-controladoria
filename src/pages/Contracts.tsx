@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
-import { useNavigate } from 'react-router-dom'; // Import necessário para navegação
+import { useNavigate } from 'react-router-dom';
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
@@ -35,18 +35,23 @@ const getStatusLabel = (status: string) => {
   }
 };
 
+// Função auxiliar para formatar exibição no Card/Tabela
+const formatMoney = (val: number | string | undefined) => {
+  if (!val) return 'R$ 0,00';
+  const num = typeof val === 'string' ? parseCurrency(val) : val;
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 export function Contracts() {
-  const navigate = useNavigate(); // Hook de navegação
+  const navigate = useNavigate();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados de Notificação
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Estados da Barra de Ferramentas
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -70,7 +75,7 @@ export function Contracts() {
 
   useEffect(() => {
     fetchData();
-    fetchNotifications(); // Busca inicial de notificações
+    fetchNotifications();
   }, []);
 
   const fetchData = async () => {
@@ -96,7 +101,6 @@ export function Contracts() {
   };
 
   const fetchNotifications = async () => {
-    // Busca tarefas do Kanban com status de assinatura
     const { data } = await supabase
       .from('kanban_tasks')
       .select('id, title, due_date')
@@ -107,7 +111,6 @@ export function Contracts() {
   };
 
   const handleNotificationClick = (taskId: string) => {
-    // Navega para o Kanban e opcionalmente passa o ID da tarefa para abrir
     navigate('/kanban', { state: { openTaskId: taskId } });
   };
 
@@ -145,7 +148,7 @@ export function Contracts() {
 
   const handleSave = () => {
     fetchData(); 
-    fetchNotifications(); // Atualiza notificações ao salvar
+    fetchNotifications(); 
   };
 
   const handleProcessAction = () => {
@@ -197,9 +200,9 @@ export function Contracts() {
       'HON': c.hon_number || '-',
       'Data Criação': new Date(c.created_at || '').toLocaleDateString(),
       'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
-      'Pró-Labore': c.pro_labore,
-      'Fixo Mensal': c.fixed_monthly_fee,
-      'Êxito Final': c.final_success_fee
+      'Pró-Labore': formatMoney(c.pro_labore),
+      'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
+      'Êxito Final': formatMoney(c.final_success_fee)
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
@@ -233,7 +236,6 @@ export function Contracts() {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* BOTÃO DE NOTIFICAÇÕES */}
           <div className="relative">
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
@@ -249,7 +251,6 @@ export function Contracts() {
               )}
             </button>
 
-            {/* DROPDOWN DE NOTIFICAÇÕES */}
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95">
                 <div className="p-3 border-b border-gray-50 bg-gray-50 flex justify-between items-center">
@@ -387,10 +388,10 @@ export function Contracts() {
                     {contract.status === 'active' && (
                       <div className="text-right">
                         {contract.pro_labore && parseCurrency(contract.pro_labore) > 0 && (
-                          <div className="text-xs font-bold text-green-700">{contract.pro_labore}</div>
+                          <div className="text-xs font-bold text-green-700">{formatMoney(contract.pro_labore)}</div>
                         )}
                         {contract.final_success_fee && parseCurrency(contract.final_success_fee) > 0 && (
-                          <div className="text-[10px] text-gray-500">+ {contract.final_success_fee} êxito</div>
+                          <div className="text-[10px] text-gray-500">+ {formatMoney(contract.final_success_fee)} êxito</div>
                         )}
                       </div>
                     )}
