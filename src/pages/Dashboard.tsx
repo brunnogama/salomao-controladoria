@@ -19,7 +19,7 @@ import {
   HeartHandshake,
   Loader2,
   BarChart4,
-  Layers // Icone para o total
+  Layers
 } from 'lucide-react';
 import { Contract } from '../types';
 import { parseCurrency } from '../utils/masks';
@@ -39,7 +39,7 @@ export function Dashboard() {
       fechMensal: 0,
       rejeitados: 0,
       probono: 0,
-      totalUnico: 0, // Novo: Casos únicos movimentados na semana
+      totalUnico: 0,
     },
     mes: {
       novos: 0,
@@ -50,7 +50,7 @@ export function Dashboard() {
       fechPL: 0,
       fechExito: 0,
       fechMensal: 0,
-      totalUnico: 0, // Novo: Casos únicos movimentados no mês
+      totalUnico: 0,
     },
     geral: {
       totalCasos: 0,
@@ -171,8 +171,6 @@ export function Dashboard() {
       const exito = parseCurrency(c.final_success_fee);
       const mensal = parseCurrency(c.fixed_monthly_fee);
 
-      // --- CHECAGEM DE CASOS ÚNICOS (SEMANA E MÊS) ---
-      // Lista de todas as datas relevantes para o contrato
       const contractDates = [
         c.prospect_date, 
         c.proposal_date, 
@@ -181,16 +179,13 @@ export function Dashboard() {
         c.probono_date
       ];
 
-      // Se qualquer data cair na semana, conta como 1 caso movimentado na semana
       if (contractDates.some(date => isDateInCurrentWeek(date))) {
         mSemana.totalUnico++;
       }
 
-      // Se qualquer data cair no mês, conta como 1 caso movimentado no mês
       if (contractDates.some(date => isDateInCurrentMonth(date))) {
         mMes.totalUnico++;
       }
-      // -----------------------------------------------
 
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
@@ -399,14 +394,14 @@ export function Dashboard() {
           <h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2>
         </div>
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-          {/* Card Total Casos Semana (NOVO) */}
+          {/* Card Total Casos Semana */}
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
             <div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div>
             <div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div>
           </div>
 
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
-            <div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Entrada de Casos</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div>
+            <div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div>
             <div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades Jurídicas</div>
           </div>
           <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
@@ -428,45 +423,28 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div>
-        <h2 className='text-xl font-bold text-gray-800 mb-4 flex items-center gap-2'>
-          <TrendingUp size={20} className='text-[#0F2C4C]' /> Resumo do Mês
-        </h2>
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-          {/* Card Total Casos Mes (NOVO) */}
-          <div className='bg-white p-6 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
-            <div>
-              <p className='text-sm text-blue-800 font-medium mb-1'>Total Casos do Mês</p>
-              <h3 className='text-4xl font-bold text-blue-900'>{metrics.mes.totalUnico} <span className='text-base font-normal text-gray-400'>movimentados</span></h3>
-            </div>
-            <div className='mt-4 flex items-center text-xs text-blue-500 bg-blue-50 p-2 rounded-lg'>
-              <Layers className="w-4 h-4 mr-2" /> Casos com atividade no mês
-            </div>
+      <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
+        <div className='flex items-center gap-2 mb-4'>
+          <TrendingUp className='text-blue-700' size={24} />
+          <h2 className='text-xl font-bold text-blue-900'>Resumo do Mês</h2>
+        </div>
+        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+          {/* Total Casos Mês */}
+          <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
+            <div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos do Mês</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p></div>
+            <div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div>
           </div>
 
-          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative'>
-            <div className='absolute top-0 right-0 bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>MÊS ATUAL</div>
-            <div className='flex-1'>
-              <p className='text-sm text-gray-500 font-medium mb-1'>Propostas Enviadas</p>
-              <h3 className='text-3xl font-bold text-blue-800'>{metrics.mes.propQtd} <span className='text-base font-normal text-gray-400'>propostas</span></h3>
-              <div className='mt-4 space-y-2'>
-                <FinItem label='Pró-labore Total' value={metrics.mes.propPL} />
-                <FinItem label='Êxito Total' value={metrics.mes.propExito} />
-              </div>
-            </div>
+          {/* Propostas Mês */}
+          <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
+            <div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><div className='flex items-baseline gap-2'><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div></div>
+            <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='Pró-labore' value={metrics.mes.propPL} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div>
           </div>
 
-          <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative'>
-            <div className='absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg'>MÊS ATUAL (REALIZADO)</div>
-            <div className='flex-1'>
-              <p className='text-sm text-gray-500 font-medium mb-1'>Contratos Fechados</p>
-              <h3 className='text-3xl font-bold text-green-700'>{metrics.mes.fechQtd} <span className='text-base font-normal text-gray-400'>fechamentos</span></h3>
-              <div className='mt-4 space-y-2'>
-                <FinItem label='Pró-labore Total' value={metrics.mes.fechPL} colorClass='text-green-700' />
-                <FinItem label='Fixos Mensais Total' value={metrics.mes.fechMensal} colorClass='text-green-700' />
-                <FinItem label='Êxito Total' value={metrics.mes.fechExito} />
-              </div>
-            </div>
+          {/* Fechados Mês */}
+          <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
+            <div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><div className='flex items-baseline gap-2'><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div></div>
+            <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='Pró-labore' value={metrics.mes.fechPL} colorClass='text-green-700' /><FinItem label='Fixos' value={metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div>
           </div>
         </div>
       </div>
