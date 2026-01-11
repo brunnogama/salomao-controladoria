@@ -1,21 +1,37 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Users, DollarSign, Kanban, Settings, LogOut, History, UserCircle, ChevronRight } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  FileSignature, 
+  DollarSign, 
+  BarChart3, 
+  ShieldCheck, 
+  Users, 
+  KanbanSquare, 
+  FolderOpen,
+  History,
+  Settings,
+  LogOut 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export function Sidebar() {
   const navigate = useNavigate();
-  const location = useLocation(); // Adicionado para verificar rota ativa se necessário
   const [userName, setUserName] = useState('Carregando...');
   const [userRole, setUserRole] = useState('Sócio');
 
-  // Ajustado para bater com as rotas em PORTUGUÊS do App.tsx
+  // Configuração exata do menu fornecida
   const menuItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/contratos', icon: Briefcase, label: 'Contratos' },
-    { path: '/clientes', icon: Users, label: 'Clientes' },
-    { path: '/financeiro', icon: DollarSign, label: 'Financeiro' },
-    { path: '/kanban', icon: Kanban, label: 'Tarefas' },
+    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Contratos', path: '/contratos', icon: FileSignature },
+    { label: 'Propostas', path: '/propostas', icon: FileText },
+    { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
+    { label: 'Volumetria', path: '/volumetria', icon: BarChart3 },
+    { label: 'Compliance', path: '/compliance', icon: ShieldCheck },
+    { label: 'Clientes', path: '/clientes', icon: Users },
+    { label: 'Kanban', path: '/kanban', icon: KanbanSquare },
+    { label: 'GED', path: '/ged', icon: FolderOpen },
   ];
 
   useEffect(() => {
@@ -53,7 +69,7 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-2 custom-scrollbar">
         {menuItems.map((item) => (
           <NavLink
             key={item.path}
