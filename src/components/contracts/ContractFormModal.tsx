@@ -163,17 +163,10 @@ export function ContractFormModal(props: Props) {
     // Validação Básica
     if (!formData.client_name) return null;
 
-    // Se NÃO for 'sem cnpj' e o CNPJ estiver vazio, isso é um erro, a menos que seja um rascunho.
-    // Mas vamos permitir salvar se o CNPJ estiver vazio se has_no_cnpj for false, assumindo que pode ser preenchido depois? 
-    // NÃO, o fluxo pede cnpj. Se has_no_cnpj é false, cnpj deve existir para chave.
-    if (!formData.has_no_cnpj && !formData.cnpj) {
-        // Se o usuário não marcou "Sem CNPJ" mas deixou vazio, marcamos como sem cnpj para salvar como PF/Nome
-        // Ou retornamos null? Melhor deixar flexível: se vazio, tenta salvar pelo nome.
-    }
-
     const clientData = {
       name: formData.client_name,
-      cnpj: formData.cnpj,
+      // CORREÇÃO: Envia NULL se sem cnpj ou vazio, para evitar erro de unique key com string vazia
+      cnpj: (formData.has_no_cnpj || !formData.cnpj) ? null : formData.cnpj,
       is_person: clientExtraData.is_person || formData.has_no_cnpj || (formData.cnpj.length > 0 && formData.cnpj.length <= 14),
       uf: formData.uf,
       address: clientExtraData.address || undefined,
@@ -181,12 +174,12 @@ export function ContractFormModal(props: Props) {
       complement: clientExtraData.complement || undefined,
       number: clientExtraData.number || undefined,
       email: clientExtraData.email || undefined,
-      partner_id: formData.partner_id // Replicando o sócio responsável
+      partner_id: formData.partner_id
     };
 
-    // Caso 1: Tem CNPJ válido
-    if (!formData.has_no_cnpj && formData.cnpj) {
-      const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', formData.cnpj).single();
+    // Caso 1: Tem CNPJ válido (não nulo e não vazio)
+    if (clientData.cnpj) {
+      const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
       
       if (existingClient) {
         await supabase.from('clients').update(clientData).eq('id', existingClient.id);
@@ -195,17 +188,19 @@ export function ContractFormModal(props: Props) {
         const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
         if (error) { 
             console.error('Erro ao criar cliente com CNPJ:', error); 
+            // Se erro for de duplicidade mas não achamos no select acima, algo estranho ocorreu, mas vamos deixar estourar
             return null; 
         }
         return newClient.id;
       }
     } 
     
-    // Caso 2: Sem CNPJ (Salva um novo registro sempre ou atualiza o vinculado ao contrato)
+    // Caso 2: Sem CNPJ (cnpj é null)
     else {
       // Se já temos um client_id vinculado ao contrato (edição), atualizamos esse
       if (formData.client_id) {
-         await supabase.from('clients').update(clientData).eq('id', formData.client_id);
+         const { error } = await supabase.from('clients').update(clientData).eq('id', formData.client_id);
+         if (error) console.error("Erro ao atualizar cliente sem CNPJ:", error);
          return formData.client_id;
       } 
       // Se é novo contrato sem CNPJ, cria um novo cliente
@@ -220,7 +215,9 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // Funções de lista apenas para intermediários agora
   const handleAddToList = (listField: string, valueField: keyof Contract) => {
+    // Mantido para compatibilidade, mas usado apenas para percent_extras se necessário
     const value = (formData as any)[valueField];
     if (!value || value === 'R$ 0,00' || value === '') return;
     setFormData(prev => ({ ...prev, [listField]: [...(prev as any)[listField] || [], value], [valueField]: '' }));
@@ -244,6 +241,7 @@ export function ContractFormModal(props: Props) {
 
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
+    
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
     
     const installmentsToInsert: any[] = [];
@@ -257,11 +255,13 @@ export function ContractFormModal(props: Props) {
       }
     };
 
+    // Gera parcelas baseadas nos inputs diretos
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
     addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
+    // Intermediários continuam como lista
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
@@ -300,20 +300,20 @@ export function ContractFormModal(props: Props) {
 
     setLocalLoading(true);
     try {
-        // Tenta salvar/buscar o cliente. Se falhar, avisa.
         const clientId = await upsertClient();
         if (!clientId) {
-            throw new Error("Falha ao salvar dados do cliente.");
+            throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
         }
         
         const contractPayload: any = {
             ...formData,
-            client_id: clientId, // Usa o ID retornado do upsert
+            client_id: clientId,
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
+            // REMOVE CAMPOS VIRTUAIS/ESTRANGEIROS
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
@@ -325,6 +325,7 @@ export function ContractFormModal(props: Props) {
             partners: undefined,
             id: undefined,
             
+            // Remove arrays de controle local
             pro_labore_extras: undefined,
             final_success_extras: undefined,
             fixed_monthly_extras: undefined,
@@ -364,19 +365,20 @@ export function ContractFormModal(props: Props) {
     } catch (error: any) {
         console.error('Erro ao salvar contrato:', error);
         if (error.code === '23505' || error.message?.includes('contracts_hon_number_key')) {
-            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.\n\nPor favor, verifique se o número foi digitado corretamente ou se este caso já foi inserido anteriormente.');
+            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.');
         } else if (error.code === 'PGRST204') {
              console.warn('Erro de estrutura de dados:', error.message);
              const column = error.message.match(/'([^']+)'/)?.[1];
-             alert(`Erro Técnico: O sistema tentou salvar um campo inválido (${column || 'desconhecido'}).\n\nIsso geralmente ocorre ao editar dados carregados. Tente recarregar a página.`);
+             alert(`Erro Técnico: Tentativa de salvar campo inválido (${column}).`);
         } else {
-            alert(`Não foi possível salvar as alterações.\n\nDetalhe: ${error.message || 'Erro desconhecido'}`);
+            alert(`Não foi possível salvar as alterações.\n\n${error.message}`);
         }
     } finally {
         setLocalLoading(false);
     }
   };
 
+  // ... (Resto do componente inalterado) ...
   const handleAddLocation = () => { /* ... */ };
   const handleCNPJSearch = async () => { /* ... */ };
   const handleCNJSearch = async () => { /* ... */ };
@@ -448,7 +450,23 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md">{editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div>
                   </div>
                 </div>
-                {processes.length > 0 && (<div className="space-y-2 mt-4">{processes.map((p, idx) => (<div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group"><div className="grid grid-cols-3 gap-4 flex-1 text-xs"><span className="font-mono font-medium text-gray-800">{p.process_number}</span><span className="text-gray-600">{p.court} ({formData.uf})</span><span className="text-gray-500 truncate">{p.judge}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button><button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>)}
+                {processes.length > 0 && (
+                  <div className="space-y-2 mt-4">
+                    {processes.map((p, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
+                        <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
+                          <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
+                          <span className="text-gray-600">{p.court} ({formData.uf})</span>
+                          <span className="text-gray-500 truncate">{p.judge}</span>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
