@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Calendar, DollarSign, User, Briefcase, FileText, CheckCircle2, Clock, XCircle, AlertCircle, Scale, Tag, Loader2 } from 'lucide-react';
+import { 
+  Plus, Search, Filter, MoreHorizontal, Calendar, DollarSign, User, Briefcase, FileText, 
+  CheckCircle2, Clock, XCircle, AlertCircle, Scale, Tag, Loader2, 
+  LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import * as XLSX from 'xlsx';
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
@@ -34,8 +39,13 @@ export function Contracts() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados da Barra de Ferramentas
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
@@ -102,10 +112,19 @@ export function Contracts() {
     setIsModalOpen(true);
   };
 
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm('Tem certeza que deseja excluir este contrato?')) {
+      const { error } = await supabase.from('contracts').delete().eq('id', id);
+      if (!error) fetchData();
+    }
+  };
+
   const handleSave = () => {
     fetchData(); 
   };
 
+  // Funções de Processo
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return;
     if (editingProcessIndex !== null) {
@@ -144,11 +163,38 @@ export function Contracts() {
     }));
   };
 
+  const exportToExcel = () => {
+    const data = filteredContracts.map(c => ({
+      'Cliente': c.client_name,
+      'CNPJ/CPF': c.cnpj,
+      'Status': getStatusLabel(c.status),
+      'Sócio': c.partner_name,
+      'Área': c.area,
+      'UF': c.uf,
+      'HON': c.hon_number || '-',
+      'Data Criação': new Date(c.created_at || '').toLocaleDateString(),
+      'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
+      'Pró-Labore': c.pro_labore,
+      'Fixo Mensal': c.fixed_monthly_fee,
+      'Êxito Final': c.final_success_fee
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contratos");
+    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
+  };
+
+  // Filtragem e Ordenação
   const filteredContracts = contracts.filter(c => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.hon_number?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    const dateA = new Date(a.created_at || 0).getTime();
+    const dateB = new Date(b.created_at || 0).getTime();
+    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
   });
 
   return (
@@ -168,93 +214,161 @@ export function Contracts() {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="flex-1 flex items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-          <Search className="w-5 h-5 text-gray-400 ml-2" />
+      {/* BARRA DE FERRAMENTAS RESTAURADA */}
+      <div className="flex flex-col xl:flex-row gap-4 mb-6 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
+        <div className="flex-1 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <Search className="w-5 h-5 text-gray-400 mr-2" />
           <input 
             type="text" 
-            placeholder="Buscar por cliente ou HON..." 
-            className="flex-1 p-2 outline-none text-sm"
+            placeholder="Buscar por cliente, HON ou CNPJ..." 
+            className="flex-1 bg-transparent outline-none text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center bg-white p-2 rounded-xl border border-gray-100 shadow-sm min-w-[200px]">
-          <Filter className="w-5 h-5 text-gray-400 ml-2" />
-          <select 
-            className="flex-1 p-2 outline-none text-sm bg-transparent"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+        
+        <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0">
+          <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[180px]">
+            <Filter className="w-4 h-4 text-gray-500 mr-2" />
+            <select 
+              className="bg-transparent outline-none text-sm w-full cursor-pointer text-gray-700"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">Todos os Status</option>
+              <option value="analysis">Sob Análise</option>
+              <option value="proposal">Proposta Enviada</option>
+              <option value="active">Contrato Fechado</option>
+              <option value="rejected">Rejeitada</option>
+              <option value="probono">Probono</option>
+            </select>
+          </div>
+
+          <button 
+            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm whitespace-nowrap"
+            title="Ordenar por Data"
           >
-            <option value="all">Todos os Status</option>
-            <option value="analysis">Sob Análise</option>
-            <option value="proposal">Proposta Enviada</option>
-            <option value="active">Contrato Fechado</option>
-            <option value="rejected">Rejeitada</option>
-            <option value="probono">Probono</option>
-          </select>
+            <ArrowUpDown className="w-4 h-4 mr-2" />
+            {sortOrder === 'desc' ? 'Mais Recentes' : 'Mais Antigos'}
+          </button>
+
+          <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
+            <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
+            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
+          </div>
+
+          <button onClick={exportToExcel} className="flex items-center px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium whitespace-nowrap">
+            <Download className="w-4 h-4 mr-2" /> XLS
+          </button>
         </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredContracts.map((contract) => (
-            <div key={contract.id} onClick={() => handleEdit(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group">
-              
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1 min-w-0 pr-2">
-                  <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
-                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mt-1 border ${getStatusColor(contract.status)}`}>
-                    {getStatusLabel(contract.status)}
-                  </span>
-                </div>
-                {contract.status === 'active' && contract.hon_number && (
-                  <span className="text-[10px] font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 whitespace-nowrap">
-                    {contract.hon_number}
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-1.5 text-xs text-gray-600">
-                <div className="flex items-center">
-                  <Briefcase className="w-3.5 h-3.5 mr-2 text-salomao-blue" />
-                  <span className="truncate">{contract.area || 'Área não inf.'}</span>
-                </div>
-                <div className="flex items-center">
-                  <User className="w-3.5 h-3.5 mr-2 text-salomao-gold" />
-                  <span className="truncate">{contract.partner_name || 'Sem sócio'}</span>
-                </div>
-                <div className="flex items-center">
-                  <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
-                  <span>{contract.process_count || 0} Processos</span>
-                </div>
-              </div>
-
-              <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-end">
-                <div className="text-[10px] text-gray-400">
-                  <div className="flex items-center">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {new Date(contract.created_at || '').toLocaleDateString()}
+        <>
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredContracts.map((contract) => (
+                <div key={contract.id} onClick={() => handleEdit(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
+                  
+                  {/* Header Compacto com Botões Restaurados */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 min-w-0 pr-8">
+                      <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mt-1 border ${getStatusColor(contract.status)}`}>
+                        {getStatusLabel(contract.status)}
+                      </span>
+                    </div>
+                    {/* Botões de Ação Restaurados */}
+                    <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
+                        <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => handleDelete(e, contract.id!)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
                   </div>
-                </div>
-                {contract.status === 'active' && (
-                  <div className="text-right">
-                    {contract.pro_labore && parseCurrency(contract.pro_labore) > 0 && (
-                      <div className="text-xs font-bold text-green-700">{contract.pro_labore}</div>
-                    )}
-                    {contract.final_success_fee && parseCurrency(contract.final_success_fee) > 0 && (
-                      <div className="text-[10px] text-gray-500">+ {contract.final_success_fee} êxito</div>
+
+                  <div className="space-y-1.5 text-xs text-gray-600">
+                    <div className="flex items-center">
+                      <Briefcase className="w-3.5 h-3.5 mr-2 text-salomao-blue" />
+                      <span className="truncate">{contract.area || 'Área não inf.'}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <User className="w-3.5 h-3.5 mr-2 text-salomao-gold" />
+                      <span className="truncate">{contract.partner_name || 'Sem sócio'}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                      <span>{contract.process_count || 0} Processos</span>
+                    </div>
+                    {contract.status === 'active' && contract.hon_number && (
+                      <div className="flex items-center">
+                        <Tag className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                        <span className="font-mono bg-gray-100 px-1 rounded text-[10px]">{contract.hon_number}</span>
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
+
+                  <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-end">
+                    <div className="text-[10px] text-gray-400">
+                      <div className="flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {new Date(contract.created_at || '').toLocaleDateString()}
+                      </div>
+                    </div>
+                    {contract.status === 'active' && (
+                      <div className="text-right">
+                        {contract.pro_labore && parseCurrency(contract.pro_labore) > 0 && (
+                          <div className="text-xs font-bold text-green-700">{contract.pro_labore}</div>
+                        )}
+                        {contract.final_success_fee && parseCurrency(contract.final_success_fee) > 0 && (
+                          <div className="text-[10px] text-gray-500">+ {contract.final_success_fee} êxito</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table className="w-full text-left text-xs">
+                    <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
+                        <tr>
+                            <th className="p-3">Status</th>
+                            <th className="p-3">Cliente</th>
+                            <th className="p-3">Área</th>
+                            <th className="p-3">Sócio</th>
+                            <th className="p-3">HON</th>
+                            <th className="p-3 text-right">Data</th>
+                            <th className="p-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {filteredContracts.map(contract => (
+                            <tr key={contract.id} onClick={() => handleEdit(contract)} className="hover:bg-gray-50 cursor-pointer group">
+                                <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
+                                <td className="p-3 font-medium text-gray-800">{contract.client_name}</td>
+                                <td className="p-3 text-gray-600">{contract.area}</td>
+                                <td className="p-3 text-gray-600">{contract.partner_name}</td>
+                                <td className="p-3 font-mono text-gray-500">{contract.hon_number || '-'}</td>
+                                <td className="p-3 text-right text-gray-500">{new Date(contract.created_at || '').toLocaleDateString()}</td>
+                                <td className="p-3 text-right">
+                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
+                                        <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                                        <button onClick={(e) => handleDelete(e, contract.id!)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+          )}
+        </>
       )}
 
+      {/* Modais (Mantidos) */}
       <ContractFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -284,17 +398,8 @@ export function Contracts() {
         getStatusLabel={getStatusLabel}
       />
 
-      <PartnerManagerModal 
-        isOpen={isPartnerModalOpen} 
-        onClose={() => setIsPartnerModalOpen(false)} 
-        onUpdate={fetchData} 
-      />
-
-      <AnalystManagerModal
-        isOpen={isAnalystModalOpen}
-        onClose={() => setIsAnalystModalOpen(false)}
-        onUpdate={fetchData}
-      />
+      <PartnerManagerModal isOpen={isPartnerModalOpen} onClose={() => setIsPartnerModalOpen(false)} onUpdate={fetchData} />
+      <AnalystManagerModal isOpen={isAnalystModalOpen} onClose={() => setIsAnalystModalOpen(false)} onUpdate={fetchData} />
     </div>
   );
 }
