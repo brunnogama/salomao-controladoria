@@ -13,6 +13,7 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
+// ... (getStatusColor, getStatusLabel, formatMoney MANTIDOS)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -41,8 +42,9 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
-    let total = parseCurrency(c.final_success_fee || '0');
+    let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
         c.intermediate_fees.forEach(fee => total += parseCurrency(fee));
     }
@@ -158,34 +160,6 @@ export function Contracts() {
     fetchNotifications(); 
   };
 
-  // --- FUNÇÃO DE BUSCA CNPJ ADICIONADA ---
-  const handleCNPJSearch = async (cnpj: string) => {
-    const cleanCNPJ = cnpj.replace(/\D/g, '');
-    if (cleanCNPJ.length !== 14) {
-      alert('CNPJ deve ter 14 dígitos.');
-      return;
-    }
-
-    try {
-      // Usando BrasilAPI (gratuita e sem chave)
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
-      if (!response.ok) throw new Error('Erro ao buscar CNPJ');
-      
-      const data = await response.json();
-      
-      setFormData(prev => ({
-        ...prev,
-        client_name: data.razao_social || data.nome_fantasia || '',
-        uf: data.uf || prev.uf,
-        // Você pode mapear mais campos aqui se desejar (ex: logradouro -> address)
-      }));
-    } catch (error) {
-      console.error(error);
-      alert('CNPJ não encontrado ou erro na API.');
-    }
-  };
-  // ---------------------------------------
-
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return;
     if (editingProcessIndex !== null) {
@@ -248,8 +222,7 @@ export function Contracts() {
 
   const filteredContracts = contracts.filter(c => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.hon_number?.includes(searchTerm) ||
-                          c.cnpj?.includes(searchTerm); // Incluído filtro por CNPJ na busca da lista
+                          c.hon_number?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
@@ -476,7 +449,6 @@ export function Contracts() {
         </>
       )}
 
-      {/* MODAL CHAMADO AQUI COM A PROP CORRETA */}
       <ContractFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -489,7 +461,7 @@ export function Contracts() {
         onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
         analysts={analysts}
         onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
-        onCNPJSearch={handleCNPJSearch} // <--- AQUI A MUDANÇA ESSENCIAL
+        onCNPJSearch={() => {}}
         processes={processes}
         currentProcess={currentProcess}
         setCurrentProcess={setCurrentProcess}
