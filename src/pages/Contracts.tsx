@@ -13,6 +13,7 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
+// ... (getStatusColor, getStatusLabel, formatMoney MANTIDOS)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -41,6 +42,7 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
     let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -103,8 +105,7 @@ export function Contracts() {
             ...c,
             partner_name: c.partner?.name,
             analyzed_by_name: c.analyst?.name,
-            process_count: c.processes?.length || 0,
-            processes: c.processes || [] // Garantir que processes existe
+            process_count: c.processes?.length || 0
         }));
         setContracts(formatted);
     }
@@ -202,6 +203,28 @@ export function Contracts() {
     }));
   };
 
+  const exportToExcel = () => {
+    const data = filteredContracts.map(c => ({
+      'Cliente': c.client_name,
+      'CNPJ/CPF': c.cnpj,
+      'Status': getStatusLabel(c.status),
+      'Sócio': c.partner_name,
+      'Área': c.area,
+      'UF': c.uf,
+      'HON': c.hon_number || '-',
+      'Data Criação': new Date(c.created_at || '').toLocaleDateString(),
+      'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
+      'Pró-Labore': formatMoney(c.pro_labore),
+      'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
+      'Êxito Final': formatMoney(c.final_success_fee)
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contratos");
+    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
+  };
+
   // Helper para obter a data relevante com base no status
   const getRelevantDate = (c: Contract) => {
     switch (c.status) {
@@ -212,30 +235,6 @@ export function Contracts() {
         case 'probono': return c.probono_date || c.contract_date || c.created_at;
         default: return c.created_at;
     }
-  };
-
-  const exportToExcel = () => {
-    const data = filteredContracts.map(c => ({
-      'Status': getStatusLabel(c.status),
-      'Cliente': c.client_name,
-      'CNPJ/CPF': c.cnpj || '-',
-      'Processos': (c as any).processes?.map((p: any) => p.process_number).join(', ') || '-',
-      'Sócio': c.partner_name,
-      'Área': c.area,
-      'UF': c.uf,
-      'HON': c.hon_number || '-',
-      'Data Status': new Date(getRelevantDate(c) || '').toLocaleDateString(),
-      'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
-      'Pró-Labore': formatMoney(c.pro_labore),
-      'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
-      'Êxito Final': formatMoney(c.final_success_fee),
-      'Observações': c.observations || '-'
-    }));
-    
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Contratos");
-    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
   const filteredContracts = contracts.filter(c => {
@@ -465,24 +464,16 @@ export function Contracts() {
               })}
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-                <table className="w-full text-left text-xs whitespace-nowrap">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table className="w-full text-left text-xs">
                     <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
                         <tr>
                             <th className="p-3">Status</th>
                             <th className="p-3">Cliente</th>
-                            <th className="p-3">CNPJ/CPF</th>
-                            <th className="p-3">Processos</th>
-                            <th className="p-3">Sócio</th>
                             <th className="p-3">Área</th>
-                            <th className="p-3">UF</th>
+                            <th className="p-3">Sócio</th>
                             <th className="p-3">HON</th>
-                            <th className="p-3">Data Status</th>
-                            <th className="p-3">Data Assinatura</th>
-                            <th className="p-3">Pró-Labore</th>
-                            <th className="p-3">Fixo Mensal</th>
-                            <th className="p-3">Êxito Final</th>
-                            <th className="p-3 min-w-[150px]">Observações</th>
+                            <th className="p-3 text-right">Data Relevante</th>
                             <th className="p-3 text-right">Ações</th>
                         </tr>
                     </thead>
@@ -491,22 +482,10 @@ export function Contracts() {
                             <tr key={contract.id} onClick={() => handleEdit(contract)} className="hover:bg-gray-50 cursor-pointer group">
                                 <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
                                 <td className="p-3 font-medium text-gray-800">{contract.client_name}</td>
-                                <td className="p-3 font-mono text-gray-500">{contract.cnpj || '-'}</td>
-                                <td className="p-3 text-gray-600 max-w-[150px] truncate" title={(contract as any).processes?.map((p: any) => p.process_number).join(', ')}>
-                                    {(contract as any).processes?.length > 0 
-                                      ? (contract as any).processes.map((p: any) => p.process_number).join(', ') 
-                                      : '-'}
-                                </td>
-                                <td className="p-3 text-gray-600">{contract.partner_name}</td>
                                 <td className="p-3 text-gray-600">{contract.area}</td>
-                                <td className="p-3 text-gray-600">{contract.uf}</td>
+                                <td className="p-3 text-gray-600">{contract.partner_name}</td>
                                 <td className="p-3 font-mono text-gray-500">{contract.hon_number || '-'}</td>
-                                <td className="p-3 text-gray-600">{new Date(getRelevantDate(contract) || '').toLocaleDateString()}</td>
-                                <td className="p-3 text-gray-600">{contract.contract_date ? new Date(contract.contract_date).toLocaleDateString() : '-'}</td>
-                                <td className="p-3 text-gray-600">{formatMoney(contract.pro_labore)}</td>
-                                <td className="p-3 text-gray-600">{formatMoney(contract.fixed_monthly_fee)}</td>
-                                <td className="p-3 text-gray-600">{formatMoney(contract.final_success_fee)}</td>
-                                <td className="p-3 text-gray-500 truncate max-w-[150px]" title={contract.observations}>{contract.observations || '-'}</td>
+                                <td className="p-3 text-right text-gray-500">{new Date(getRelevantDate(contract) || '').toLocaleDateString()}</td>
                                 <td className="p-3 text-right">
                                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
                                         <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
