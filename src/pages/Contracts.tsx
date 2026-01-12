@@ -221,6 +221,7 @@ export function Contracts() {
   };
 
   const filteredContracts = contracts.filter(c => {
+    // CORREÇÃO AQUI: Adicionado filtro por CNPJ
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.hon_number?.includes(searchTerm) ||
                           c.cnpj?.includes(searchTerm);
