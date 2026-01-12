@@ -53,7 +53,10 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title) return alert('O título é obrigatório.');
+    if (!formData.title?.trim()) {
+      alert('O título é obrigatório.');
+      return;
+    }
     
     onSave(formData);
   };
@@ -77,12 +80,12 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
           
           {/* TÍTULO */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Título da Tarefa</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Título da Tarefa *</label>
             <input 
               type="text" 
               className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
               placeholder="Ex: Elaborar minuta de defesa..."
-              value={formData.title}
+              value={formData.title || ''}
               onChange={e => setFormData({...formData, title: e.target.value})}
               autoFocus
             />
@@ -96,7 +99,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
             <textarea 
               className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:ring-2 focus:ring-salomao-blue outline-none resize-none"
               placeholder="Detalhes sobre a tarefa..."
-              value={formData.description}
+              value={formData.description || ''}
               onChange={e => setFormData({...formData, description: e.target.value})}
             />
           </div>
@@ -109,7 +112,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
                 <select 
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none"
-                  value={formData.status}
+                  value={formData.status || 'todo'}
                   onChange={e => setFormData({...formData, status: e.target.value as any})}
                 >
                   <option value="todo">A Fazer</option>
@@ -125,7 +128,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
                 </label>
                 <select 
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none"
-                  value={formData.priority}
+                  value={formData.priority || 'Média'}
                   onChange={e => setFormData({...formData, priority: e.target.value as any})}
                 >
                   <option value="Baixa">Baixa</option>
@@ -144,7 +147,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
                 <input 
                   type="date" 
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
-                  value={formData.due_date}
+                  value={formData.due_date || ''}
                   onChange={e => setFormData({...formData, due_date: e.target.value})}
                 />
               </div>
@@ -157,7 +160,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
                   type="text" 
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
                   placeholder="Nome do responsável"
-                  value={formData.assignee}
+                  value={formData.assignee || ''}
                   onChange={e => setFormData({...formData, assignee: e.target.value})}
                 />
               </div>
@@ -171,12 +174,14 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
             </label>
             <select 
               className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none"
-              value={formData.contract_id}
+              value={formData.contract_id || ''}
               onChange={e => setFormData({...formData, contract_id: e.target.value})}
             >
               <option value="">Sem vínculo</option>
               {contracts.map(c => (
-                <option key={c.id} value={c.id}>{c.client_name} (HON: {c.hon_number})</option>
+                <option key={c.id} value={c.id}>
+                  {c.client_name} {c.hon_number ? `(HON: ${c.hon_number})` : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -190,7 +195,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
               type="text" 
               className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
               placeholder="Notas adicionais..."
-              value={formData.observation}
+              value={formData.observation || ''}
               onChange={e => setFormData({...formData, observation: e.target.value})}
             />
           </div>
@@ -211,10 +216,15 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
           )}
           
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">
+            <button 
+              type="button"
+              onClick={onClose} 
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+            >
               Cancelar
             </button>
             <button 
+              type="button"
               onClick={handleSubmit}
               className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-md flex items-center transition-all font-bold"
             >

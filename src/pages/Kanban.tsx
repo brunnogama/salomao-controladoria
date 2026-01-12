@@ -46,7 +46,12 @@ export function Kanban() {
   };
 
   const fetchContracts = async () => {
-    const { data } = await supabase.from('contracts').select('*').eq('status', 'active');
+    const { data } = await supabase
+      .from('contracts')
+      .select('*')
+      .eq('status', 'active')
+      .not('hon_number', 'is', null)
+      .order('client_name');
     if (data) setContracts(data);
   };
 
@@ -96,7 +101,7 @@ export function Kanban() {
     
     await supabase.from('kanban_tasks').delete().eq('id', id);
     setTasks(tasks.filter(t => t.id !== id));
-    setIsModalOpen(false); // Fecha modal se estiver aberto
+    setIsModalOpen(false);
   };
 
   const handleSaveTask = async (taskData: Partial<KanbanTask>) => {
@@ -252,7 +257,7 @@ export function Kanban() {
         onClose={() => setIsModalOpen(false)}
         task={editingTask}
         onSave={handleSaveTask}
-        onDelete={() => { if(editingTask) handleDeleteTask(editingTask.id) }} // Passando a função para o modal
+        onDelete={() => { if(editingTask) handleDeleteTask(editingTask.id) }}
         contracts={contracts}
       />
     </div>
