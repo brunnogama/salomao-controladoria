@@ -8,7 +8,7 @@ import {
   DraggableProvided, 
   DraggableStateSnapshot 
 } from '@hello-pangea/dnd';
-import { Plus, MoreHorizontal, Calendar, User, Search, Filter, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, MoreHorizontal, Calendar, User, Search, Filter, Loader2, AlertCircle, Trash2, Edit2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { KanbanTask, Contract } from '../types';
 import { KanbanTaskModal } from '../components/kanban/KanbanTaskModal';
@@ -90,11 +90,13 @@ export function Kanban() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteTask = async (id: string) => {
-    if (!confirm('Excluir tarefa?')) return;
+  const handleDeleteTask = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+    
     await supabase.from('kanban_tasks').delete().eq('id', id);
     setTasks(tasks.filter(t => t.id !== id));
-    setIsModalOpen(false);
+    setIsModalOpen(false); // Fecha modal se estiver aberto
   };
 
   const handleSaveTask = async (taskData: Partial<KanbanTask>) => {
@@ -184,9 +186,27 @@ export function Kanban() {
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
                                   onClick={() => handleEditTask(task)}
-                                  className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3 cursor-pointer group hover:shadow-md hover:border-salomao-blue/30 transition-all ${snapshot.isDragging ? 'rotate-2 shadow-lg ring-2 ring-salomao-blue ring-opacity-50' : ''}`}
+                                  className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3 cursor-pointer group hover:shadow-md hover:border-salomao-blue/30 transition-all relative ${snapshot.isDragging ? 'rotate-2 shadow-lg ring-2 ring-salomao-blue ring-opacity-50' : ''}`}
                                 >
-                                  <div className="flex justify-between items-start mb-2">
+                                  {/* Botões de Ação Rápida (Hover) */}
+                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 rounded p-1 shadow-sm">
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleEditTask(task); }} 
+                                      className="p-1 hover:bg-blue-50 rounded text-blue-600" 
+                                      title="Editar"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </button>
+                                    <button 
+                                      onClick={(e) => handleDeleteTask(task.id, e)} 
+                                      className="p-1 hover:bg-red-50 rounded text-red-600" 
+                                      title="Excluir"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+
+                                  <div className="flex justify-between items-start mb-2 pr-6">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getPriorityColor(task.priority)}`}>
                                       {task.priority}
                                     </span>
@@ -232,7 +252,7 @@ export function Kanban() {
         onClose={() => setIsModalOpen(false)}
         task={editingTask}
         onSave={handleSaveTask}
-        onDelete={handleDeleteTask}
+        onDelete={() => { if(editingTask) handleDeleteTask(editingTask.id) }} // Passando a função para o modal
         contracts={contracts}
       />
     </div>
