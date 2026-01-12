@@ -1,121 +1,228 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Edit, Save } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { X, Plus, Edit, Trash2, Save } from 'lucide-react';
 import { Analyst } from '../../types';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onUpdate?: () => void; // Adicionado aqui
+  onUpdate: () => void;
 }
 
 export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
-  const [newAnalystName, setNewAnalystName] = useState('');
-  const [newAnalystEmail, setNewAnalystEmail] = useState('');
+  const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
+  const [formData, setFormData] = useState({ name: '', role: '' });
 
   useEffect(() => {
-    if (isOpen) fetchAnalysts();
+    if (isOpen) {
+      fetchAnalysts();
+    }
   }, [isOpen]);
 
   const fetchAnalysts = async () => {
-    const { data } = await supabase.from('analysts').select('*').order('name');
+    setLoading(true);
+    const { data } = await supabase
+      .from('analysts')
+      .select('*')
+      .order('name', { ascending: true });
+    
     if (data) setAnalysts(data);
+    setLoading(false);
   };
 
-  const handleAdd = async () => {
-    if (!newAnalystName.trim()) return;
-    await supabase.from('analysts').insert([{ name: newAnalystName, email: newAnalystEmail, active: true }]);
-    setNewAnalystName('');
-    setNewAnalystEmail('');
-    fetchAnalysts();
-    if (onUpdate) onUpdate();
+  const handleSave = async () => {
+    if (!formData.name.trim()) {
+      alert('Nome é obrigatório');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (editingId) {
+        const { error } = await supabase
+          .from('analysts')
+          .update({ 
+            name: formData.name.trim(),
+            role: formData.role.trim() || undefined
+          })
+          .eq('id', editingId);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('analysts')
+          .insert([{ 
+            name: formData.name.trim(),
+            role: formData.role.trim() || undefined,
+            active: true
+          }]);
+        
+        if (error) throw error;
+      }
+      
+      setFormData({ name: '', role: '' });
+      setEditingId(null);
+      fetchAnalysts();
+      onUpdate();
+    } catch (error: any) {
+      console.error('Erro ao salvar analista:', error);
+      alert('Erro ao salvar: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEdit = (analyst: Analyst) => {
     setEditingId(analyst.id);
-    setEditName(analyst.name);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editName.trim() || !editingId) return;
-    await supabase.from('analysts').update({ name: editName }).eq('id', editingId);
-    setEditingId(null);
-    setEditName('');
-    fetchAnalysts();
-    if (onUpdate) onUpdate();
+    setFormData({ 
+      name: analyst.name,
+      role: analyst.role || ''
+    });
   };
 
   const handleDelete = async (id: string) => {
-    if(confirm("Remover analista?")) {
-        await supabase.from('analysts').delete().eq('id', id);
-        fetchAnalysts();
-        if (onUpdate) onUpdate();
+    if (!confirm('Tem certeza que deseja excluir este analista?')) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('analysts')
+        .update({ active: false })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      fetchAnalysts();
+      onUpdate();
+    } catch (error: any) {
+      console.error('Erro ao excluir:', error);
+      alert('Erro ao excluir: ' + error.message);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    setFormData({ name: '', role: '' });
+    setEditingId(null);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-          <h3 className="font-bold text-gray-800">Gerenciar Analistas</h3>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800">Gerenciar Analistas</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
         </div>
-        
-        <div className="p-4">
-          <div className="flex flex-col gap-2 mb-4">
-            <input 
-              type="text" 
-              className="border border-gray-300 rounded-lg p-2 text-sm"
-              placeholder="Nome do analista"
-              value={newAnalystName}
-              onChange={e => setNewAnalystName(e.target.value)}
-            />
-            <div className="flex gap-2">
-                <input 
-                type="text" 
-                className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
-                placeholder="Email (opcional)"
-                value={newAnalystEmail}
-                onChange={e => setNewAnalystEmail(e.target.value)}
-                />
-                <button onClick={handleAdd} className="bg-salomao-blue text-white p-2 rounded-lg"><Plus className="w-5 h-5" /></button>
+
+        {/* Form */}
+        <div className="p-6 border-b border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="md:col-span-6">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Nome do Analista <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none"
+                placeholder="Nome completo"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="md:col-span-4">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Cargo/Função
+              </label>
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none"
+                placeholder="Ex: Analista Jurídico"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="md:col-span-2 flex items-end gap-2">
+              <button
+                onClick={handleSave}
+                disabled={loading || !formData.name.trim()}
+                className="flex-1 bg-salomao-blue text-white px-4 py-2.5 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium"
+              >
+                {editingId ? <><Save className="w-4 h-4" /> Salvar</> : <><Plus className="w-4 h-4" /> Adicionar</>}
+              </button>
+              {editingId && (
+                <button
+                  onClick={handleCancel}
+                  className="px-3 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {analysts.map(analyst => (
-              <div key={analyst.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
-                {editingId === analyst.id ? (
-                  <div className="flex flex-1 gap-2">
-                    <input 
-                      className="flex-1 border border-blue-300 rounded px-2 py-1 text-sm" 
-                      value={editName} 
-                      onChange={e => setEditName(e.target.value)} 
-                      autoFocus
-                    />
-                    <button onClick={handleSaveEdit} className="text-green-600"><Save className="w-4 h-4" /></button>
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading && analysts.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">Carregando...</div>
+          ) : analysts.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">Nenhum analista cadastrado</div>
+          ) : (
+            <div className="space-y-2">
+              {analysts.map((analyst) => (
+                <div
+                  key={analyst.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-800">{analyst.name}</h3>
+                    {analyst.role && (
+                      <p className="text-xs text-gray-500 mt-1">{analyst.role}</p>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex flex-col">
-                      <span className="text-sm text-gray-700 font-medium">{analyst.name}</span>
-                      <span className="text-xs text-gray-400">{analyst.email}</span>
+                  
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleEdit(analyst)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                      title="Editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(analyst.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                )}
-                
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleEdit(analyst)} className="text-blue-500"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete(analyst.id)} className="text-red-500">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-100 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+          >
+            Fechar
+          </button>
         </div>
       </div>
     </div>
