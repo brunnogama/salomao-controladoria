@@ -124,14 +124,14 @@ export function ContractFormModal(props: Props) {
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
   const [interimInstallments, setInterimInstallments] = useState('1x');
-  const [legalAreas, setLegalAreas] = useState<{label: string, value: string}[]>([]);
+  const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
+  const [showAreaManager, setShowAreaManager] = useState(false);
 
   const isLoading = parentLoading || localLoading;
 
   useEffect(() => {
     if (isOpen) {
       fetchStatuses();
-      fetchLegalAreas();
       if (formData.id) fetchDocuments();
     } else {
       setDocuments([]);
@@ -154,36 +154,6 @@ export function ContractFormModal(props: Props) {
       });
       const options = sortedData.map(s => ({ label: s.label, value: s.value }));
       setStatusOptions(options);
-    }
-  };
-
-  const fetchLegalAreas = async () => {
-    const { data } = await supabase
-      .from('legal_areas')
-      .select('*')
-      .eq('active', true)
-      .order('name', { ascending: true });
-    
-    if (data) {
-      const options = data.map(a => ({ label: a.name, value: a.name }));
-      setLegalAreas(options);
-    }
-  };
-
-  const handleCreateArea = async () => {
-    const newArea = window.prompt("Digite o nome da nova Área do Direito:");
-    if (!newArea) return;
-    const areaName = toTitleCase(newArea);
-    if (legalAreas.some(a => a.value === areaName)) return alert("Esta área já existe.");
-    try {
-      const { error } = await supabase
-        .from('legal_areas')
-        .insert({ name: areaName, active: true });
-      if (error) throw error;
-      await fetchLegalAreas();
-      setFormData({ ...formData, area: areaName });
-    } catch (err) {
-      alert("Erro ao criar área.");
     }
   };
 
@@ -607,6 +577,7 @@ export function ContractFormModal(props: Props) {
   const signatureOptions = [{ label: 'Sim', value: 'true' }, { label: 'Não (Cobrar)', value: 'false' }];
   const rejectionByOptions = [{ label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
   const rejectionReasonOptions = [{ label: 'Cliente declinou', value: 'Cliente declinou' }, { label: 'Cliente não retornou', value: 'Cliente não retornou' }, { label: 'Caso ruim', value: 'Caso ruim' }, { label: 'Conflito de interesses', value: 'Conflito de interesses' }];
+  const areaOptions = legalAreas.map(a => ({ label: a, value: a }));
 
   if (!isOpen) return null;
 
@@ -639,7 +610,7 @@ export function ContractFormModal(props: Props) {
               <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={formData.client_position} onChange={(val: string) => setFormData({...formData, client_position: val})} options={positionOptions} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={legalAreas} onAction={handleCreateArea} actionIcon={Plus} actionLabel="Adicionar Área" placeholder="Selecione ou adicione" /></div>
+              <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
               <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
             </div>
           </section>
@@ -838,6 +809,68 @@ export function ContractFormModal(props: Props) {
           <button onClick={handleSaveWithIntegrations} disabled={isLoading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{isLoading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
         </div>
       </div>
+
+      {/* Modal de Gerenciamento de Áreas */}
+      {showAreaManager && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800">Gerenciar Áreas do Direito</h3>
+              <button onClick={() => setShowAreaManager(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            
+            <div className="p-4">
+              <div className="flex gap-2 mb-4">
+                <input 
+                  type="text" 
+                  className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
+                  placeholder="Nome da nova área"
+                  id="new-area-input"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      const input = e.target as HTMLInputElement;
+                      const value = input.value.trim();
+                      if (value && !legalAreas.includes(value)) {
+                        setLegalAreas([...legalAreas, toTitleCase(value)].sort());
+                        input.value = '';
+                      }
+                    }
+                  }}
+                />
+                <button 
+                  onClick={() => {
+                    const input = document.getElementById('new-area-input') as HTMLInputElement;
+                    const value = input.value.trim();
+                    if (value && !legalAreas.includes(value)) {
+                      setLegalAreas([...legalAreas, toTitleCase(value)].sort());
+                      input.value = '';
+                    }
+                  }}
+                  className="bg-salomao-blue text-white p-2 rounded-lg"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {legalAreas.map(area => (
+                  <div key={area} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
+                    <span className="text-sm text-gray-700">{area}</span>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => setLegalAreas(legalAreas.filter(a => a !== area))} 
+                        className="text-red-500"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
