@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, Filter, MoreHorizontal, Calendar, DollarSign, User, Briefcase, FileText, 
   CheckCircle2, Clock, XCircle, AlertCircle, Scale, Tag, Loader2, 
-  LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell 
+  LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -13,7 +13,6 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
-// ... (getStatusColor, getStatusLabel, formatMoney MANTIDOS)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -42,7 +41,6 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
     let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -61,10 +59,15 @@ export function Contracts() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // Filtros e Ordenação
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [partnerFilter, setPartnerFilter] = useState(''); // Novo filtro de sócio
+  
+  // Alterado padrão para Nome e Lista
+  const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
@@ -160,6 +163,28 @@ export function Contracts() {
     fetchNotifications(); 
   };
 
+  // Nova função para buscar CNPJ (conforme implementado anteriormente)
+  const handleCNPJSearch = async (cnpj: string) => {
+    const cleanCNPJ = cnpj.replace(/\D/g, '');
+    if (cleanCNPJ.length !== 14) {
+      alert('CNPJ deve ter 14 dígitos.');
+      return;
+    }
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
+      if (!response.ok) throw new Error('Erro ao buscar CNPJ');
+      const data = await response.json();
+      setFormData(prev => ({
+        ...prev,
+        client_name: data.razao_social || data.nome_fantasia || '',
+        uf: data.uf || prev.uf,
+      }));
+    } catch (error) {
+      console.error(error);
+      alert('CNPJ não encontrado ou erro na API.');
+    }
+  };
+
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return;
     if (editingProcessIndex !== null) {
@@ -220,15 +245,35 @@ export function Contracts() {
     XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
+  // Helper para obter a data relevante com base no status
+  const getRelevantDate = (c: Contract) => {
+    switch (c.status) {
+        case 'analysis': return c.prospect_date || c.created_at;
+        case 'proposal': return c.proposal_date || c.created_at;
+        case 'active': return c.contract_date || c.created_at;
+        case 'rejected': return c.rejection_date || c.created_at;
+        case 'probono': return c.probono_date || c.contract_date || c.created_at;
+        default: return c.created_at;
+    }
+  };
+
   const filteredContracts = contracts.filter(c => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.hon_number?.includes(searchTerm);
+                          c.hon_number?.includes(searchTerm) ||
+                          c.cnpj?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
+    return matchesSearch && matchesStatus && matchesPartner;
   }).sort((a, b) => {
-    const dateA = new Date(a.created_at || 0).getTime();
-    const dateB = new Date(b.created_at || 0).getTime();
-    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    if (sortBy === 'name') {
+        const nameA = a.client_name || '';
+        const nameB = b.client_name || '';
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    } else {
+        const dateA = new Date(getRelevantDate(a) || 0).getTime();
+        const dateB = new Date(getRelevantDate(b) || 0).getTime();
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    }
   });
 
   return (
@@ -307,15 +352,17 @@ export function Contracts() {
           />
         </div>
         
-        <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0">
-          <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[180px]">
+        <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 items-center">
+          
+          {/* Filtro de Status */}
+          <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[150px]">
             <Filter className="w-4 h-4 text-gray-500 mr-2" />
             <select 
               className="bg-transparent outline-none text-sm w-full cursor-pointer text-gray-700"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="all">Todos os Status</option>
+              <option value="all">Todos Status</option>
               <option value="analysis">Sob Análise</option>
               <option value="proposal">Proposta Enviada</option>
               <option value="active">Contrato Fechado</option>
@@ -324,15 +371,42 @@ export function Contracts() {
             </select>
           </div>
 
-          <button 
-            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-            className="flex items-center px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm whitespace-nowrap"
-            title="Ordenar por Data"
-          >
-            <ArrowUpDown className="w-4 h-4 mr-2" />
-            {sortOrder === 'desc' ? 'Mais Recentes' : 'Mais Antigos'}
-          </button>
+          {/* Filtro de Sócio (Adicionado) */}
+          <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[150px]">
+            <User className="w-4 h-4 text-gray-500 mr-2" />
+            <select 
+              className="bg-transparent outline-none text-sm w-full cursor-pointer text-gray-700"
+              value={partnerFilter}
+              onChange={(e) => setPartnerFilter(e.target.value)}
+            >
+              <option value="">Todos Sócios</option>
+              {partners.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
 
+          {/* Controles de Ordenação (Nome / Data) */}
+          <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
+            <button 
+                onClick={() => { if(sortBy !== 'name') { setSortBy('name'); setSortOrder('asc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
+                className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Ordenar por Nome"
+            >
+                Nome
+                {sortBy === 'name' && (sortOrder === 'asc' ? <ArrowDownAZ className="w-3 h-3 ml-1" /> : <ArrowUpAZ className="w-3 h-3 ml-1" />)}
+            </button>
+            <button 
+                onClick={() => { if(sortBy !== 'date') { setSortBy('date'); setSortOrder('desc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
+                className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Ordenar por Data do Status Atual"
+            >
+                Data
+                {sortBy === 'date' && <ArrowUpDown className="w-3 h-3 ml-1" />}
+            </button>
+          </div>
+
+          {/* Alternar Visualização */}
           <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
             <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
@@ -393,7 +467,7 @@ export function Contracts() {
                       <div className="text-[10px] text-gray-400">
                         <div className="flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
-                          {new Date(contract.created_at || '').toLocaleDateString()}
+                          {new Date(getRelevantDate(contract) || '').toLocaleDateString()}
                         </div>
                       </div>
                       {contract.status === 'active' && (
@@ -433,7 +507,7 @@ export function Contracts() {
                                 <td className="p-3 text-gray-600">{contract.area}</td>
                                 <td className="p-3 text-gray-600">{contract.partner_name}</td>
                                 <td className="p-3 font-mono text-gray-500">{contract.hon_number || '-'}</td>
-                                <td className="p-3 text-right text-gray-500">{new Date(contract.created_at || '').toLocaleDateString()}</td>
+                                <td className="p-3 text-right text-gray-500">{new Date(getRelevantDate(contract) || '').toLocaleDateString()}</td>
                                 <td className="p-3 text-right">
                                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
                                         <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
@@ -461,7 +535,7 @@ export function Contracts() {
         onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
         analysts={analysts}
         onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
-        onCNPJSearch={() => {}}
+        onCNPJSearch={handleCNPJSearch}
         processes={processes}
         currentProcess={currentProcess}
         setCurrentProcess={setCurrentProcess}
