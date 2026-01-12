@@ -1,22 +1,3 @@
-export interface Client {
-  id?: string;
-  name: string;
-  cnpj: string;
-  is_person: boolean;
-  uf?: string;
-  address?: string;
-  number?: string;
-  complement?: string;
-  city?: string;
-  email?: string;
-  website?: string;
-  partner_id?: string;
-  created_at?: string;
-  active_contracts_count?: number;
-  contracts_hon?: string[];
-  partner_name?: string;
-}
-
 export interface Partner {
   id: string;
   name: string;
@@ -29,47 +10,7 @@ export interface Analyst {
   name: string;
   email?: string;
   role?: string;
-}
-
-export interface ContractProcess {
-  id?: string;
-  contract_id?: string;
-  process_number: string;
-  cause_value?: string;
-  court?: string;
-  judge?: string;
-}
-
-export interface ContractDocument {
-  id: string;
-  contract_id: string;
-  file_name: string;
-  file_path: string;
-  file_type: 'proposal' | 'contract';
-  uploaded_at: string;
-  hon_number_ref?: string;
-}
-
-export interface TimelineEvent {
-  id: string;
-  contract_id: string;
-  previous_status: string | null;
-  new_status: string;
-  changed_by: string;
-  changed_at: string;
-}
-
-export interface FinancialInstallment {
-  id: string;
-  contract_id: string;
-  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'other' | 'fixed';
-  installment_number: number;
-  total_installments: number;
-  amount: number;
-  due_date?: string;
-  status: 'pending' | 'paid';
-  paid_at?: string;
-  contract?: Contract; 
+  active?: boolean;
 }
 
 export interface Contract {
@@ -80,13 +21,18 @@ export interface Contract {
   
   // Client Info
   cnpj: string;
-  has_no_cnpj: boolean;
+  has_no_cnpj?: boolean;
   client_name: string;
-  client_position: string;
+  client_position?: string; // Corrigido para opcional se necessário ou string
   area: string;
   uf: string;
   company_name?: string;
   
+  // Novos campos que estavam faltando
+  phone?: string;
+  email?: string;
+  contract_object?: string;
+
   // Internal
   partner_id: string;
   analyst_id?: string;
@@ -139,17 +85,91 @@ export interface Contract {
   observations?: string;
 }
 
+export interface ContractProcess {
+  id?: string;
+  contract_id?: string;
+  process_number: string;
+  cause_value?: string;
+  court?: string;
+  judge?: string;
+  link?: string; // Adicionado
+}
+
+export interface TimelineEvent {
+  id: string;
+  contract_id: string;
+  previous_status?: string | null;
+  old_status?: string; // Alias para compatibilidade
+  new_status: string;
+  changed_by?: string;
+  changed_by_email?: string; // Adicionado
+  changed_at: string;
+}
+
+export interface LogItem {
+  id: string;
+  table_name: string;
+  record_id: string;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  old_data: any;
+  new_data: any;
+  changed_at: string;
+  user_id: string;
+  user_email?: string;
+}
+
+export interface Client {
+  id?: string;
+  name: string;
+  cnpj: string;
+  is_person: boolean;
+  uf?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  city?: string;
+  email?: string;
+  website?: string;
+  partner_id?: string;
+  created_at?: string;
+  active_contracts_count?: number;
+  contracts_hon?: string[];
+  partner_name?: string;
+}
+
 export interface KanbanTask {
   id: string;
   title: string;
   description?: string;
-  // REMOVIDOS: 'review' e 'billing'
   status: 'todo' | 'doing' | 'done' | 'signature';
   priority: 'Baixa' | 'Média' | 'Alta';
   due_date?: string;
   assignee?: string;
   contract_id?: string;
   position: number;
-  contract?: Contract;
+  contract?: { client_name: string };
   observation?: string;
+}
+
+export interface ContractDocument {
+  id: string;
+  contract_id: string;
+  file_name: string;
+  file_path: string;
+  file_type: 'proposal' | 'contract';
+  uploaded_at: string;
+  hon_number_ref?: string;
+}
+
+export interface FinancialInstallment {
+  id: string;
+  contract_id: string;
+  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'other' | 'fixed';
+  installment_number: number;
+  total_installments: number;
+  amount: number;
+  due_date?: string;
+  status: 'pending' | 'paid';
+  paid_at?: string;
+  contract?: Contract; 
 }
