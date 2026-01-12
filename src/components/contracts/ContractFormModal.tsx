@@ -163,7 +163,7 @@ export function ContractFormModal(props: Props) {
   // Atualizar o processo atual quando o tipo de processo "Outro" muda
   useEffect(() => {
     if (!isStandardCNJ) {
-       // Logica para tipo outro
+       // Se mudar para "Outro", podemos opcionalmente limpar a máscara ou manter o valor atual
     }
   }, [otherProcessType]);
 
