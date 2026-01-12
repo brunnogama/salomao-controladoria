@@ -17,12 +17,13 @@ import {
 interface LogItem {
   id: string;
   table_name: string;
+  record_id: string; // Adicionado para corrigir o erro de tipo
   action: 'INSERT' | 'UPDATE' | 'DELETE';
   old_data: any;
   new_data: any;
   changed_at: string;
   user_id: string;
-  user_email?: string; // Será preenchido via join ou lógica
+  user_email?: string;
 }
 
 export function History() {
@@ -47,8 +48,6 @@ export function History() {
 
       if (error) throw error;
 
-      // Se tivéssemos uma tabela pública de 'profiles', faríamos o join aqui.
-      // Como o Supabase Auth é protegido, vamos exibir o ID ou "Usuário do Sistema".
       setLogs(data || []);
     } catch (error) {
       console.error('Erro ao buscar histórico:', error);
@@ -82,7 +81,7 @@ export function History() {
     }
     
     if (log.action === 'INSERT') {
-      const name = log.new_data.client_name || log.new_data.title || log.new_data.name || 'Novo Registro';
+      const name = log.new_data?.client_name || log.new_data?.title || log.new_data?.name || 'Novo Registro';
       return <span className="font-medium text-gray-700">Novo item criado: "{name}"</span>;
     }
 
@@ -90,7 +89,6 @@ export function History() {
       const changes: string[] = [];
       Object.keys(log.new_data).forEach(key => {
         if (JSON.stringify(log.new_data[key]) !== JSON.stringify(log.old_data[key])) {
-          // Ignorar campos técnicos
           if (['updated_at', 'created_at'].includes(key)) return;
           changes.push(key);
         }
@@ -176,11 +174,9 @@ export function History() {
             
             return (
               <div key={log.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                {/* Linha colorida lateral */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${style.bg.replace('bg-', 'bg-').replace('100', '500')}`}></div>
                 
                 <div className="flex flex-col md:flex-row gap-4 items-start">
-                  {/* Ícone e Data */}
                   <div className="flex-shrink-0 flex flex-col items-center min-w-[100px]">
                     <div className={`w-10 h-10 rounded-full ${style.bg} flex items-center justify-center mb-2`}>
                       <style.icon className={`w-5 h-5 ${style.color}`} />
@@ -191,7 +187,6 @@ export function History() {
                     </div>
                   </div>
 
-                  {/* Conteúdo */}
                   <div className="flex-1 w-full">
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -205,7 +200,6 @@ export function History() {
                       </div>
                       <div className="flex items-center text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full border border-gray-100">
                         <User className="w-3 h-3 mr-1" />
-                        {/* Como não temos join com profiles aqui, mostramos o ID ou placeholder */}
                         <span className="truncate max-w-[150px]" title={log.user_id}>
                           {log.user_email || 'Usuário do Sistema'}
                         </span>
