@@ -135,6 +135,9 @@ export function ContractFormModal(props: Props) {
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
   
+  // Novo estado para o novo assunto
+  const [newSubject, setNewSubject] = useState('');
+  
   // Estado para modal de visualização do processo
   const [viewProcess, setViewProcess] = useState<ContractProcess | null>(null);
   const [viewProcessIndex, setViewProcessIndex] = useState<number | null>(null);
@@ -153,6 +156,7 @@ export function ContractFormModal(props: Props) {
       setOtherProcessType('');
       // Limpar UF do processo ao abrir novo modal
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
+      setNewSubject('');
     }
   }, [isOpen, formData.id]);
 
@@ -275,6 +279,34 @@ export function ContractFormModal(props: Props) {
       newList.splice(index, 1);
       return { ...prev, magistrates: newList };
     });
+  };
+
+  // Funções para Assuntos
+  const addSubject = () => {
+    if (!newSubject.trim()) return;
+    
+    // Tratamos o subject atual como uma string que pode conter múltiplos valores separados por ponto e vírgula
+    const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s) : [];
+    
+    // Evitar duplicados
+    if (!currentSubjects.includes(toTitleCase(newSubject.trim()))) {
+        const updatedSubjects = [...currentSubjects, toTitleCase(newSubject.trim())];
+        setCurrentProcess(prev => ({
+            ...prev,
+            subject: updatedSubjects.join('; ')
+        }));
+    }
+    setNewSubject('');
+  };
+
+  const removeSubject = (subjectToRemove: string) => {
+    if (!currentProcess.subject) return;
+    const currentSubjects = currentProcess.subject.split(';').map(s => s.trim());
+    const updatedSubjects = currentSubjects.filter(s => s !== subjectToRemove);
+    setCurrentProcess(prev => ({
+        ...prev,
+        subject: updatedSubjects.join('; ')
+    }));
   };
 
   const generateFinancialInstallments = async (contractId: string) => {
