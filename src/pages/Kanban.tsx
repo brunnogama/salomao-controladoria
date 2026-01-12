@@ -8,7 +8,7 @@ import {
   DraggableProvided, 
   DraggableStateSnapshot 
 } from '@hello-pangea/dnd';
-import { Plus, MoreHorizontal, Calendar, User, Search, Filter, Loader2, AlertCircle, Trash2, Edit2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Calendar, User, Search, Filter, Loader2, AlertCircle, Trash2, Edit2, KanbanSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { KanbanTask, Contract } from '../types';
 import { KanbanTaskModal } from '../components/kanban/KanbanTaskModal';
@@ -169,7 +169,9 @@ export function Kanban() {
     <div className="p-8 h-full flex flex-col animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-salomao-blue">Kanban de Tarefas</h1>
+          <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
+            <KanbanSquare className="w-8 h-8" /> Kanban de Tarefas
+          </h1>
           <p className="text-gray-500 mt-1">Gerencie fluxo de trabalho e pendências.</p>
         </div>
         <button onClick={handleAddTask} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
