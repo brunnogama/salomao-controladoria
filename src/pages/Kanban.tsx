@@ -48,7 +48,7 @@ export function Kanban() {
   const fetchContracts = async () => {
     const { data, error } = await supabase
       .from('contracts')
-      .select('id, client_name, hon_number')
+      .select('*')
       .eq('status', 'active')
       .order('client_name');
     
