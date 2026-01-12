@@ -111,10 +111,16 @@ export function Kanban() {
   };
 
   const handleSaveTask = async (taskData: Partial<KanbanTask>) => {
-    // Remove contract_id se for vazio
     const cleanData = { ...taskData };
+    
+    // Remove contract_id se for vazio
     if (!cleanData.contract_id || cleanData.contract_id === '') {
       delete cleanData.contract_id;
+    }
+
+    // Tratamento para data vazia ser salva como NULL
+    if (!cleanData.due_date || cleanData.due_date === '') {
+      cleanData.due_date = null as any; 
     }
     
     if (editingTask) {

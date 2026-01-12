@@ -139,7 +139,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center">
-                  <Calendar className="w-4 h-4 mr-1" /> Prazo (Due Date)
+                  <Calendar className="w-4 h-4 mr-1" /> Prazo (Opcional)
                 </label>
                 <input 
                   type="date" 
