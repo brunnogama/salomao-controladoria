@@ -222,7 +222,8 @@ export function Contracts() {
 
   const filteredContracts = contracts.filter(c => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.hon_number?.includes(searchTerm);
+                          c.hon_number?.includes(searchTerm) ||
+                          c.cnpj?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
