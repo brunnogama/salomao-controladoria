@@ -12,9 +12,7 @@ const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, {
 // Função auxiliar aprimorada para garantir formatação R$ ao carregar do banco
 const formatForInput = (val: string | number | undefined) => {
   if (val === undefined || val === null) return '';
-  // Se for número puro
   if (typeof val === 'number') return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  // Se for string, verifica se é um número "limpo" (ex: "1000.00") que precisa de máscara
   if (typeof val === 'string' && !val.includes('R$') && !isNaN(parseFloat(val)) && val.trim() !== '') {
       return parseFloat(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
@@ -402,21 +400,18 @@ export function ContractFormModal(props: Props) {
 
     setLocalLoading(true);
     try {
-      // 1. Buscar na BrasilAPI (Receita Federal)
       const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
       
       if (!response.ok) throw new Error('CNPJ não encontrado na Receita Federal');
       
       const data = await response.json();
       
-      // 2. Preencher dados do cliente automaticamente
       setFormData(prev => ({
         ...prev,
         client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''),
         uf: data.uf || prev.uf
       }));
 
-      // 3. Preencher dados extras (endereço, email, etc)
       setClientExtraData({
         address: toTitleCase(data.logradouro || ''),
         number: data.numero || '',
@@ -426,7 +421,6 @@ export function ContractFormModal(props: Props) {
         is_person: false
       });
 
-      // 4. Verificar se cliente já existe no banco
       const { data: existingClient } = await supabase
         .from('clients')
         .select('id, name')
@@ -461,7 +455,6 @@ export function ContractFormModal(props: Props) {
         throw new Error('Não foi possível decodificar o número do processo');
       }
       
-      // Se for STF, define UF como DF
       const uf = decoded.tribunal === 'STF' ? 'DF' : decoded.uf;
       
       setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal }));
@@ -668,7 +661,16 @@ export function ContractFormModal(props: Props) {
             
             {(formData.status === 'analysis') && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                <div><label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label><input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label>
+                    <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1 text-gray-600">Data Proposta (Opcional)</label>
+                    <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.proposal_date || ''} onChange={e => setFormData({...formData, proposal_date: e.target.value})} />
+                  </div>
+                </div>
                 <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
               </div>
             )}

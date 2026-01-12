@@ -31,13 +31,42 @@ export interface Analyst {
   role?: string;
 }
 
+export interface Magistrate {
+  title: string; // 'Juiz' | 'Desembargador' | 'Ministro'
+  name: string;
+}
+
 export interface ContractProcess {
   id?: string;
   contract_id?: string;
   process_number: string;
   cause_value?: string;
-  court?: string;
-  judge?: string;
+  
+  // Campos existentes mantidos com asterisco (*) na ordem lógica
+  court?: string; // Tribunal*
+  uf?: string; // Estado (UF)* (Novo aqui, antes usava do contrato)
+  
+  // Novos campos na ordem solicitada
+  position?: string; // Posição no Processo (Autor, Réu, etc)
+  opponent?: string; // Contrário (Parte Oposta)*
+  
+  magistrates?: Magistrate[]; // Lista de Magistrados
+  
+  vara?: string;
+  comarca?: string;
+  
+  action_type?: string; // Tipo de ação
+  distribution_date?: string; // Data da distribuição
+  
+  justice_type?: string; // Justiça
+  nature?: string; // Natureza
+  instance?: string; // Instancia
+  
+  process_class?: string; // Classe
+  subject?: string; // Assunto
+  
+  link?: string; // Link para acesso externo
+  judge?: string; // Mantido para compatibilidade com dados antigos
 }
 
 export interface ContractDocument {
