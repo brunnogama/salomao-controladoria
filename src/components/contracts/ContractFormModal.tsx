@@ -453,9 +453,12 @@ export function ContractFormModal(props: Props) {
       if (!decoded) {
         throw new Error('Não foi possível decodificar o número do processo');
       }
+      
+      // Se for STF, define UF como DF
+      const uf = decoded.tribunal === 'STF' ? 'DF' : decoded.uf;
+      
       setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal }));
-      setFormData(prev => ({ ...prev, uf: decoded.uf }));
-      alert(`✅ Tribunal: ${decoded.tribunal}\nUF: ${decoded.uf}`);
+      setFormData(prev => ({ ...prev, uf: uf }));
     } catch (error: any) {
       alert(`❌ Erro ao decodificar CNJ: ${error.message}`);
     } finally {
@@ -626,7 +629,7 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF)" value={formData.uf} onChange={(val: string) => setFormData({...formData, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome da parte..." value={formData.company_name} onChange={(e) => handleTextChange('company_name', e.target.value)} /></div>
+                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome da parte..." value={formData.company_name} onChange={(e) => setFormData({...formData, company_name: e.target.value})} /></div>
                     <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
                     <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                     <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md">{editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div>
