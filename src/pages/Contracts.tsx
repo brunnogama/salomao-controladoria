@@ -41,6 +41,7 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
     let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -62,9 +63,9 @@ export function Contracts() {
   // Filtros e Ordenação
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [partnerFilter, setPartnerFilter] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState(''); // Novo filtro de sócio
   
-  // Padrão Lista e Nome
+  // Alterado padrão para Nome e Lista
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -92,6 +93,7 @@ export function Contracts() {
 
   const fetchData = async () => {
     setLoading(true);
+    // Ordenação adicionada aqui para partners e analysts
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
       supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
       supabase.from('partners').select('*').eq('active', true).order('name', { ascending: true }),
@@ -104,7 +106,7 @@ export function Contracts() {
             partner_name: c.partner?.name,
             analyzed_by_name: c.analyst?.name,
             process_count: c.processes?.length || 0,
-            processes: c.processes || [] // Garantir que processes existe
+            processes: c.processes || [] // Garante que processes existe
         }));
         setContracts(formatted);
     }
@@ -162,27 +164,6 @@ export function Contracts() {
   const handleSave = () => {
     fetchData(); 
     fetchNotifications(); 
-  };
-
-  const handleCNPJSearch = async (cnpj: string) => {
-    const cleanCNPJ = cnpj.replace(/\D/g, '');
-    if (cleanCNPJ.length !== 14) {
-      alert('CNPJ deve ter 14 dígitos.');
-      return;
-    }
-    try {
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
-      if (!response.ok) throw new Error('Erro ao buscar CNPJ');
-      const data = await response.json();
-      setFormData(prev => ({
-        ...prev,
-        client_name: data.razao_social || data.nome_fantasia || '',
-        uf: data.uf || prev.uf,
-      }));
-    } catch (error) {
-      console.error(error);
-      alert('CNPJ não encontrado ou erro na API.');
-    }
   };
 
   const handleProcessAction = () => {
@@ -555,7 +536,7 @@ export function Contracts() {
         onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
         analysts={analysts}
         onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
-        onCNPJSearch={handleCNPJSearch}
+        onCNPJSearch={() => {}}
         processes={processes}
         currentProcess={currentProcess}
         setCurrentProcess={setCurrentProcess}
