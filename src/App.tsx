@@ -9,7 +9,8 @@ import { Kanban } from './pages/Kanban';
 import { Clients } from './pages/Clients';
 import { Finance } from './pages/Finance';
 import { Settings } from './pages/Settings';
-import { History } from './pages/History'; // Importação adicionada
+import { History } from './pages/History';
+import { Volumetry } from './pages/Volumetry'; // Nova Importação
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -35,12 +36,12 @@ function App() {
           <Route path="/ged" element={<GED />} />
           
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
-          <Route path="/volumetria" element={<PagePlaceholder title="Análise de Volumetria" />} />
+          
+          {/* Rota Atualizada para Volumetria Real */}
+          <Route path="/volumetria" element={<Volumetry />} />
+          
           <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
-          
-          {/* Rota atualizada para o componente History real */}
           <Route path="/historico" element={<History />} />
-          
           <Route path="/configuracoes" element={<Settings />} />
         </Route>
 
