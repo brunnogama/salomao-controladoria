@@ -135,7 +135,7 @@ export function ContractFormModal(props: Props) {
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
   
-  // Novo estado para adicionar assuntos
+  // Novo estado para adicionar assuntos (ADICIONADO)
   const [newSubject, setNewSubject] = useState('');
   
   // Estado para modal de visualização do processo
@@ -154,7 +154,7 @@ export function ContractFormModal(props: Props) {
       setInterimInstallments('1x');
       setIsStandardCNJ(true);
       setOtherProcessType('');
-      // Limpar UF do processo ao abrir novo modal e assunto
+      // Limpar UF do processo ao abrir novo modal
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
       setNewSubject('');
     }
@@ -281,14 +281,16 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  // Funções para Assuntos (NOVA IMPLEMENTAÇÃO)
+  // Funções para Assuntos (ADICIONADAS E CORRIGIDAS)
   const addSubject = () => {
     if (!newSubject.trim()) return;
     const cleanSubject = toTitleCase(newSubject.trim());
+    // Garante que é um array para facilitar a manipulação na UI
     const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
     
     if (!currentSubjects.includes(cleanSubject)) {
         const updatedSubjects = [...currentSubjects, cleanSubject];
+        // Salva como string separada por ponto e vírgula
         setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
     }
     setNewSubject('');
