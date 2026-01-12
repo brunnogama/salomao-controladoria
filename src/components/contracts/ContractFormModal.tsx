@@ -660,7 +660,7 @@ export function ContractFormModal(props: Props) {
                 <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
                   {/* Linha 1: Numero, Tribunal, UF, Posição */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 items-end">
-                    <div className="md:col-span-4">
+                    <div className={isStandardCNJ ? "md:col-span-5" : "md:col-span-4"}>
                         <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
                             Número do Processo *
                             {currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
@@ -721,9 +721,9 @@ export function ContractFormModal(props: Props) {
                         </div>
                     )}
 
-                    <div className={!isStandardCNJ ? "md:col-span-2" : "md:col-span-3"}><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" value={currentProcess.court || ''} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
+                    <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" value={currentProcess.court || ''} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || formData.uf} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
-                    <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
+                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
                   </div>
 
                   {/* Linha 2: Parte Oposta, Magistrado */}
