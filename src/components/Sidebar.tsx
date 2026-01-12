@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase';
 export function Sidebar() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState('Carregando...');
-  const [userRole, setUserRole] = useState('Sócio');
+  const [userRole, setUserRole] = useState('Administrador');
 
   // Configuração exata do menu fornecida
   const menuItems = [
