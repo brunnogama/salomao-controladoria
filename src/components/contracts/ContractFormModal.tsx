@@ -713,7 +713,8 @@ export function ContractFormModal(props: Props) {
                         <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
                           <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
                           <span className="text-gray-600">{p.court} ({p.uf})</span>
-                          <span className="text-gray-500 truncate">{p.opponent || p.company_name}</span>
+                          {/* CORREÇÃO: Usar apenas p.opponent pois p.company_name não existe em ContractProcess */}
+                          <span className="text-gray-500 truncate">{p.opponent}</span>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
