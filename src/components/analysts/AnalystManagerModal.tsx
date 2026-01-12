@@ -136,22 +136,14 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
               />
             </div>
 
-            <div className="md:col-span-2 flex items-end gap-2">
+            <div className="md:col-span-2 flex items-end">
               <button
                 onClick={handleSave}
                 disabled={loading || !formData.name.trim()}
-                className="flex-1 bg-salomao-blue text-white px-4 py-2.5 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm font-medium"
+                className="w-full bg-salomao-blue text-white px-3 py-2.5 rounded-lg hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 text-sm font-medium"
               >
-                {editingId ? <><Save className="w-4 h-4" /> Salvar</> : <><Plus className="w-4 h-4" /> Adicionar</>}
+                {editingId ? <><Save className="w-4 h-4" /> Salvar</> : <><Plus className="w-4 h-4" /> Add</>}
               </button>
-              {editingId && (
-                <button
-                  onClick={handleCancel}
-                  className="px-3 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
             </div>
           </div>
         </div>

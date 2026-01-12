@@ -124,12 +124,14 @@ export function ContractFormModal(props: Props) {
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
   const [interimInstallments, setInterimInstallments] = useState('1x');
+  const [legalAreas, setLegalAreas] = useState<{label: string, value: string}[]>([]);
 
   const isLoading = parentLoading || localLoading;
 
   useEffect(() => {
     if (isOpen) {
       fetchStatuses();
+      fetchLegalAreas();
       if (formData.id) fetchDocuments();
     } else {
       setDocuments([]);
@@ -152,6 +154,36 @@ export function ContractFormModal(props: Props) {
       });
       const options = sortedData.map(s => ({ label: s.label, value: s.value }));
       setStatusOptions(options);
+    }
+  };
+
+  const fetchLegalAreas = async () => {
+    const { data } = await supabase
+      .from('legal_areas')
+      .select('*')
+      .eq('active', true)
+      .order('name', { ascending: true });
+    
+    if (data) {
+      const options = data.map(a => ({ label: a.name, value: a.name }));
+      setLegalAreas(options);
+    }
+  };
+
+  const handleCreateArea = async () => {
+    const newArea = window.prompt("Digite o nome da nova Área do Direito:");
+    if (!newArea) return;
+    const areaName = toTitleCase(newArea);
+    if (legalAreas.some(a => a.value === areaName)) return alert("Esta área já existe.");
+    try {
+      const { error } = await supabase
+        .from('legal_areas')
+        .insert({ name: areaName, active: true });
+      if (error) throw error;
+      await fetchLegalAreas();
+      setFormData({ ...formData, area: areaName });
+    } catch (err) {
+      alert("Erro ao criar área.");
     }
   };
 
@@ -426,9 +458,6 @@ export function ContractFormModal(props: Props) {
 
       if (existingClient) {
         setFormData(prev => ({ ...prev, client_id: existingClient.id }));
-        alert(`✅ Cliente encontrado: ${existingClient.name}`);
-      } else {
-        alert(`✅ Dados preenchidos da Receita Federal.\nCliente será criado ao salvar.`);
       }
 
     } catch (error: any) {
@@ -610,7 +639,7 @@ export function ContractFormModal(props: Props) {
               <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={formData.client_position} onChange={(val: string) => setFormData({...formData, client_position: val})} options={positionOptions} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div><label className="block text-xs font-medium text-gray-600 mb-1">Área do Direito</label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none" placeholder="Ex: Trabalhista, Cível..." value={formData.area} onChange={(e) => handleTextChange('area', e.target.value)} /></div>
+              <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={legalAreas} onAction={handleCreateArea} actionIcon={Plus} actionLabel="Adicionar Área" placeholder="Selecione ou adicione" /></div>
               <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
             </div>
           </section>
