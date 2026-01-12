@@ -151,6 +151,8 @@ export function ContractFormModal(props: Props) {
       setInterimInstallments('1x');
       setIsStandardCNJ(true);
       setOtherProcessType('');
+      // Limpar UF do processo ao abrir novo modal
+      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
     }
   }, [isOpen, formData.id]);
 
@@ -720,7 +722,7 @@ export function ContractFormModal(props: Props) {
                     )}
 
                     <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" value={currentProcess.court || ''} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
-                    <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || formData.uf} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
+                    <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
                     <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
                   </div>
 
