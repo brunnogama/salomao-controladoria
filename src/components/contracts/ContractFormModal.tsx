@@ -451,6 +451,9 @@ export function ContractFormModal(props: Props) {
     setSearchingCNJ(true);
     try {
       const decoded = decodeCNJ(numeroLimpo);
+      if (!decoded) {
+        throw new Error('Não foi possível decodificar o número do processo');
+      }
       setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal }));
       setFormData(prev => ({ ...prev, uf: decoded.uf }));
       alert(`✅ Tribunal: ${decoded.tribunal}\nUF: ${decoded.uf}`);
