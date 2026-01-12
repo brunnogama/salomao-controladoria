@@ -63,8 +63,6 @@ export function Dashboard() {
     totalEntrada: 0, qualificadosProposta: 0, fechados: 0,
     perdaAnalise: 0, perdaNegociacao: 0,
     taxaConversaoProposta: '0', taxaConversaoFechamento: '0',
-    rejeitadosTotal: 0, // Novo
-    probonoTotal: 0     // Novo
   });
 
   const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
@@ -170,7 +168,6 @@ export function Dashboard() {
 
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
     let fPerdaAnalise = 0; let fPerdaNegociacao = 0;
-    let fProbono = 0; // Contador Probono Global
 
     const mapaMeses: Record<string, number> = {};
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
@@ -268,8 +265,6 @@ export function Dashboard() {
       if (c.status === 'active') fFechados++;
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
 
-      if (c.status === 'probono') fProbono++; // Contagem Probono
-
       const datasDisponiveis = [
         c.created_at ? new Date(c.created_at) : null,
         c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null,
@@ -296,17 +291,7 @@ export function Dashboard() {
 
     const txProp = fTotal > 0 ? ((fQualificados / fTotal) * 100).toFixed(1) : '0';
     const txFech = fQualificados > 0 ? ((fFechados / fQualificados) * 100).toFixed(1) : '0';
-    setFunil({ 
-        totalEntrada: fTotal, 
-        qualificadosProposta: fQualificados, 
-        fechados: fFechados, 
-        perdaAnalise: fPerdaAnalise, 
-        perdaNegociacao: fPerdaNegociacao, 
-        taxaConversaoProposta: txProp, 
-        taxaConversaoFechamento: txFech,
-        rejeitadosTotal: fPerdaAnalise + fPerdaNegociacao, // Soma rejeitados
-        probonoTotal: fProbono // Soma probono
-    });
+    setFunil({ totalEntrada: fTotal, qualificadosProposta: fQualificados, fechados: fFechados, perdaAnalise: fPerdaAnalise, perdaNegociacao: fPerdaNegociacao, taxaConversaoProposta: txProp, taxaConversaoFechamento: txFech });
 
     const mesesGrafico = Object.keys(mapaMeses).map((key) => ({ mes: key, qtd: mapaMeses[key], altura: 0 }));
     const maxQtd = Math.max(...mesesGrafico.map((m) => m.qtd), 1);
@@ -352,17 +337,13 @@ export function Dashboard() {
         
         {/* FUNIL */}
         <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
-            <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão e resultados.</p></div></div>
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 items-center'>
-                <div className='lg:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative'><p className='text-xs font-bold text-gray-500 uppercase'>1. Prospects</p><p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p><div className='hidden lg:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div></div>
-                <div className='lg:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div></div>
-                <div className='lg:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative'><p className='text-xs font-bold text-blue-600 uppercase'>2. Propostas</p><p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p><div className='hidden lg:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div></div>
-                <div className='lg:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div></div>
-                <div className='lg:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center'><p className='text-xs font-bold text-green-600 uppercase'>3. Fechados</p><p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p></div>
-                
-                {/* NOVOS CARDS SOLICITADOS */}
-                <div className='lg:col-span-1 bg-red-50 p-4 rounded-xl border border-red-100 text-center'><p className='text-xs font-bold text-red-600 uppercase'>Rejeitados</p><p className='text-3xl font-bold text-red-900 mt-2'>{funil.rejeitadosTotal}</p></div>
-                <div className='lg:col-span-1 bg-purple-50 p-4 rounded-xl border border-purple-100 text-center'><p className='text-xs font-bold text-purple-600 uppercase'>Probono</p><p className='text-3xl font-bold text-purple-900 mt-2'>{funil.probonoTotal}</p></div>
+            <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão.</p></div></div>
+            <div className='grid grid-cols-1 md:grid-cols-5 gap-4 items-center'>
+            <div className='md:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative'><p className='text-xs font-bold text-gray-500 uppercase'>1. Prospects</p><p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div></div>
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div></div>
+            <div className='md:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative'><p className='text-xs font-bold text-blue-600 uppercase'>2. Propostas</p><p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div></div>
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div></div>
+            <div className='md:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center'><p className='text-xs font-bold text-green-600 uppercase'>3. Fechados</p><p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p></div>
             </div>
         </div>
 
@@ -426,7 +407,8 @@ export function Dashboard() {
         {/* DISTRIBUTION & ENTRY */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
             <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
-            <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><PieChart className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Distribuição da Carteira</h2><p className='text-xs text-gray-500'>Visão consolidada por status.</p></div></div><div className='bg-[#0F2C4C] text-white px-6 py-3 rounded-lg text-center'><span className='text-3xl font-bold block'>{metrics.geral.totalCasos}</span><span className='text-xs opacity-80 uppercase tracking-wider mt-1 block'>Total Analisado</span></div></div>
+            <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><PieChart className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Distribuição da Carteira</h2><p className='text-xs text-gray-500'>Visão consolidada por status.</p></div></div>
+            <div className='bg-gray-50 px-6 py-3 rounded-xl border border-gray-100 text-center min-w-[120px]'><span className='text-3xl font-bold text-gray-800 block'>{metrics.geral.totalCasos}</span><span className='text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1 block'>Total Analisado</span></div></div>
             <div className='grid grid-cols-2 gap-4'><div className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div><div className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div><div className='bg-green-50 p-4 rounded-lg border border-green-100 text-center'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div><div className='bg-red-50 p-4 rounded-lg border border-red-100 text-center'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div></div>
             </div>
             <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100'><h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3><div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>{evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}</div></div>
