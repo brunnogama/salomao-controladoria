@@ -128,6 +128,9 @@ export function ContractFormModal(props: Props) {
   // Estado local para adicionar magistrados
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('Juiz');
   const [newMagistrateName, setNewMagistrateName] = useState('');
+  
+  // Estado para controlar o tipo de numeração do processo (CNJ ou Outro)
+  const [isStandardCNJ, setIsStandardCNJ] = useState(true);
 
   const isLoading = parentLoading || localLoading;
 
@@ -139,6 +142,7 @@ export function ContractFormModal(props: Props) {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
       setInterimInstallments('1x');
+      setIsStandardCNJ(true); // Resetar para padrão CNJ ao abrir
     }
   }, [isOpen, formData.id]);
 
@@ -637,10 +641,52 @@ export function ContractFormModal(props: Props) {
             {formData.has_legal_process && (
               <div className="space-y-4">
                 <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                  {/* Linha 1: CNJ, Tribunal, UF, Posição */}
+                  {/* Linha 1: Numero, Tribunal, UF, Posição */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ *{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
-                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
+                    <div className="md:col-span-4">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">
+                            Número do Processo *
+                            {currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
+                        </label>
+                        <div className="flex flex-col">
+                            <div className="flex gap-2 mb-1">
+                                <select 
+                                    className="text-[10px] border border-gray-200 rounded px-1 bg-gray-50 outline-none"
+                                    value={isStandardCNJ ? 'cnj' : 'other'}
+                                    onChange={(e) => {
+                                        setIsStandardCNJ(e.target.value === 'cnj');
+                                        if (e.target.value === 'cnj') {
+                                            setCurrentProcess({...currentProcess, process_number: maskCNJ(currentProcess.process_number || '')});
+                                        }
+                                    }}
+                                >
+                                    <option value="cnj">Padrão CNJ</option>
+                                    <option value="other">Outro/Antigo</option>
+                                </select>
+                            </div>
+                            <div className="flex relative items-center">
+                                <input 
+                                    type="text" 
+                                    className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" 
+                                    placeholder={isStandardCNJ ? "0000000-00..." : "Numeração Livre"} 
+                                    value={currentProcess.process_number} 
+                                    onChange={(e) => setCurrentProcess({
+                                        ...currentProcess, 
+                                        process_number: isStandardCNJ ? maskCNJ(e.target.value) : e.target.value
+                                    })} 
+                                />
+                                <button 
+                                    onClick={handleCNJSearch} 
+                                    disabled={!isStandardCNJ || searchingCNJ || !currentProcess.process_number} 
+                                    className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
+                                    title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
+                                >
+                                    {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court || ''} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || formData.uf} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
                     <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
                   </div>
@@ -675,7 +721,7 @@ export function ContractFormModal(props: Props) {
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
                   </div>
 
-                  {/* Linha 4: Tipo de Ação, Data Distribuição, Justiça (Movido para cá) */}
+                  {/* Linha 4: Tipo de Ação, Data Distribuição, Justiça */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Tipo de Ação</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.action_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, action_type: e.target.value})} /></div>
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
@@ -707,7 +753,6 @@ export function ContractFormModal(props: Props) {
                         <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
                           <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
                           <span className="text-gray-600">{p.court} ({p.uf})</span>
-                          {/* CORREÇÃO: Usar apenas p.opponent pois p.company_name não existe em ContractProcess */}
                           <span className="text-gray-500 truncate">{p.opponent}</span>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
