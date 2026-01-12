@@ -13,7 +13,7 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '' });
+  const [formData, setFormData] = useState({ name: '', email: '' });
 
   useEffect(() => {
     if (isOpen) {
@@ -44,7 +44,8 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
         const { error } = await supabase
           .from('analysts')
           .update({ 
-            name: formData.name.trim()
+            name: formData.name.trim(),
+            email: formData.email.trim()
           })
           .eq('id', editingId);
         
@@ -54,13 +55,14 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
           .from('analysts')
           .insert([{ 
             name: formData.name.trim(),
+            email: formData.email.trim(),
             active: true
           }]);
         
         if (error) throw error;
       }
       
-      setFormData({ name: '' });
+      setFormData({ name: '', email: '' });
       setEditingId(null);
       fetchAnalysts();
       onUpdate();
@@ -75,7 +77,8 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
   const handleEdit = (analyst: Analyst) => {
     setEditingId(analyst.id);
     setFormData({ 
-      name: analyst.name
+      name: analyst.name,
+      email: analyst.email || ''
     });
   };
 
@@ -102,7 +105,7 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
   };
 
   const handleCancel = () => {
-    setFormData({ name: '' });
+    setFormData({ name: '', email: '' });
     setEditingId(null);
   };
 
@@ -122,7 +125,7 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
         {/* Form */}
         <div className="p-6 border-b border-gray-100">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="md:col-span-10">
+            <div className="md:col-span-5">
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Nome do Analista <span className="text-red-500">*</span>
               </label>
@@ -132,6 +135,20 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
                 placeholder="Nome completo"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="md:col-span-5">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                E-mail
+              </label>
+              <input
+                type="email"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none"
+                placeholder="email@exemplo.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={loading}
               />
             </div>
@@ -163,6 +180,9 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
                 >
                   <div className="flex-1">
                     <h3 className="font-medium text-gray-800">{analyst.name}</h3>
+                    {analyst.email && (
+                      <p className="text-xs text-gray-500">{analyst.email}</p>
+                    )}
                   </div>
                   
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
