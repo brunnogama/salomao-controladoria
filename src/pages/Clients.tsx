@@ -25,7 +25,8 @@ export function Clients() {
   }, []);
 
   const fetchPartners = async () => {
-    const { data } = await supabase.from('partners').select('*').eq('active', true);
+    // Ordenação adicionada aqui
+    const { data } = await supabase.from('partners').select('*').eq('active', true).order('name', { ascending: true });
     if (data) setPartners(data);
   };
 
