@@ -71,7 +71,7 @@ export function Contracts() {
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
   
   const emptyContract: Contract = {
-    cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: false,
+    cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: true,
     status: 'analysis', physical_signature: false
   };
   const [formData, setFormData] = useState<Contract>(emptyContract);
