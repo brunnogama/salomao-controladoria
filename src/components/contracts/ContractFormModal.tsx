@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Plus, Trash2, Save, Loader2, Search, Edit2, History } from 'lucide-react';
+import React, { useRef } from 'react';
+import { X, Plus, Trash2, Save, Loader2, Search, Edit2, History, AlertCircle } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../../types';
 import { currencyMask, phoneMask, cnpjMask, cpfMask } from '../../utils/masks';
 
@@ -15,8 +15,7 @@ interface Props {
   onOpenPartnerManager: () => void;
   analysts: Analyst[];
   onOpenAnalystManager: () => void;
-  // CORREÇÃO AQUI: Definindo que a função recebe uma string (cnpj)
-  onCNPJSearch: (cnpj: string) => void;
+  onCNPJSearch: (cnpj: string) => void; // Tipagem corrigida para receber string
   processes: ContractProcess[];
   currentProcess: ContractProcess;
   setCurrentProcess: (p: ContractProcess) => void;
@@ -69,6 +68,7 @@ export function ContractFormModal({
 
       // Salvar processos
       if (processes.length > 0 && contractId) {
+        // Primeiro remove todos para resincronizar (simples e eficaz)
         await supabase.from('contract_processes').delete().eq('contract_id', contractId);
         
         const processesToSave = processes.map(p => ({
@@ -105,6 +105,7 @@ export function ContractFormModal({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
+        {/* Header */}
         <div className="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -118,12 +119,15 @@ export function ContractFormModal({
           </button>
         </div>
 
+        {/* Content - Scrollable */}
         <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
           
+          {/* 1. Identificação do Cliente */}
           <section>
             <h3 className="text-sm font-bold text-salomao-blue uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Identificação do Cliente</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
               
+              {/* Checkbox Sem CNPJ */}
               <div className="md:col-span-12 flex items-center gap-2">
                 <input 
                   type="checkbox" 
@@ -135,6 +139,7 @@ export function ContractFormModal({
                 <label htmlFor="no_cnpj" className="text-sm text-gray-700 font-medium cursor-pointer">Cliente sem CNPJ/CPF (Internacional ou Outro)</label>
               </div>
 
+              {/* Busca CNPJ/CPF */}
               <div className="md:col-span-4">
                 <label className="block text-xs font-bold text-gray-700 mb-1">CNPJ / CPF</label>
                 <div className="relative flex gap-2">
@@ -151,7 +156,7 @@ export function ContractFormModal({
                     placeholder="00.000.000/0000-00"
                   />
                   <button 
-                    onClick={() => onCNPJSearch(formData.cnpj)}
+                    onClick={() => onCNPJSearch(formData.cnpj)} // Passando o valor para a função
                     disabled={formData.has_no_cnpj}
                     className="px-3 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors disabled:opacity-50"
                     title="Buscar dados na Receita"
@@ -209,6 +214,7 @@ export function ContractFormModal({
             </div>
           </section>
 
+          {/* 2. Dados do Caso */}
           <section>
             <h3 className="text-sm font-bold text-salomao-blue uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Dados do Caso</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -289,6 +295,7 @@ export function ContractFormModal({
             </div>
           </section>
 
+          {/* 3. Processos Judiciais */}
           <section>
             <h3 className="text-sm font-bold text-salomao-blue uppercase tracking-wider mb-4 border-b border-gray-100 pb-2 flex items-center justify-between">
               Processos Judiciais
@@ -372,6 +379,7 @@ export function ContractFormModal({
             )}
           </section>
 
+          {/* 4. Proposta Financeira */}
           <section>
             <h3 className="text-sm font-bold text-salomao-blue uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Proposta Financeira</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -409,6 +417,7 @@ export function ContractFormModal({
                 />
               </div>
 
+              {/* Honorários Intermediários */}
               <div className="md:col-span-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
                 <label className="block text-xs font-bold text-gray-700 mb-2">Honorários de Êxito Intermediários (Opcional)</label>
                 <div className="flex gap-2 mb-3">
@@ -436,6 +445,7 @@ export function ContractFormModal({
             </div>
           </section>
 
+          {/* 5. Status e Datas */}
           <section className="bg-blue-50 p-6 rounded-xl border border-blue-100">
             <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider mb-4 border-b border-blue-200 pb-2">Status do Contrato</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -450,7 +460,7 @@ export function ContractFormModal({
                   <option value="analysis">Sob Análise</option>
                   <option value="proposal">Proposta Enviada</option>
                   <option value="active">Contrato Fechado</option>
-                  <option value="rejected">Rejeitado</option>
+                  <option value="rejected">Rejeitada</option>
                   <option value="probono">Probono</option>
                 </select>
               </div>
@@ -492,6 +502,7 @@ export function ContractFormModal({
             </div>
           </section>
 
+          {/* Timeline - Apenas visualização */}
           {isEditing && timelineData.length > 0 && (
             <section>
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2"><History size={16} /> Histórico de Alterações</h3>
@@ -509,6 +520,7 @@ export function ContractFormModal({
 
         </div>
 
+        {/* Footer */}
         <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
           <button onClick={onClose} className="px-6 py-2 rounded-lg text-gray-600 hover:bg-gray-200 font-bold transition-colors">Cancelar</button>
           <button 
