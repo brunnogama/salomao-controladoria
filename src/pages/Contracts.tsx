@@ -203,28 +203,6 @@ export function Contracts() {
     }));
   };
 
-  const exportToExcel = () => {
-    const data = filteredContracts.map(c => ({
-      'Cliente': c.client_name,
-      'CNPJ/CPF': c.cnpj,
-      'Status': getStatusLabel(c.status),
-      'Sócio': c.partner_name,
-      'Área': c.area,
-      'UF': c.uf,
-      'HON': c.hon_number || '-',
-      'Data Criação': new Date(c.created_at || '').toLocaleDateString(),
-      'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
-      'Pró-Labore': formatMoney(c.pro_labore),
-      'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
-      'Êxito Final': formatMoney(c.final_success_fee)
-    }));
-    
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Contratos");
-    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
-  };
-
   // Helper para obter a data relevante com base no status
   const getRelevantDate = (c: Contract) => {
     switch (c.status) {
@@ -235,6 +213,30 @@ export function Contracts() {
         case 'probono': return c.probono_date || c.contract_date || c.created_at;
         default: return c.created_at;
     }
+  };
+
+  const exportToExcel = () => {
+    const data = filteredContracts.map(c => ({
+      'Status': getStatusLabel(c.status),
+      'Cliente': c.client_name,
+      'CNPJ/CPF': c.cnpj || '-',
+      'Processos': (c as any).processes?.map((p: any) => p.process_number).join(', ') || '-',
+      'Sócio': c.partner_name,
+      'Área': c.area,
+      'UF': c.uf,
+      'HON': c.hon_number || '-',
+      'Data Status': new Date(getRelevantDate(c) || '').toLocaleDateString(),
+      'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
+      'Pró-Labore': formatMoney(c.pro_labore),
+      'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
+      'Êxito Final': formatMoney(c.final_success_fee),
+      'Observações': c.observations || '-'
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contratos");
+    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
   const filteredContracts = contracts.filter(c => {
