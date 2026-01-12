@@ -137,6 +137,7 @@ export function ContractFormModal(props: Props) {
   
   // Estado para modal de visualização do processo
   const [viewProcess, setViewProcess] = useState<ContractProcess | null>(null);
+  const [viewProcessIndex, setViewProcessIndex] = useState<number | null>(null);
 
   const isLoading = parentLoading || localLoading;
 
@@ -783,9 +784,9 @@ export function ContractFormModal(props: Props) {
                     {processes.map((p, idx) => (
                       <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
                         <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
-                          {/* AQUI É ONDE OCORRE A MUDANÇA PRINCIPAL: NÚMERO CLICÁVEL */}
+                          {/* NÚMERO CLICÁVEL */}
                           <span 
-                            onClick={() => setViewProcess(p)} 
+                            onClick={() => { setViewProcess(p); setViewProcessIndex(idx); }} // ADICIONADO: Setando o índice para edição posterior
                             className="font-mono font-medium text-salomao-blue hover:underline cursor-pointer flex items-center"
                             title="Clique para ver detalhes do processo"
                           >
@@ -1034,8 +1035,8 @@ export function ContractFormModal(props: Props) {
       {/* Modal de Visualização Detalhada do Processo */}
       {viewProcess && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
-                <div className="bg-salomao-blue text-white p-6 flex justify-between items-center">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
+                <div className="bg-salomao-blue text-white p-6 flex justify-between items-center shrink-0">
                     <div>
                         <h3 className="text-lg font-bold">Detalhes do Processo</h3>
                         <p className="text-xs text-blue-200 mt-1 font-mono">{viewProcess.process_number}</p>
@@ -1044,7 +1045,8 @@ export function ContractFormModal(props: Props) {
                         <X className="w-6 h-6" />
                     </button>
                 </div>
-                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                
+                <div className="p-6 space-y-4 overflow-y-auto flex-1">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                             <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tribunal</span>
@@ -1119,8 +1121,26 @@ export function ContractFormModal(props: Props) {
                         <span className="text-lg font-bold text-blue-900">{viewProcess.cause_value || 'R$ 0,00'}</span>
                     </div>
                 </div>
-                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
-                    <button onClick={() => setViewProcess(null)} className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Fechar</button>
+                
+                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+                    <button 
+                        onClick={() => setViewProcess(null)} 
+                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                        Fechar
+                    </button>
+                    <button 
+                        onClick={() => {
+                            if (viewProcessIndex !== null) {
+                                setViewProcess(null); // Fecha o modal de visualização
+                                editProcess(viewProcessIndex); // Abre o modo de edição do formulário
+                            }
+                        }} 
+                        className="px-4 py-2 bg-salomao-blue text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors flex items-center"
+                    >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                    </button>
                 </div>
             </div>
         </div>
