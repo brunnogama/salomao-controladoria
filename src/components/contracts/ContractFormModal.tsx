@@ -375,10 +375,98 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  const handleAddLocation = () => { /* ... */ };
-  const handleCNPJSearch = async () => { /* ... */ };
-  const handleCNJSearch = async () => { /* ... */ };
-  const handleOpenJusbrasil = () => { /* ... */ };
+  const handleAddLocation = () => {
+    const newLocation = window.prompt("Digite o novo local de faturamento:");
+    if (newLocation && !billingLocations.includes(newLocation)) {
+      setBillingLocations([...billingLocations, newLocation]);
+    }
+  };
+
+  const handleCNPJSearch = async () => {
+    if (!formData.cnpj || formData.has_no_cnpj) return;
+    
+    const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) {
+      alert('CNPJ inválido. Digite 14 dígitos.');
+      return;
+    }
+
+    setLocalLoading(true);
+    try {
+      // 1. Buscar na BrasilAPI (Receita Federal)
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      
+      if (!response.ok) throw new Error('CNPJ não encontrado na Receita Federal');
+      
+      const data = await response.json();
+      
+      // 2. Preencher dados do cliente automaticamente
+      setFormData(prev => ({
+        ...prev,
+        client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''),
+        uf: data.uf || prev.uf
+      }));
+
+      // 3. Preencher dados extras (endereço, email, etc)
+      setClientExtraData({
+        address: toTitleCase(data.logradouro || ''),
+        number: data.numero || '',
+        complement: toTitleCase(data.complemento || ''),
+        city: toTitleCase(data.municipio || ''),
+        email: data.email || '',
+        is_person: false
+      });
+
+      // 4. Verificar se cliente já existe no banco
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('cnpj', cnpjLimpo)
+        .single();
+
+      if (existingClient) {
+        setFormData(prev => ({ ...prev, client_id: existingClient.id }));
+        alert(`✅ Cliente encontrado: ${existingClient.name}`);
+      } else {
+        alert(`✅ Dados preenchidos da Receita Federal.\nCliente será criado ao salvar.`);
+      }
+
+    } catch (error: any) {
+      console.error('Erro ao buscar CNPJ:', error);
+      alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente.`);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleCNJSearch = async () => {
+    if (!currentProcess.process_number) return;
+    
+    const numeroLimpo = currentProcess.process_number.replace(/\D/g, '');
+    if (numeroLimpo.length !== 20) {
+      alert('Número de processo inválido. Deve ter 20 dígitos.');
+      return;
+    }
+
+    setSearchingCNJ(true);
+    try {
+      const decoded = decodeCNJ(numeroLimpo);
+      setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal }));
+      setFormData(prev => ({ ...prev, uf: decoded.uf }));
+      alert(`✅ Tribunal: ${decoded.tribunal}\nUF: ${decoded.uf}`);
+    } catch (error: any) {
+      alert(`❌ Erro ao decodificar CNJ: ${error.message}`);
+    } finally {
+      setSearchingCNJ(false);
+    }
+  };
+
+  const handleOpenJusbrasil = () => {
+    if (currentProcess.process_number) {
+      const numero = currentProcess.process_number.replace(/\D/g, '');
+      window.open(`https://www.jusbrasil.com.br/processos/numero/${numero}`, '_blank');
+    }
+  };
   
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = e.target.files?.[0];
@@ -525,8 +613,6 @@ export function ContractFormModal(props: Props) {
           </section>
 
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
-            {/* ... Processos ... */}
-            {/* Mantido igual ao anterior, omitido para brevidade */}
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
             {formData.has_legal_process && (
               <div className="space-y-4">
@@ -656,7 +742,6 @@ export function ContractFormModal(props: Props) {
               </div>
             )}
 
-            {/* ... Resto do JSX inalterado (Uploads, etc.) ... */}
             {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
               <div className="mb-8 mt-6">
                 <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
