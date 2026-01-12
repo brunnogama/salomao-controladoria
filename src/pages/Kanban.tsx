@@ -46,13 +46,19 @@ export function Kanban() {
   };
 
   const fetchContracts = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('contracts')
-      .select('*')
+      .select('id, client_name, hon_number')
       .eq('status', 'active')
-      .not('hon_number', 'is', null)
       .order('client_name');
-    if (data) setContracts(data);
+    
+    if (error) {
+      console.error('Erro ao buscar contratos:', error);
+    }
+    if (data) {
+      console.log('Contratos carregados:', data.length);
+      setContracts(data);
+    }
   };
 
   const onDragEnd = async (result: DropResult) => {
@@ -105,19 +111,35 @@ export function Kanban() {
   };
 
   const handleSaveTask = async (taskData: Partial<KanbanTask>) => {
+    // Remove contract_id se for vazio
+    const cleanData = { ...taskData };
+    if (!cleanData.contract_id || cleanData.contract_id === '') {
+      delete cleanData.contract_id;
+    }
+    
     if (editingTask) {
       const { error } = await supabase
         .from('kanban_tasks')
-        .update(taskData)
+        .update(cleanData)
         .eq('id', editingTask.id);
         
-      if (!error) fetchTasks();
+      if (!error) {
+        fetchTasks();
+      } else {
+        console.error('Erro ao atualizar:', error);
+        alert('Erro ao salvar tarefa: ' + error.message);
+      }
     } else {
       const { error } = await supabase
         .from('kanban_tasks')
-        .insert([{ ...taskData, position: tasks.length }]); 
+        .insert([cleanData]); 
         
-      if (!error) fetchTasks();
+      if (!error) {
+        fetchTasks();
+      } else {
+        console.error('Erro ao criar:', error);
+        alert('Erro ao criar tarefa: ' + error.message);
+      }
     }
     setIsModalOpen(false);
   };
