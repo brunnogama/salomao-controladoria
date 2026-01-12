@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -134,6 +134,9 @@ export function ContractFormModal(props: Props) {
   
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
+  
+  // Estado para modal de visualização do processo
+  const [viewProcess, setViewProcess] = useState<ContractProcess | null>(null);
 
   const isLoading = parentLoading || localLoading;
 
@@ -153,13 +156,7 @@ export function ContractFormModal(props: Props) {
   // Atualizar o processo atual quando o tipo de processo "Outro" muda
   useEffect(() => {
     if (!isStandardCNJ) {
-        // Concatenamos o tipo ao número ou salvamos em um campo separado se a API suportar
-        // Por enquanto, salvamos no próprio process_number como prefixo se desejado, 
-        // ou mantemos o process_number limpo e salvamos o tipo em action_type se for o caso.
-        // A pedido, vamos criar um campo visual, mas na estrutura atual o "action_type" já existe
-        // e pode ser usado para isso, ou podemos concatenar no salvamento.
-        // Vou assumir que 'action_type' do ContractProcess serve para isso ou criamos um campo virtual.
-        // Como o pedido é "crie um campo de Tipo", vamos usar o estado local para UI e salvar no action_type se estiver vazio.
+       // Logica para tipo outro
     }
   }, [otherProcessType]);
 
@@ -786,7 +783,15 @@ export function ContractFormModal(props: Props) {
                     {processes.map((p, idx) => (
                       <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
                         <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
-                          <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
+                          {/* AQUI É ONDE OCORRE A MUDANÇA PRINCIPAL: NÚMERO CLICÁVEL */}
+                          <span 
+                            onClick={() => setViewProcess(p)} 
+                            className="font-mono font-medium text-salomao-blue hover:underline cursor-pointer flex items-center"
+                            title="Clique para ver detalhes do processo"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            {p.process_number}
+                          </span>
                           <span className="text-gray-600">{p.court} ({p.uf})</span>
                           <span className="text-gray-500 truncate">{p.opponent}</span>
                         </div>
@@ -1023,6 +1028,101 @@ export function ContractFormModal(props: Props) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* Modal de Visualização Detalhada do Processo */}
+      {viewProcess && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+                <div className="bg-salomao-blue text-white p-6 flex justify-between items-center">
+                    <div>
+                        <h3 className="text-lg font-bold">Detalhes do Processo</h3>
+                        <p className="text-xs text-blue-200 mt-1 font-mono">{viewProcess.process_number}</p>
+                    </div>
+                    <button onClick={() => setViewProcess(null)} className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tribunal</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.court || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Estado (UF)</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.uf || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Vara</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.vara || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Comarca</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.comarca || '-'}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Magistrados</span>
+                        {viewProcess.magistrates && viewProcess.magistrates.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {viewProcess.magistrates.map((m, idx) => (
+                                    <span key={idx} className="inline-flex items-center px-2 py-1 rounded bg-white border border-gray-200 text-xs text-gray-700">
+                                        <Gavel size={10} className="mr-1 text-gray-400" />
+                                        <span className="font-semibold mr-1">{m.title}:</span> {m.name}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <span className="text-sm text-gray-500 italic">Nenhum magistrado cadastrado.</span>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Parte Oposta</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.opponent || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Posição</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.position || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tipo de Ação</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.action_type || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Data Distribuição</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.distribution_date ? new Date(viewProcess.distribution_date).toLocaleDateString('pt-BR') : '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Justiça</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.justice_type || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Instância</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.instance || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Classe</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.process_class || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Assunto</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.subject || '-'}</span>
+                        </div>
+                    </div>
+                     <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
+                        <span className="text-xs uppercase font-bold text-blue-600">Valor da Causa</span>
+                        <span className="text-lg font-bold text-blue-900">{viewProcess.cause_value || 'R$ 0,00'}</span>
+                    </div>
+                </div>
+                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                    <button onClick={() => setViewProcess(null)} className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Fechar</button>
+                </div>
+            </div>
         </div>
       )}
     </div>
