@@ -135,7 +135,7 @@ export function ContractFormModal(props: Props) {
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
   
-  // Novo estado para o novo assunto
+  // Novo estado para o novo assunto (ADICIONADO AQUI)
   const [newSubject, setNewSubject] = useState('');
   
   // Estado para modal de visualização do processo
@@ -281,7 +281,7 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  // Funções para Assuntos
+  // Funções para Assuntos (ADICIONADAS AQUI)
   const addSubject = () => {
     if (!newSubject.trim()) return;
     
