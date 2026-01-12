@@ -13,6 +13,7 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
+// ... (getStatusColor, getStatusLabel, formatMoney MANTIDOS)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -41,6 +42,7 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
     let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -161,28 +163,6 @@ export function Contracts() {
   const handleSave = () => {
     fetchData(); 
     fetchNotifications(); 
-  };
-
-  // Nova função para buscar CNPJ (conforme implementado anteriormente)
-  const handleCNPJSearch = async (cnpj: string) => {
-    const cleanCNPJ = cnpj.replace(/\D/g, '');
-    if (cleanCNPJ.length !== 14) {
-      alert('CNPJ deve ter 14 dígitos.');
-      return;
-    }
-    try {
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
-      if (!response.ok) throw new Error('Erro ao buscar CNPJ');
-      const data = await response.json();
-      setFormData(prev => ({
-        ...prev,
-        client_name: data.razao_social || data.nome_fantasia || '',
-        uf: data.uf || prev.uf,
-      }));
-    } catch (error) {
-      console.error(error);
-      alert('CNPJ não encontrado ou erro na API.');
-    }
   };
 
   const handleProcessAction = () => {
@@ -353,7 +333,6 @@ export function Contracts() {
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 items-center">
-          
           {/* Filtro de Status */}
           <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[150px]">
             <Filter className="w-4 h-4 text-gray-500 mr-2" />
@@ -386,7 +365,7 @@ export function Contracts() {
             </select>
           </div>
 
-          {/* Controles de Ordenação (Nome / Data) */}
+          {/* Ordenação por Nome/Data */}
           <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button 
                 onClick={() => { if(sortBy !== 'name') { setSortBy('name'); setSortOrder('asc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
@@ -406,7 +385,6 @@ export function Contracts() {
             </button>
           </div>
 
-          {/* Alternar Visualização */}
           <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
             <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
@@ -495,7 +473,7 @@ export function Contracts() {
                             <th className="p-3">Área</th>
                             <th className="p-3">Sócio</th>
                             <th className="p-3">HON</th>
-                            <th className="p-3 text-right">Data</th>
+                            <th className="p-3 text-right">Data Relevante</th>
                             <th className="p-3 text-right">Ações</th>
                         </tr>
                     </thead>
@@ -535,7 +513,7 @@ export function Contracts() {
         onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
         analysts={analysts}
         onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
-        onCNPJSearch={handleCNPJSearch}
+        onCNPJSearch={() => {}}
         processes={processes}
         currentProcess={currentProcess}
         setCurrentProcess={setCurrentProcess}
