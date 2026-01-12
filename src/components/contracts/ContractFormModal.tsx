@@ -349,6 +349,13 @@ export function ContractFormModal(props: Props) {
             await forceUpdateFinancials(savedId);
             await generateFinancialInstallments(savedId);
             
+            // Salvar processos
+            if (processes.length > 0) {
+                await supabase.from('contract_processes').delete().eq('contract_id', savedId);
+                const processesToInsert = processes.map(p => ({ ...p, contract_id: savedId }));
+                await supabase.from('contract_processes').insert(processesToInsert);
+            }
+            
             if (formData.status === 'active' && formData.physical_signature === false) {
                 const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').single();
                 if (!data) {
