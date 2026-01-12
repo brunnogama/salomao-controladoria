@@ -41,7 +41,6 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
     let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -93,11 +92,10 @@ export function Contracts() {
 
   const fetchData = async () => {
     setLoading(true);
-    // Ordenação adicionada aqui para partners e analysts
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
       supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
-      supabase.from('partners').select('*').eq('active', true).order('name', { ascending: true }),
-      supabase.from('analysts').select('*').eq('active', true).order('name', { ascending: true })
+      supabase.from('partners').select('*').eq('active', true),
+      supabase.from('analysts').select('*').eq('active', true)
     ]);
 
     if (contractsRes.data) {
@@ -106,7 +104,7 @@ export function Contracts() {
             partner_name: c.partner?.name,
             analyzed_by_name: c.analyst?.name,
             process_count: c.processes?.length || 0,
-            processes: c.processes || [] // Garante que processes existe
+            processes: c.processes || [] // Garantir que processes existe
         }));
         setContracts(formatted);
     }
