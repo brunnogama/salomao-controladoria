@@ -135,7 +135,7 @@ export function ContractFormModal(props: Props) {
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
   
-  // Novo estado para o novo assunto (ADICIONADO AQUI)
+  // Novo estado para adicionar assuntos
   const [newSubject, setNewSubject] = useState('');
   
   // Estado para modal de visualização do processo
@@ -154,7 +154,7 @@ export function ContractFormModal(props: Props) {
       setInterimInstallments('1x');
       setIsStandardCNJ(true);
       setOtherProcessType('');
-      // Limpar UF do processo ao abrir novo modal
+      // Limpar UF do processo ao abrir novo modal e assunto
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
       setNewSubject('');
     }
@@ -281,32 +281,24 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  // Funções para Assuntos (ADICIONADAS AQUI)
+  // Funções para Assuntos (NOVA IMPLEMENTAÇÃO)
   const addSubject = () => {
     if (!newSubject.trim()) return;
+    const cleanSubject = toTitleCase(newSubject.trim());
+    const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
     
-    // Tratamos o subject atual como uma string que pode conter múltiplos valores separados por ponto e vírgula
-    const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s) : [];
-    
-    // Evitar duplicados
-    if (!currentSubjects.includes(toTitleCase(newSubject.trim()))) {
-        const updatedSubjects = [...currentSubjects, toTitleCase(newSubject.trim())];
-        setCurrentProcess(prev => ({
-            ...prev,
-            subject: updatedSubjects.join('; ')
-        }));
+    if (!currentSubjects.includes(cleanSubject)) {
+        const updatedSubjects = [...currentSubjects, cleanSubject];
+        setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
     }
     setNewSubject('');
   };
 
   const removeSubject = (subjectToRemove: string) => {
     if (!currentProcess.subject) return;
-    const currentSubjects = currentProcess.subject.split(';').map(s => s.trim());
+    const currentSubjects = currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '');
     const updatedSubjects = currentSubjects.filter(s => s !== subjectToRemove);
-    setCurrentProcess(prev => ({
-        ...prev,
-        subject: updatedSubjects.join('; ')
-    }));
+    setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
   };
 
   const generateFinancialInstallments = async (contractId: string) => {
