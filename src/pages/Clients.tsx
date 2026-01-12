@@ -25,7 +25,6 @@ export function Clients() {
   }, []);
 
   const fetchPartners = async () => {
-    // Ordenação adicionada aqui
     const { data } = await supabase.from('partners').select('*').eq('active', true).order('name', { ascending: true });
     if (data) setPartners(data);
   };
@@ -105,11 +104,13 @@ export function Clients() {
     <div className="p-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-salomao-blue">Clientes</h1>
+          <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
+            <Users className="w-8 h-8" /> Clientes
+          </h1>
           <div className="flex items-center mt-1">
             <p className="text-gray-500 mr-3">Gerencie sua base de clientes.</p>
             <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center">
-              <Users className="w-3 h-3 mr-1" /> Total: {clients.length}
+              Total: {clients.length}
             </span>
           </div>
         </div>
@@ -162,11 +163,9 @@ export function Clients() {
               {filteredClients.map((client) => (
                 <div 
                   key={client.id} 
-                  onClick={() => handleEdit(client)} // ADICIONADO: Clique no card
-                  className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative cursor-pointer" // ADICIONADO: cursor-pointer
+                  onClick={() => handleEdit(client)}
+                  className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all group relative cursor-pointer"
                 >
-                  
-                  {/* Header */}
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1 min-w-0 pr-8">
                       <h3 className="font-bold text-gray-800 truncate" title={client.name}>{client.name}</h3>
@@ -181,7 +180,6 @@ export function Clients() {
                     </div>
                   </div>
 
-                  {/* Info */}
                   <div className="space-y-1.5 text-xs border-t border-gray-50 pt-2 mb-3">
                     {client.partner_name && (
                       <div className="flex items-center text-gray-600" title="Sócio Responsável">
@@ -203,7 +201,6 @@ export function Clients() {
                     )}
                   </div>
 
-                  {/* Footer */}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
                     <span className={`px-2 py-0.5 rounded-full font-medium ${client.active_contracts_count ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
                       {client.active_contracts_count} Contratos Ativos

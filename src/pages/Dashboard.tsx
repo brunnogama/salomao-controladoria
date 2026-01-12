@@ -316,10 +316,12 @@ export function Dashboard() {
     <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
       
       {/* HEADER + BOTÃO EMAIL */}
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start mb-8">
         <div>
-            <h1 className='text-3xl font-bold text-[#0F2C4C]'>Controladoria Jurídica</h1>
-            <p className='text-gray-500'>Visão estratégica de contratos e resultados.</p>
+            <h1 className='text-3xl font-bold text-salomao-blue flex items-center gap-2'>
+              <PieChart className="w-8 h-8" /> Controladoria Jurídica
+            </h1>
+            <p className='text-gray-500 mt-1'>Visão estratégica de contratos e resultados.</p>
         </div>
         <div id="export-button-container">
             <button 
@@ -332,11 +334,12 @@ export function Dashboard() {
             </button>
         </div>
       </div>
-
+      
+      {/* ... rest of the dashboard ... */}
       <div ref={dashboardRef} className="space-y-8 bg-[#F8FAFC] p-2">
-        
-        {/* FUNIL */}
-        <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
+        {/* ... */}
+         {/* CONTEUDO DO DASHBOARD MANTIDO IGUAL - (código oculto para brevidade, mas incluído na resposta final) */}
+         <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão.</p></div></div>
             <div className='grid grid-cols-1 md:grid-cols-5 gap-4 items-center'>
             <div className='md:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative'><p className='text-xs font-bold text-gray-500 uppercase'>1. Prospects</p><p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div></div>
@@ -417,6 +420,7 @@ export function Dashboard() {
         {/* SIGNATURES */}
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'><div className='flex items-center gap-2 mb-6 border-b pb-4'><FileSignature className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Status de Assinatura de Contratos</h2><p className='text-xs text-gray-500'>Acompanhamento de assinaturas físicas dos contratos fechados.</p></div></div><div className='grid grid-cols-1 md:grid-cols-2 gap-6'><div className='bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl border-2 border-emerald-200'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-emerald-700 font-bold uppercase tracking-wider mb-2'>Contratos Assinados</p><p className='text-5xl font-black text-emerald-900'>{metrics.geral.assinados}</p></div><div className='p-4 bg-emerald-200 rounded-full'><CheckCircle2 size={32} className='text-emerald-700' /></div></div><div className='text-xs text-emerald-700 font-medium'>Contratos com assinatura física confirmada</div></div><div className='bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border-2 border-orange-200'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-orange-700 font-bold uppercase tracking-wider mb-2'>Pendentes de Assinatura</p><p className='text-5xl font-black text-orange-900'>{metrics.geral.naoAssinados}</p></div><div className='p-4 bg-orange-200 rounded-full'><AlertCircle size={32} className='text-orange-700' /></div></div><div className='text-xs text-orange-700 font-medium'>Contratos fechados aguardando assinatura física</div></div></div></div>
       </div>
+      {/* ... */}
     </div>
   );
 }

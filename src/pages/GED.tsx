@@ -78,10 +78,12 @@ export function GED() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)]">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">GED - Gestão Eletrônica</h1>
-          <p className="text-gray-500 text-sm">Repositório centralizado de contratos e propostas.</p>
+          <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
+            <HardDrive className="w-8 h-8" /> GED - Gestão Eletrônica
+          </h1>
+          <p className="text-gray-500 mt-1">Repositório centralizado de contratos e propostas.</p>
         </div>
       </div>
 
