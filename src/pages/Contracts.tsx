@@ -205,18 +205,20 @@ export function Contracts() {
 
   const exportToExcel = () => {
     const data = filteredContracts.map(c => ({
-      'Cliente': c.client_name,
-      'CNPJ/CPF': c.cnpj,
       'Status': getStatusLabel(c.status),
+      'Cliente': c.client_name,
+      'CNPJ/CPF': c.cnpj || '-',
+      'Processos': (c as any).processes?.map((p: any) => p.process_number).join(', ') || '-',
       'Sócio': c.partner_name,
       'Área': c.area,
       'UF': c.uf,
       'HON': c.hon_number || '-',
-      'Data Criação': new Date(c.created_at || '').toLocaleDateString(),
+      'Data Status': new Date(getRelevantDate(c) || '').toLocaleDateString(),
       'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
       'Pró-Labore': formatMoney(c.pro_labore),
       'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
-      'Êxito Final': formatMoney(c.final_success_fee)
+      'Êxito Final': formatMoney(c.final_success_fee),
+      'Observações': c.observations || '-'
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
@@ -422,17 +424,19 @@ export function Contracts() {
 
                     <div className="space-y-1.5 text-xs text-gray-600">
                       <div className="flex items-center">
-                        <Briefcase className="w-3.5 h-3.5 mr-2 text-salomao-blue" />
-                        <span className="truncate">{contract.area || 'Área não inf.'}</span>
+                         {/* ALTERADO DE ÁREA PARA PROCESSOS NO MODO GRID */}
+                        <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                        <span className="truncate">
+                          {(contract as any).processes && (contract as any).processes.length > 0 
+                            ? (contract as any).processes.map((p: any) => p.process_number).join(', ') 
+                            : 'Sem processos'}
+                        </span>
                       </div>
                       <div className="flex items-center">
                         <User className="w-3.5 h-3.5 mr-2 text-salomao-gold" />
                         <span className="truncate">{contract.partner_name || 'Sem sócio'}</span>
                       </div>
-                      <div className="flex items-center">
-                        <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
-                        <span>{contract.process_count || 0} Processos</span>
-                      </div>
+                      {/* Removido o item antigo de Scale que mostrava a contagem de processos, já que agora mostramos os números */}
                       {contract.status === 'active' && contract.hon_number && (
                         <div className="flex items-center">
                           <Tag className="w-3.5 h-3.5 mr-2 text-gray-400" />
@@ -470,7 +474,8 @@ export function Contracts() {
                         <tr>
                             <th className="p-3">Status</th>
                             <th className="p-3">Cliente</th>
-                            <th className="p-3">Área</th>
+                            {/* ALTERADO DE ÁREA PARA PROCESSOS NA TABELA */}
+                            <th className="p-3">Processos</th>
                             <th className="p-3">Sócio</th>
                             <th className="p-3">HON</th>
                             <th className="p-3 text-right">Data Relevante</th>
@@ -482,7 +487,12 @@ export function Contracts() {
                             <tr key={contract.id} onClick={() => handleEdit(contract)} className="hover:bg-gray-50 cursor-pointer group">
                                 <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
                                 <td className="p-3 font-medium text-gray-800">{contract.client_name}</td>
-                                <td className="p-3 text-gray-600">{contract.area}</td>
+                                {/* ALTERADO DE ÁREA PARA PROCESSOS NA CÉLULA */}
+                                <td className="p-3 text-gray-600 max-w-[200px] truncate" title={(contract as any).processes?.map((p: any) => p.process_number).join(', ')}>
+                                    {(contract as any).processes && (contract as any).processes.length > 0 
+                                      ? (contract as any).processes.map((p: any) => p.process_number).join(', ') 
+                                      : '-'}
+                                </td>
                                 <td className="p-3 text-gray-600">{contract.partner_name}</td>
                                 <td className="p-3 font-mono text-gray-500">{contract.hon_number || '-'}</td>
                                 <td className="p-3 text-right text-gray-500">{new Date(getRelevantDate(contract) || '').toLocaleDateString()}</td>
