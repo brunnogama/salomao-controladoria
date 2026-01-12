@@ -13,7 +13,6 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
-// ... (getStatusColor, getStatusLabel, formatMoney MANTIDOS)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -42,7 +41,6 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
     let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -160,6 +158,33 @@ export function Contracts() {
     fetchNotifications(); 
   };
 
+  // --- NOVA FUNÇÃO DE BUSCA DE CNPJ ---
+  const handleCNPJSearch = async (cnpj: string) => {
+    const cleanCNPJ = cnpj.replace(/\D/g, '');
+    if (cleanCNPJ.length !== 14) {
+      alert('CNPJ deve ter 14 dígitos.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
+      if (!response.ok) throw new Error('Erro ao buscar CNPJ');
+      
+      const data = await response.json();
+      
+      setFormData(prev => ({
+        ...prev,
+        client_name: data.razao_social || data.nome_fantasia || '',
+        uf: data.uf || prev.uf,
+        // Adicione outros campos se necessário (ex: data.logradouro para endereço)
+      }));
+    } catch (error) {
+      console.error(error);
+      alert('CNPJ não encontrado ou erro na API.');
+    }
+  };
+  // ------------------------------------
+
   const handleProcessAction = () => {
     if (!currentProcess.process_number) return;
     if (editingProcessIndex !== null) {
@@ -221,7 +246,6 @@ export function Contracts() {
   };
 
   const filteredContracts = contracts.filter(c => {
-    // CORREÇÃO AQUI: Adicionado filtro por CNPJ
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.hon_number?.includes(searchTerm) ||
                           c.cnpj?.includes(searchTerm);
@@ -463,7 +487,7 @@ export function Contracts() {
         onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
         analysts={analysts}
         onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
-        onCNPJSearch={() => {}}
+        onCNPJSearch={handleCNPJSearch} // <--- AQUI A MUDANÇA PRINCIPAL
         processes={processes}
         currentProcess={currentProcess}
         setCurrentProcess={setCurrentProcess}
