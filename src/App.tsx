@@ -7,8 +7,9 @@ import { GED } from './pages/GED';
 import { Dashboard } from './pages/Dashboard';
 import { Kanban } from './pages/Kanban';
 import { Clients } from './pages/Clients';
-import { Finance } from './pages/Finance'; // CORRIGIDO: Finance ao invés de Financial
+import { Finance } from './pages/Finance';
 import { Settings } from './pages/Settings';
+import { History } from './pages/History'; // Importação adicionada
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -36,7 +37,10 @@ function App() {
           <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
           <Route path="/volumetria" element={<PagePlaceholder title="Análise de Volumetria" />} />
           <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
-          <Route path="/historico" element={<PagePlaceholder title="Histórico de Atividades" />} />
+          
+          {/* Rota atualizada para o componente History real */}
+          <Route path="/historico" element={<History />} />
+          
           <Route path="/configuracoes" element={<Settings />} />
         </Route>
 
