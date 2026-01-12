@@ -666,10 +666,6 @@ export function ContractFormModal(props: Props) {
                     <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label>
                     <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
                   </div>
-                  <div>
-                    <label className="text-xs font-medium block mb-1 text-gray-600">Data Proposta (Opcional)</label>
-                    <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.proposal_date || ''} onChange={e => setFormData({...formData, proposal_date: e.target.value})} />
-                  </div>
                 </div>
                 <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
               </div>
