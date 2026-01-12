@@ -31,6 +31,7 @@ export interface Analyst {
   role?: string;
 }
 
+// Interface para Magistrados
 export interface Magistrate {
   title: string; // 'Juiz' | 'Desembargador' | 'Ministro'
   name: string;
@@ -42,13 +43,15 @@ export interface ContractProcess {
   process_number: string;
   cause_value?: string;
   
-  // Campos existentes mantidos com asterisco (*) na ordem lógica
-  court?: string; // Tribunal*
-  uf?: string; // Estado (UF)* (Novo aqui, antes usava do contrato)
-  
+  // Campos existentes mantidos
+  court?: string; // Tribunal
+  link?: string; // Link externo
+  judge?: string; // Mantido para compatibilidade, mas o novo sistema usará 'magistrates'
+
   // Novos campos na ordem solicitada
+  uf?: string; // Estado (UF)
   position?: string; // Posição no Processo (Autor, Réu, etc)
-  opponent?: string; // Contrário (Parte Oposta)*
+  opponent?: string; // Contrário (Parte Oposta)
   
   magistrates?: Magistrate[]; // Lista de Magistrados
   
@@ -64,9 +67,6 @@ export interface ContractProcess {
   
   process_class?: string; // Classe
   subject?: string; // Assunto
-  
-  link?: string; // Link para acesso externo
-  judge?: string; // Mantido para compatibilidade com dados antigos
 }
 
 export interface ContractDocument {
@@ -111,10 +111,11 @@ export interface Contract {
   cnpj: string;
   has_no_cnpj: boolean;
   client_name: string;
-  client_position: string;
+  // client_position movido para ContractProcess, mantido aqui apenas se necessário para compatibilidade legada
+  client_position?: string; 
   area: string;
   uf: string;
-  company_name?: string;
+  company_name?: string; // Pode ser depreciado em favor de opponent no processo
   
   // Internal
   partner_id: string;

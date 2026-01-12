@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag } from 'lucide-react';
-import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst } from '../../types';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel } from 'lucide-react';
+import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
@@ -124,6 +124,10 @@ export function ContractFormModal(props: Props) {
   const [interimInstallments, setInterimInstallments] = useState('1x');
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
+  
+  // Estado local para adicionar magistrados
+  const [newMagistrateTitle, setNewMagistrateTitle] = useState('Juiz');
+  const [newMagistrateName, setNewMagistrateName] = useState('');
 
   const isLoading = parentLoading || localLoading;
 
@@ -233,11 +237,22 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  const updateExtra = (field: string, index: number, value: string) => {
-    setFormData((prev: any) => {
-      const newList = [...(prev[field] || [])];
-      newList[index] = value;
-      return { ...prev, [field]: newList };
+  // Funções para Magistrados
+  const addMagistrate = () => {
+    if (!newMagistrateName.trim()) return;
+    const newMagistrate: Magistrate = { title: newMagistrateTitle, name: newMagistrateName };
+    setCurrentProcess(prev => ({
+      ...prev,
+      magistrates: [...(prev.magistrates || []), newMagistrate]
+    }));
+    setNewMagistrateName('');
+  };
+
+  const removeMagistrate = (index: number) => {
+    setCurrentProcess(prev => {
+      const newList = [...(prev.magistrates || [])];
+      newList.splice(index, 1);
+      return { ...prev, magistrates: newList };
     });
   };
 
@@ -457,8 +472,7 @@ export function ContractFormModal(props: Props) {
       
       const uf = decoded.tribunal === 'STF' ? 'DF' : decoded.uf;
       
-      setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal }));
-      setFormData(prev => ({ ...prev, uf: uf }));
+      setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal, uf: uf })); // Atualiza UF do processo também
     } catch (error: any) {
       alert(`❌ Erro ao decodificar CNJ: ${error.message}`);
     } finally {
@@ -581,6 +595,7 @@ export function ContractFormModal(props: Props) {
   const rejectionByOptions = [{ label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
   const rejectionReasonOptions = [{ label: 'Cliente declinou', value: 'Cliente declinou' }, { label: 'Cliente não retornou', value: 'Cliente não retornou' }, { label: 'Caso ruim', value: 'Caso ruim' }, { label: 'Conflito de interesses', value: 'Conflito de interesses' }];
   const areaOptions = legalAreas.map(a => ({ label: a, value: a }));
+  const magistrateTypes = [{ label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }];
 
   if (!isOpen) return null;
 
@@ -609,8 +624,7 @@ export function ContractFormModal(props: Props) {
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
-              <div className="md:col-span-6"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
-              <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={formData.client_position} onChange={(val: string) => setFormData({...formData, client_position: val})} options={positionOptions} /></div>
+              <div className="md:col-span-9"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
@@ -623,26 +637,83 @@ export function ContractFormModal(props: Props) {
             {formData.has_legal_process && (
               <div className="space-y-4">
                 <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                  {/* Linha 1: CNJ, Tribunal, UF, Posição */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
-                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal / Turma</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
-                    <div className="md:col-span-2"><CustomSelect label="Estado (UF)" value={formData.uf} onChange={(val: string) => setFormData({...formData, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
+                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ *{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
+                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court || ''} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
+                    <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || formData.uf} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
+                    <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
                   </div>
+
+                  {/* Linha 2: Parte Oposta, Magistrado */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta) *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome da parte..." value={currentProcess.opponent || formData.company_name || ''} onChange={(e) => setCurrentProcess({...currentProcess, opponent: e.target.value})} /></div>
+                    <div className="md:col-span-7">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
+                        <div className="flex gap-2">
+                            <select className="w-32 border-b border-gray-300 text-sm outline-none bg-transparent" value={newMagistrateTitle} onChange={(e) => setNewMagistrateTitle(e.target.value)}>
+                                {magistrateTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                            </select>
+                            <input type="text" className="flex-1 border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome do Magistrado" value={newMagistrateName} onChange={(e) => setNewMagistrateName(toTitleCase(e.target.value))} />
+                            <button onClick={addMagistrate} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {currentProcess.magistrates?.map((m, idx) => (
+                                <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">
+                                    <Gavel size={10} className="text-gray-400" />
+                                    <b>{m.title}:</b> {m.name}
+                                    <button onClick={() => removeMagistrate(idx)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                  </div>
+
+                  {/* Linha 3: Vara, Comarca */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.vara || ''} onChange={(e) => setCurrentProcess({...currentProcess, vara: e.target.value})} /></div>
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
+                  </div>
+
+                  {/* Linha 4: Tipo de Ação, Data Distribuição */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Tipo de Ação</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.action_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, action_type: e.target.value})} /></div>
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
+                  </div>
+
+                  {/* Linha 5: Justiça, Natureza, Instância */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Justiça</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.justice_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, justice_type: e.target.value})} /></div>
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Natureza</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.nature || ''} onChange={(e) => setCurrentProcess({...currentProcess, nature: e.target.value})} /></div>
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Instância</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.instance || ''} onChange={(e) => setCurrentProcess({...currentProcess, instance: e.target.value})} /></div>
+                  </div>
+
+                  {/* Linha 6: Classe, Assunto */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Classe</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.process_class || ''} onChange={(e) => setCurrentProcess({...currentProcess, process_class: e.target.value})} /></div>
+                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.subject || ''} onChange={(e) => setCurrentProcess({...currentProcess, subject: e.target.value})} /></div>
+                  </div>
+
+                  {/* Linha 7: Valor da Causa e Botão */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome da parte..." value={formData.company_name} onChange={(e) => setFormData({...formData, company_name: e.target.value})} /></div>
-                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Juiz</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.judge} onChange={(e) => setCurrentProcess({...currentProcess, judge: e.target.value})} /></div>
-                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor Causa</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
-                    <div className="md:col-span-1"><button onClick={handleProcessAction} className="w-full bg-salomao-blue text-white rounded p-1.5 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md">{editingProcessIndex !== null ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}</button></div>
+                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
+                    <div className="md:col-span-8 flex justify-end">
+                        <button onClick={handleProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md text-sm font-bold">
+                            {editingProcessIndex !== null ? <><Check className="w-4 h-4 mr-2" /> Atualizar Processo</> : <><Plus className="w-4 h-4 mr-2" /> Adicionar Processo</>}
+                        </button>
+                    </div>
                   </div>
                 </div>
+
+                {/* Lista de Processos */}
                 {processes.length > 0 && (
                   <div className="space-y-2 mt-4">
                     {processes.map((p, idx) => (
                       <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
                         <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
                           <span className="font-mono font-medium text-gray-800">{p.process_number}</span>
-                          <span className="text-gray-600">{p.court} ({formData.uf})</span>
-                          <span className="text-gray-500 truncate">{p.judge}</span>
+                          <span className="text-gray-600">{p.court} ({p.uf})</span>
+                          <span className="text-gray-500 truncate">{p.opponent || p.company_name}</span>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
