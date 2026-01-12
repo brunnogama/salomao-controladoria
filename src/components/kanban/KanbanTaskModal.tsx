@@ -17,7 +17,6 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
     description: '',
     status: 'todo',
     priority: 'Média',
-    assignee: '',
     due_date: '',
     contract_id: '',
     observation: ''
@@ -30,7 +29,6 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
         description: task.description || '',
         status: task.status,
         priority: task.priority,
-        assignee: task.assignee || '',
         due_date: task.due_date ? task.due_date.split('T')[0] : '',
         contract_id: task.contract_id || '',
         observation: task.observation || ''
@@ -41,7 +39,6 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
         description: '',
         status: 'todo',
         priority: 'Média',
-        assignee: '',
         due_date: '',
         contract_id: '',
         observation: ''
@@ -138,7 +135,7 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
               </div>
             </div>
 
-            {/* PRAZO E RESPONSÁVEL */}
+            {/* PRAZO */}
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center">
@@ -149,19 +146,6 @@ export function KanbanTaskModal({ isOpen, onClose, task, onSave, onDelete, contr
                   className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
                   value={formData.due_date || ''}
                   onChange={e => setFormData({...formData, due_date: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center">
-                  <User className="w-4 h-4 mr-1" /> Responsável
-                </label>
-                <input 
-                  type="text" 
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
-                  placeholder="Nome do responsável"
-                  value={formData.assignee || ''}
-                  onChange={e => setFormData({...formData, assignee: e.target.value})}
                 />
               </div>
             </div>

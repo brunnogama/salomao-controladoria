@@ -250,13 +250,6 @@ export function Kanban() {
                                       <Calendar className="w-3 h-3 mr-1" />
                                       {task.due_date ? new Date(task.due_date).toLocaleDateString('pt-BR') : '-'}
                                     </div>
-                                    {task.assignee && (
-                                      <div className="flex items-center" title={task.assignee}>
-                                        <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600">
-                                          {task.assignee.substring(0, 2).toUpperCase()}
-                                        </div>
-                                      </div>
-                                    )}
                                   </div>
                                 </div>
                               )}
