@@ -640,7 +640,7 @@ export function ContractFormModal(props: Props) {
                   {/* Linha 1: CNJ, Tribunal, UF, Posição */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between">Número CNJ *{currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label><div className="flex relative items-center"><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm font-mono pr-8" placeholder="0000000-00..." value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: maskCNJ(e.target.value)})} /><button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="absolute right-0 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar Tribunal e UF">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button></div></div>
-                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court || ''} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
+                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.court} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || formData.uf} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
                     <div className="md:col-span-3"><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
                   </div>
@@ -675,26 +675,20 @@ export function ContractFormModal(props: Props) {
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
                   </div>
 
-                  {/* Linha 4: Tipo de Ação, Data Distribuição */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {/* Linha 4: Tipo de Ação, Data Distribuição, Justiça (Movido para cá) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Tipo de Ação</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.action_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, action_type: e.target.value})} /></div>
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
-                  </div>
-
-                  {/* Linha 5: Justiça, Natureza, Instância */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Justiça</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.justice_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, justice_type: e.target.value})} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Natureza</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.nature || ''} onChange={(e) => setCurrentProcess({...currentProcess, nature: e.target.value})} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Instância</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.instance || ''} onChange={(e) => setCurrentProcess({...currentProcess, instance: e.target.value})} /></div>
                   </div>
 
-                  {/* Linha 6: Classe, Assunto */}
+                  {/* Linha 5: Classe, Assunto */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Classe</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.process_class || ''} onChange={(e) => setCurrentProcess({...currentProcess, process_class: e.target.value})} /></div>
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.subject || ''} onChange={(e) => setCurrentProcess({...currentProcess, subject: e.target.value})} /></div>
                   </div>
 
-                  {/* Linha 7: Valor da Causa e Botão */}
+                  {/* Linha 6: Valor da Causa e Botão */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                     <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                     <div className="md:col-span-8 flex justify-end">
