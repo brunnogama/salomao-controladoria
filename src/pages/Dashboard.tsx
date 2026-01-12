@@ -91,45 +91,30 @@ export function Dashboard() {
     setExporting(true);
 
     try {
-        const element = dashboardRef.current;
-        
-        // 1. Captura a tela COMPLETA
-        const canvas = await html2canvas(element, {
-            scale: 2, // Melhor qualidade
+        const canvas = await html2canvas(dashboardRef.current, {
+            scale: 2,
             useCORS: true,
             backgroundColor: '#F8FAFC',
-            // Estas propriedades garantem a captura completa mesmo com scroll
-            height: element.scrollHeight,
-            windowHeight: element.scrollHeight,
-            scrollY: -window.scrollY, 
-            ignoreElements: (el) => el.id === 'export-button-container'
+            ignoreElements: (element) => element.id === 'export-button-container'
         });
 
         const imgData = canvas.toDataURL('image/png');
         const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
 
-        // 2. Baixar PNG
         const linkPng = document.createElement('a');
         linkPng.href = imgData;
         linkPng.download = `Relatorio_Dashboard_${dateStr}.png`;
         linkPng.click();
 
-        // 3. Gerar e Baixar PDF (Página longa para caber tudo sem cortes)
-        // Calcula a altura proporcional para caber todo o canvas em um PDF de largura A4
-        const imgWidth = 210; // Largura A4 em mm
-        const pageHeight = 295; // Altura A4 em mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         
-        // Se a imagem for maior que uma página, cria um PDF com altura personalizada (estilo "fita")
-        // ou usa A4 se couber. Aqui optamos por altura personalizada para não quebrar gráficos no meio.
-        const pdf = new jsPDF('p', 'mm', [imgWidth, imgHeight > pageHeight ? imgHeight : pageHeight]);
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         pdf.save(`Relatorio_Dashboard_${dateStr}.pdf`);
 
-        // 4. Abrir Cliente de E-mail
-        const subject = encodeURIComponent(`Relatório de Controladoria - ${dateStr}`);
-        const body = encodeURIComponent(`Caros,\n\nSegue em anexo o panorama atualizado dos contratos (PDF e Imagem).\n\nAtenciosamente,\nSalomão Controladoria.`);
+        const subject = encodeURIComponent(`Panorama dos Contratos atualizado - ${dateStr}`);
+        const body = encodeURIComponent(`Caros,\n\nSegue em anexo o panorama atualizado dos contratos.\n\nAtenciosamente,\nMarcio Gama - Controladoria.`);
         
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
 
@@ -422,7 +407,8 @@ export function Dashboard() {
         {/* DISTRIBUTION & ENTRY */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
             <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
-            <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><PieChart className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Distribuição da Carteira</h2><p className='text-xs text-gray-500'>Visão consolidada por status.</p></div></div><div className='bg-[#0F2C4C] text-white px-6 py-3 rounded-lg text-center'><span className='text-3xl font-bold block'>{metrics.geral.totalCasos}</span><span className='text-xs opacity-80 uppercase tracking-wider mt-1 block'>Total Analisado</span></div></div>
+            <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><PieChart className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Distribuição da Carteira</h2><p className='text-xs text-gray-500'>Visão consolidada por status.</p></div></div>
+            <div className='bg-gray-50 px-6 py-3 rounded-xl border border-gray-100 text-center min-w-[120px]'><span className='text-3xl font-bold text-gray-800 block'>{metrics.geral.totalCasos}</span><span className='text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1 block'>Total Analisado</span></div></div>
             <div className='grid grid-cols-2 gap-4'><div className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div><div className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div><div className='bg-green-50 p-4 rounded-lg border border-green-100 text-center'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div><div className='bg-red-50 p-4 rounded-lg border border-red-100 text-center'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div></div>
             </div>
             <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100'><h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3><div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>{evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}</div></div>
