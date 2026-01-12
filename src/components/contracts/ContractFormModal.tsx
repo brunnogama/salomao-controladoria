@@ -19,6 +19,25 @@ const formatForInput = (val: string | number | undefined) => {
   return val;
 };
 
+// Componente visualmente idêntico ao CustomSelect para uso em espaços restritos (como input groups)
+// Mantém a funcionalidade nativa do select para melhor acessibilidade/ux em mobile, mas com estilo customizado
+const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => {
+    return (
+        <div className="relative h-full w-full">
+            <select
+                className="w-full h-full appearance-none bg-transparent pl-3 pr-8 text-xs font-medium text-gray-700 outline-none cursor-pointer focus:bg-gray-50 transition-colors"
+                value={value || '1x'}
+                onChange={(e) => onChange(e.target.value)}
+            >
+                {options.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
+        </div>
+    );
+};
+
 const FinancialInputWithInstallments = ({ 
   label, value, onChangeValue, installments, onChangeInstallments, onAdd 
 }: { 
@@ -36,17 +55,8 @@ const FinancialInputWithInstallments = ({
           onChange={(e) => onChangeValue(maskMoney(e.target.value))}
           placeholder="R$ 0,00"
         />
-        <div className={`relative w-20 border-y border-gray-300 bg-gray-50 ${!onAdd ? 'border-r rounded-r-lg' : 'border-r'}`}>
-          <select 
-            className="w-full h-full bg-transparent text-xs font-medium text-gray-700 px-2 outline-none appearance-none hover:bg-gray-100 cursor-pointer text-center z-10 relative"
-            value={installments || '1x'}
-            onChange={(e) => onChangeInstallments(e.target.value)}
-          >
-            {installmentOptions.map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
+        <div className={`w-20 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}>
+           <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
         </div>
         {onAdd && (
           <button 
@@ -135,7 +145,7 @@ export function ContractFormModal(props: Props) {
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
   
-  // Novo estado para adicionar assuntos (ADICIONADO)
+  // Novo estado para adicionar assuntos
   const [newSubject, setNewSubject] = useState('');
   
   // Estado para modal de visualização do processo
@@ -163,7 +173,7 @@ export function ContractFormModal(props: Props) {
   // Atualizar o processo atual quando o tipo de processo "Outro" muda
   useEffect(() => {
     if (!isStandardCNJ) {
-       // Se mudar para "Outro", podemos opcionalmente limpar a máscara ou manter o valor atual
+       // Logica para tipo outro
     }
   }, [otherProcessType]);
 
@@ -692,20 +702,21 @@ export function ContractFormModal(props: Props) {
                             {currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
                         </label>
                         <div className="flex items-center">
-                            <select 
-                                className="text-[10px] border-b border-gray-300 py-2 bg-transparent outline-none mr-2 w-20 text-gray-600 font-medium"
+                            <CustomSelect 
                                 value={isStandardCNJ ? 'cnj' : 'other'}
-                                onChange={(e) => {
-                                    setIsStandardCNJ(e.target.value === 'cnj');
-                                    if (e.target.value === 'cnj') {
+                                onChange={(val: string) => {
+                                    setIsStandardCNJ(val === 'cnj');
+                                    if (val === 'cnj') {
                                         setCurrentProcess({...currentProcess, process_number: maskCNJ(currentProcess.process_number || '')});
                                         setOtherProcessType('');
                                     }
                                 }}
-                            >
-                                <option value="cnj">CNJ</option>
-                                <option value="other">Outro</option>
-                            </select>
+                                options={[
+                                    { label: 'CNJ', value: 'cnj' },
+                                    { label: 'Outro', value: 'other' }
+                                ]}
+                                className="mr-2 w-24"
+                            />
                             
                             <div className="flex-1 relative">
                                 <input 
@@ -758,9 +769,13 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
                         <div className="flex gap-2">
-                            <select className="w-32 border-b border-gray-300 text-sm outline-none bg-transparent" value={newMagistrateTitle} onChange={(e) => setNewMagistrateTitle(e.target.value)}>
-                                {magistrateTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                            </select>
+                            <div className="w-40">
+                                <CustomSelect 
+                                    value={newMagistrateTitle} 
+                                    onChange={(val: string) => setNewMagistrateTitle(val)} 
+                                    options={magistrateTypes} 
+                                />
+                            </div>
                             <input type="text" className="flex-1 border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome do Magistrado" value={newMagistrateName} onChange={(e) => setNewMagistrateName(toTitleCase(e.target.value))} />
                             <button onClick={addMagistrate} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
                         </div>
@@ -792,7 +807,32 @@ export function ContractFormModal(props: Props) {
                   {/* Linha 5: Classe, Assunto */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Classe</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.process_class || ''} onChange={(e) => setCurrentProcess({...currentProcess, process_class: e.target.value})} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.subject || ''} onChange={(e) => setCurrentProcess({...currentProcess, subject: e.target.value})} /></div>
+                    
+                    {/* ASSUNTO COM BOTÃO DE ADICIONAR */}
+                    <div>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
+                                placeholder="Digite um assunto e clique em +"
+                                value={newSubject} 
+                                onChange={(e) => setNewSubject(toTitleCase(e.target.value))} 
+                                onKeyPress={(e) => e.key === 'Enter' && addSubject()}
+                            />
+                            <button onClick={addSubject} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
+                        </div>
+                        {/* Lista de assuntos adicionados */}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {currentProcess.subject && currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '').map((subj, idx) => (
+                                <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">
+                                    {subj}
+                                    <button onClick={() => removeSubject(subj)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
                   </div>
 
                   {/* Linha 6: Valor da Causa e Botão */}
