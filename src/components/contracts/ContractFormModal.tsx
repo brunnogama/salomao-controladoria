@@ -656,11 +656,30 @@ export function ContractFormModal(props: Props) {
          if (!response.ok) throw new Error('Falha BrasilAPI');
          data = await response.json();
       } catch (err) {
-         console.warn('BrasilAPI falhou, tentando MinhaReceita...');
-         // Tentativa 2: MinhaReceita (Fallback)
-         const responseBackup = await fetch(`https://minhareceita.org/${cnpjLimpo}`);
+         console.warn('BrasilAPI falhou, tentando ReceitaWS...');
+         // Tentativa 2: ReceitaWS (Fallback mais robusto)
+         const responseBackup = await fetch(`https://www.receitaws.com.br/v1/cnpj/${cnpjLimpo}`);
+         // ReceitaWS retorna 200 mesmo em erro de negócio, então verificamos o status no JSON
+         // Mas se der erro de rede/404 na requisição em si:
          if (!responseBackup.ok) throw new Error('CNPJ não encontrado na Receita Federal');
-         data = await responseBackup.json();
+         
+         const dataBackup = await responseBackup.json();
+         
+         if (dataBackup.status === 'ERROR') {
+             throw new Error(dataBackup.message || 'CNPJ não encontrado');
+         }
+
+         // Adaptador: ReceitaWS -> Formato BrasilAPI (para manter compatibilidade)
+         data = {
+             razao_social: dataBackup.nome, // ReceitaWS usa 'nome'
+             nome_fantasia: dataBackup.fantasia,
+             logradouro: dataBackup.logradouro,
+             numero: dataBackup.numero,
+             complemento: dataBackup.complemento,
+             municipio: dataBackup.municipio,
+             uf: dataBackup.uf,
+             email: dataBackup.email
+         };
       }
       
       setFormData(prev => ({
