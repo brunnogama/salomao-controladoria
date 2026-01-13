@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, Filter, MoreHorizontal, Calendar, DollarSign, User, Briefcase, FileText, 
   CheckCircle2, Clock, XCircle, AlertCircle, Scale, Tag, Loader2, 
-  LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ
+  LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
+  FileSignature // Importado para corresponder à Sidebar
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -263,7 +264,7 @@ export function Contracts() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
-            <Briefcase className="w-8 h-8" /> Contratos
+            <FileSignature className="w-8 h-8" /> Contratos
           </h1>
           <div className="flex items-center mt-1">
             <p className="text-gray-500 mr-3">Gestão completa de casos e propostas.</p>
@@ -325,7 +326,6 @@ export function Contracts() {
       </div>
 
       <div className="flex flex-col xl:flex-row gap-4 mb-6 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-        {/* ... (Resto do componente inalterado) ... */}
         <div className="flex-1 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
           <Search className="w-5 h-5 text-gray-400 mr-2" />
           <input 
