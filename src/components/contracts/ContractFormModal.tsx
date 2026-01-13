@@ -20,7 +20,6 @@ const formatForInput = (val: string | number | undefined) => {
 };
 
 // Componente visualmente idêntico ao CustomSelect para uso em espaços restritos (como input groups)
-// Mantém a funcionalidade nativa do select para melhor acessibilidade/ux em mobile, mas com estilo customizado
 const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => {
     return (
         <div className="relative h-full w-full">
@@ -291,16 +290,14 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  // Funções para Assuntos (ADICIONADAS E CORRIGIDAS)
+  // Funções para Assuntos
   const addSubject = () => {
     if (!newSubject.trim()) return;
     const cleanSubject = toTitleCase(newSubject.trim());
-    // Garante que é um array para facilitar a manipulação na UI
     const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
     
     if (!currentSubjects.includes(cleanSubject)) {
         const updatedSubjects = [...currentSubjects, cleanSubject];
-        // Salva como string separada por ponto e vírgula
         setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
     }
     setNewSubject('');
@@ -797,9 +794,8 @@ export function ContractFormModal(props: Props) {
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
                   </div>
 
-                  {/* Linha 4: Tipo de Ação, Data Distribuição, Justiça */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Tipo de Ação</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.action_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, action_type: e.target.value})} /></div>
+                  {/* Linha 4: Data Distribuição, Justiça (Tipo de Ação removido) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Justiça</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.justice_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, justice_type: e.target.value})} /></div>
                   </div>
@@ -1158,10 +1154,6 @@ export function ContractFormModal(props: Props) {
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                             <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Posição</span>
                             <span className="text-sm font-medium text-gray-800">{viewProcess.position || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tipo de Ação</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.action_type || '-'}</span>
                         </div>
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                             <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Data Distribuição</span>
