@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { FolderOpen, FileText, Download, Search, HardDrive, Clock, FileCheck } from 'lucide-react';
 import { maskHon } from '../utils/masks';
@@ -14,7 +14,7 @@ interface GEDDocument {
     id: string;
     status: string;
   };
-  client_name: string; // Trazido via join manual ou view
+  client_name: string;
 }
 
 export function GED() {
@@ -60,6 +60,7 @@ export function GED() {
   };
 
   const handleDownload = async (path: string) => {
+    // Mantendo 'ged' conforme arquivo original, mas note que Contracts usa 'contract-documents'
     const { data } = await supabase.storage.from('ged').createSignedUrl(path, 60);
     if (data?.signedUrl) {
       window.open(data.signedUrl, '_blank');
@@ -77,11 +78,13 @@ export function GED() {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)]">
+    // Adicionado p-8 e animação para padronizar com as outras telas
+    <div className="p-8 h-full flex flex-col animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
-            <HardDrive className="w-8 h-8" /> GED - Gestão Eletrônica
+            {/* Ícone alterado para FolderOpen para bater com a Sidebar */}
+            <FolderOpen className="w-8 h-8" /> GED - Gestão Eletrônica
           </h1>
           <p className="text-gray-500 mt-1">Repositório centralizado de contratos e propostas.</p>
         </div>
