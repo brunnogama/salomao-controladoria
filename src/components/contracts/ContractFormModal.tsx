@@ -1,5 +1,3 @@
-// Caminho: src/components/modals/ContractFormModal.tsx
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye } from 'lucide-react';
@@ -977,22 +975,20 @@ export function ContractFormModal(props: Props) {
                         </div>
                     )}
                     
-                    {/* TRIBUNAL como CustomSelect com Botão Externo */}
+                    {/* TRIBUNAL ATUALIZADO (Sem botão externo) */}
                     <div className="md:col-span-2 lg:col-span-2">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label>
-                        <div className="flex gap-2 items-center">
-                             <div className="flex-1 min-w-0">
-                                <CustomSelect 
-                                    value={currentProcess.court || ''} 
-                                    onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
-                                    options={courtSelectOptions} 
-                                    placeholder="Selecione"
-                                    className="custom-select-small" 
-                                />
-                             </div>
-                            <button onClick={handleAddCourt} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Tribunal"><Plus className="w-4 h-4" /></button>
-                        </div>
+                        <CustomSelect 
+                            label="Tribunal *"
+                            value={currentProcess.court || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
+                            options={courtSelectOptions} 
+                            onAction={handleAddCourt}
+                            actionLabel="Adicionar Tribunal"
+                            actionIcon={Plus}
+                            placeholder="Selecione"
+                        />
                     </div>
+
                     <div className="md:col-span-2 lg:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
                     <div className={isStandardCNJ ? "md:col-span-3 lg:col-span-3" : "md:col-span-2 lg:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
                   </div>
@@ -1000,18 +996,16 @@ export function ContractFormModal(props: Props) {
                   {/* Linha 2: Parte Oposta, Magistrado */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-12 lg:col-span-5">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta) *</label>
-                        <div className="flex gap-2 items-center">
-                            <div className="flex-1 min-w-0">
-                                <CustomSelect 
-                                    value={currentProcess.opponent || formData.company_name || ''} 
-                                    onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
-                                    options={opponentOptions.map(o => ({ label: o, value: o }))}
-                                    placeholder="Selecione ou adicione"
-                                />
-                            </div>
-                            <button onClick={handleAddOpponent} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Parte Oposta"><Plus className="w-4 h-4" /></button>
-                        </div>
+                        <CustomSelect 
+                            label="Contrário (Parte Oposta) *"
+                            value={currentProcess.opponent || formData.company_name || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
+                            options={opponentOptions.map(o => ({ label: o, value: o }))}
+                            onAction={handleAddOpponent}
+                            actionLabel="Adicionar Parte Oposta"
+                            actionIcon={Plus}
+                            placeholder="Selecione ou adicione"
+                        />
                     </div>
                     <div className="md:col-span-12 lg:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
@@ -1061,36 +1055,34 @@ export function ContractFormModal(props: Props) {
                             placeholder="Nº"
                         />
                     </div>
-                    {/* VARA COMO MENU SUSPENSO */}
+                    
+                    {/* VARA ATUALIZADA (Sem botão externo) */}
                     <div className="md:col-span-5">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Vara</label>
-                        <div className="flex gap-2 items-center">
-                             <div className="flex-1 min-w-0">
-                                <CustomSelect 
-                                    value={currentProcess.vara || ''} 
-                                    onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
-                                    options={varaSelectOptions}
-                                    placeholder="Selecione ou adicione"
-                                />
-                             </div>
-                            <button onClick={handleAddVara} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Vara"><Plus className="w-4 h-4" /></button>
-                        </div>
+                        <CustomSelect 
+                            label="Vara"
+                            value={currentProcess.vara || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
+                            options={varaSelectOptions}
+                            onAction={handleAddVara}
+                            actionLabel="Adicionar Vara"
+                            actionIcon={Plus}
+                            placeholder="Selecione ou adicione"
+                        />
                     </div>
-                    {/* COMARCA COMO MENU SUSPENSO */}
+                    
+                    {/* COMARCA ATUALIZADA (Sem botão externo) */}
                     <div className="md:col-span-4">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label>
-                        <div className="flex gap-2 items-center">
-                             <div className="flex-1 min-w-0">
-                                <CustomSelect 
-                                    value={currentProcess.comarca || ''} 
-                                    onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
-                                    options={comarcaSelectOptions} 
-                                    placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
-                                    disabled={!currentProcess.uf}
-                                />
-                             </div>
-                            <button onClick={handleAddComarca} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Comarca"><Plus className="w-4 h-4" /></button>
-                        </div>
+                        <CustomSelect 
+                            label="Comarca"
+                            value={currentProcess.comarca || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
+                            options={comarcaSelectOptions} 
+                            onAction={handleAddComarca}
+                            actionLabel="Adicionar Comarca"
+                            actionIcon={Plus}
+                            placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
+                            disabled={!currentProcess.uf}
+                        />
                     </div>
                   </div>
 
@@ -1103,23 +1095,21 @@ export function ContractFormModal(props: Props) {
 
                   {/* Linha 5: Classe, Assunto */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {/* CLASSE COMO MENU SUSPENSO */}
+                    {/* CLASSE ATUALIZADA (Sem botão externo) */}
                     <div>
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Classe</label>
-                        <div className="flex gap-2 items-center">
-                             <div className="flex-1 min-w-0">
-                                <CustomSelect 
-                                    value={currentProcess.process_class || ''} 
-                                    onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
-                                    options={classSelectOptions}
-                                    placeholder="Selecione a Classe"
-                                />
-                             </div>
-                            <button onClick={handleAddClass} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Classe"><Plus className="w-4 h-4" /></button>
-                        </div>
+                        <CustomSelect 
+                            label="Classe"
+                            value={currentProcess.process_class || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
+                            options={classSelectOptions}
+                            onAction={handleAddClass}
+                            actionLabel="Adicionar Classe"
+                            actionIcon={Plus}
+                            placeholder="Selecione a Classe"
+                        />
                     </div>
                     
-                    {/* ASSUNTO COM MENU SUSPENSO (ADAPTADO PARA INPUT/SELECT) */}
+                    {/* ASSUNTO - MANTIDO BOTÃO AZUL EXTERNO CONFORME SOLICITADO */}
                     <div>
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
                         <div className="flex gap-2 items-center">
