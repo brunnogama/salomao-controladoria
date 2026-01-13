@@ -649,30 +649,11 @@ export function ContractFormModal(props: Props) {
 
     setLocalLoading(true);
     try {
-      let data;
-      // Tenta BrasilAPI primeiro
-      try {
-          const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-          if (!response.ok) throw new Error('Not found');
-          data = await response.json();
-      } catch (e) {
-          // Se falhar (404), tenta API Pública (Fallback)
-          console.warn("BrasilAPI falhou, tentando fallback...");
-          const responseBackup = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjLimpo}`);
-          if (!responseBackup.ok) throw new Error('CNPJ não encontrado na Receita Federal');
-          const dataWs = await responseBackup.json();
-          
-           data = {
-             razao_social: dataWs.razao_social,
-             nome_fantasia: dataWs.estabelecimento.nome_fantasia,
-             logradouro: dataWs.estabelecimento.logradouro,
-             numero: dataWs.estabelecimento.numero,
-             complemento: dataWs.estabelecimento.complemento,
-             municipio: dataWs.estabelecimento.cidade.nome,
-             uf: dataWs.estabelecimento.estado.sigla,
-             email: dataWs.estabelecimento.email
-           };
-      }
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      
+      if (!response.ok) throw new Error('CNPJ não encontrado na Receita Federal');
+      
+      const data = await response.json();
       
       setFormData(prev => ({
         ...prev,
@@ -999,15 +980,15 @@ export function ContractFormModal(props: Props) {
                     </div>
                     <div className="md:col-span-12 lg:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
-                        <div className="flex gap-2 items-center">
-                            <div className="w-32 sm:w-40 shrink-0">
+                        <div className="flex flex-col sm:flex-row gap-2 items-end">
+                            <div className="w-full sm:w-40">
                                 <CustomSelect 
                                     value={newMagistrateTitle} 
                                     onChange={(val: string) => setNewMagistrateTitle(val)} 
                                     options={magistrateTypes} 
                                 />
                             </div>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 w-full min-w-0">
                                 <CustomSelect 
                                     value={newMagistrateName}
                                     onChange={(val: string) => setNewMagistrateName(val)}
