@@ -9,15 +9,15 @@ import {
   FileText, 
   Trash2, 
   PlusCircle, 
-  Edit3,
-  ArrowRight,
+  Edit3, 
+  ArrowRight, 
   Database
 } from 'lucide-react';
 
 interface LogItem {
   id: string;
   table_name: string;
-  record_id: string; // Adicionado para corrigir o erro de tipo
+  record_id: string;
   action: 'INSERT' | 'UPDATE' | 'DELETE';
   old_data: any;
   new_data: any;
@@ -39,7 +39,6 @@ export function History() {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      // Busca os logs (limite de 100 para performance)
       const { data, error } = await supabase
         .from('audit_logs')
         .select('*')
@@ -120,9 +119,10 @@ export function History() {
   });
 
   return (
-    <div className="p-8 animate-in fade-in duration-500 max-w-6xl mx-auto">
+    // Padronização: p-8 h-full flex flex-col (se necessário ocupar tudo) ou apenas p-8
+    <div className="p-8 animate-in fade-in duration-500 max-w-6xl mx-auto h-full flex flex-col">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-3">
+        <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
           <HistoryIcon className="w-8 h-8" /> Histórico de Atividades
         </h1>
         <p className="text-gray-500 mt-1">Monitoramento completo de alterações no sistema (Audit Log).</p>
@@ -158,7 +158,7 @@ export function History() {
       </div>
 
       {/* Timeline */}
-      <div className="space-y-6">
+      <div className="space-y-6 flex-1 overflow-y-auto">
         {loading ? (
           <div className="text-center py-12 text-gray-400">Carregando histórico...</div>
         ) : filteredLogs.length === 0 ? (
