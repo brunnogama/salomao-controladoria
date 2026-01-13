@@ -566,8 +566,8 @@ export function ContractFormModal(props: Props) {
             process_count: undefined,
             analyst: undefined,
             analysts: undefined, 
-            client: undefined,   
-            partner: undefined,  
+            client: undefined,    
+            partner: undefined,   
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -638,6 +638,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // --- BUSCA CNPJ CORRIGIDA E BLINDADA ---
   const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
@@ -650,19 +651,40 @@ export function ContractFormModal(props: Props) {
     setLocalLoading(true);
     try {
       let data;
-      // Tenta BrasilAPI primeiro
+      
+      // Tentativa 1: BrasilAPI (Rápida, mas base as vezes incompleta para novos)
       try {
-          const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-          if (!response.ok) throw new Error('Not found');
-          data = await response.json();
-      } catch (e) {
-          // Se falhar (404), tenta Minha Receita (Fallback automático para corrigir o erro 404)
-          console.warn("BrasilAPI falhou, tentando fallback...");
-          const responseBackup = await fetch(`https://minha-receita.org/${cnpjLimpo}`);
-          if (!responseBackup.ok) throw new Error('CNPJ não encontrado na Receita Federal');
-          data = await responseBackup.json();
+         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+         if (!response.ok) throw new Error('Not found on BrasilAPI');
+         data = await response.json();
+         
+      } catch (err) {
+         console.warn('BrasilAPI falhou (404 ou erro), tentando Fallback (Publica CNPJ)...');
+         
+         // Tentativa 2: Fallback Robusto (CNPJ.WS - Base mais atualizada e com CORS liberado)
+         // Substitui a api.minha-receita.org que está fora do ar
+         try {
+           const responseBackup = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjLimpo}`);
+           if (!responseBackup.ok) throw new Error('CNPJ não encontrado nas bases públicas.');
+           const dataWs = await responseBackup.json();
+           
+           // Normalizar dados do CNPJ.ws para o formato que a aplicação espera
+           data = {
+             razao_social: dataWs.razao_social,
+             nome_fantasia: dataWs.estabelecimento.nome_fantasia,
+             logradouro: dataWs.estabelecimento.logradouro,
+             numero: dataWs.estabelecimento.numero,
+             complemento: dataWs.estabelecimento.complemento,
+             municipio: dataWs.estabelecimento.cidade.nome,
+             uf: dataWs.estabelecimento.estado.sigla,
+             email: dataWs.estabelecimento.email
+           };
+         } catch (err2: any) {
+           throw new Error(err2.message || 'CNPJ não encontrado.');
+         }
       }
       
+      // Atualiza o formulário com os dados encontrados (seja da BrasilAPI ou do Fallback)
       setFormData(prev => ({
         ...prev,
         client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''),
@@ -690,7 +712,7 @@ export function ContractFormModal(props: Props) {
 
     } catch (error: any) {
       console.error('Erro ao buscar CNPJ:', error);
-      alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente.`);
+      alert(`❌ Não foi possível consultar o CNPJ.\n\n${error.message}\n\n💡 Você pode preencher manualmente.`);
     } finally {
       setLocalLoading(false);
     }
