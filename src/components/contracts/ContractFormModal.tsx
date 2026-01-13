@@ -144,15 +144,17 @@ export function ContractFormModal(props: Props) {
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
   
-  // Novo estado para adicionar assuntos
+  // Novo estado para adicionar assuntos (input auxiliar)
   const [newSubject, setNewSubject] = useState('');
 
-  // Novo estado para opções de Justiça (CustomSelect)
+  // Estados para menus suspensos (Tabelas do Supabase)
   const [justiceOptions, setJusticeOptions] = useState<string[]>(['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar']);
-  
-  // Novo estado para opções de Vara (CustomSelect)
   const [varaOptions, setVaraOptions] = useState<string[]>(['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais']);
-  
+  const [courtOptions, setCourtOptions] = useState<string[]>([]);
+  const [comarcaOptions, setComarcaOptions] = useState<string[]>([]); // Dinâmico com base na UF
+  const [classOptions, setClassOptions] = useState<string[]>([]);
+  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
+
   // Opções de Numerais para o select
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
   
@@ -165,6 +167,7 @@ export function ContractFormModal(props: Props) {
   useEffect(() => {
     if (isOpen) {
       fetchStatuses();
+      fetchAuxiliaryTables(); // Carrega Tribunais, Classes, Assuntos e Comarcas
       if (formData.id) fetchDocuments();
     } else {
       setDocuments([]);
@@ -177,6 +180,36 @@ export function ContractFormModal(props: Props) {
       setNewSubject('');
     }
   }, [isOpen, formData.id]);
+
+  // Carrega tabelas auxiliares do Supabase
+  const fetchAuxiliaryTables = async () => {
+    // Busca Tribunais
+    const { data: courts } = await supabase.from('courts').select('name').order('name');
+    if (courts) setCourtOptions(courts.map(c => c.name));
+
+    // Busca Classes
+    const { data: classes } = await supabase.from('process_classes').select('name').order('name');
+    if (classes) setClassOptions(classes.map(c => c.name));
+
+    // Busca Assuntos
+    const { data: subjects } = await supabase.from('process_subjects').select('name').order('name');
+    if (subjects) setSubjectOptions(subjects.map(s => s.name));
+
+    // Busca Comarcas (Inicialmente todas ou por UF se já tiver UF selecionada)
+    fetchComarcas(currentProcess.uf);
+  };
+
+  const fetchComarcas = async (uf?: string) => {
+    let query = supabase.from('comarcas').select('name');
+    if (uf) query = query.eq('uf', uf);
+    const { data } = await query.order('name');
+    if (data) setComarcaOptions(data.map(c => c.name));
+  };
+
+  // Atualizar Comarcas quando UF muda
+  useEffect(() => {
+    fetchComarcas(currentProcess.uf);
+  }, [currentProcess.uf]);
 
   // Atualizar o processo atual quando o tipo de processo "Outro" muda
   useEffect(() => {
@@ -299,8 +332,94 @@ export function ContractFormModal(props: Props) {
     });
   };
 
+  // --- FUNÇÕES DE ADIÇÃO DE ITENS (COM SUPABASE) ---
+
+  const handleAddJustice = () => {
+    const newJustice = window.prompt("Digite o novo tipo de Justiça:");
+    if (newJustice && !justiceOptions.includes(newJustice)) {
+      setJusticeOptions([...justiceOptions, toTitleCase(newJustice)]);
+    }
+  };
+
+  const handleAddVara = () => {
+    const newVara = window.prompt("Digite o novo tipo de Vara:");
+    if (newVara && !varaOptions.includes(newVara)) {
+      setVaraOptions([...varaOptions, toTitleCase(newVara)]);
+    }
+  };
+
+  const handleAddCourt = async () => {
+    const newCourt = window.prompt("Digite a sigla do novo Tribunal:");
+    if (newCourt) {
+        const cleanCourt = newCourt.toUpperCase();
+        if (!courtOptions.includes(cleanCourt)) {
+            const { error } = await supabase.from('courts').insert({ name: cleanCourt });
+            if (!error) {
+                setCourtOptions([...courtOptions, cleanCourt].sort());
+                setCurrentProcess({...currentProcess, court: cleanCourt});
+            } else {
+                alert("Erro ao salvar tribunal: " + error.message);
+            }
+        }
+    }
+  };
+
+  const handleAddComarca = async () => {
+    if (!currentProcess.uf) return alert("Selecione um Estado (UF) antes de adicionar uma comarca.");
+    
+    const newComarca = window.prompt(`Digite a nova Comarca para ${currentProcess.uf}:`);
+    if (newComarca) {
+        const cleanComarca = toTitleCase(newComarca);
+        if (!comarcaOptions.includes(cleanComarca)) {
+            const { error } = await supabase.from('comarcas').insert({ name: cleanComarca, uf: currentProcess.uf });
+            if (!error) {
+                setComarcaOptions([...comarcaOptions, cleanComarca].sort());
+                setCurrentProcess({...currentProcess, comarca: cleanComarca});
+            } else {
+                alert("Erro ao salvar comarca: " + error.message);
+            }
+        }
+    }
+  };
+
+  const handleAddClass = async () => {
+    const newClass = window.prompt("Digite a nova Classe Processual:");
+    if (newClass) {
+        const cleanClass = toTitleCase(newClass);
+        if (!classOptions.includes(cleanClass)) {
+            const { error } = await supabase.from('process_classes').insert({ name: cleanClass });
+            if (!error) {
+                setClassOptions([...classOptions, cleanClass].sort());
+                setCurrentProcess({...currentProcess, process_class: cleanClass});
+            } else {
+                alert("Erro ao salvar classe: " + error.message);
+            }
+        }
+    }
+  };
+
   // Funções para Assuntos
-  const addSubject = () => {
+  // O componente CustomSelect chama onAction para criar novo. 
+  // Para adicionar à lista do select (banco) e selecionar no input
+  const handleCreateSubjectOption = async () => {
+      const newSubjectName = window.prompt("Digite o novo Assunto:");
+      if (newSubjectName) {
+          const cleanSubject = toTitleCase(newSubjectName);
+          if (!subjectOptions.includes(cleanSubject)) {
+              const { error } = await supabase.from('process_subjects').insert({ name: cleanSubject });
+              if (!error) {
+                  setSubjectOptions([...subjectOptions, cleanSubject].sort());
+                  // Opcional: já seleciona no input
+                  setNewSubject(cleanSubject);
+              } else {
+                  alert("Erro ao salvar assunto: " + error.message);
+              }
+          }
+      }
+  };
+
+  // Adiciona o assunto selecionado (do input/select) à lista de tags do processo
+  const addSubjectToProcess = () => {
     if (!newSubject.trim()) return;
     const cleanSubject = toTitleCase(newSubject.trim());
     const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
@@ -318,6 +437,8 @@ export function ContractFormModal(props: Props) {
     const updatedSubjects = currentSubjects.filter(s => s !== subjectToRemove);
     setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
   };
+
+  // --- FIM FUNÇÕES ADIÇÃO ---
 
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
@@ -467,22 +588,6 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // Função para adicionar novas opções de Justiça
-  const handleAddJustice = () => {
-    const newJustice = window.prompt("Digite o novo tipo de Justiça:");
-    if (newJustice && !justiceOptions.includes(newJustice)) {
-      setJusticeOptions([...justiceOptions, toTitleCase(newJustice)]);
-    }
-  };
-
-  // Função para adicionar novas opções de Vara
-  const handleAddVara = () => {
-    const newVara = window.prompt("Digite o novo tipo de Vara:");
-    if (newVara && !varaOptions.includes(newVara)) {
-      setVaraOptions([...varaOptions, toTitleCase(newVara)]);
-    }
-  };
-
   const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
@@ -550,6 +655,13 @@ export function ContractFormModal(props: Props) {
       }
       
       const uf = decoded.tribunal === 'STF' ? 'DF' : decoded.uf;
+      
+      // Tenta adicionar o tribunal à lista local e ao banco se não existir
+      if (!courtOptions.includes(decoded.tribunal)) {
+          // Tenta inserir no Supabase (silenciosamente se falhar/já existir)
+          await supabase.from('courts').insert({ name: decoded.tribunal }).select();
+          setCourtOptions([...courtOptions, decoded.tribunal].sort());
+      }
       
       setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal, uf: uf })); // Atualiza UF do processo também
     } catch (error: any) {
@@ -682,6 +794,12 @@ export function ContractFormModal(props: Props) {
   // Transformar opções de Vara para o formato do CustomSelect
   const varaSelectOptions = varaOptions.map(v => ({ label: v, value: v }));
 
+  // Transformar opções de Tribunais, Comarcas e Classes
+  const courtSelectOptions = courtOptions.map(c => ({ label: c, value: c }));
+  const comarcaSelectOptions = comarcaOptions.map(c => ({ label: c, value: c }));
+  const classSelectOptions = classOptions.map(c => ({ label: c, value: c }));
+  const subjectSelectOptions = subjectOptions.map(s => ({ label: s, value: s }));
+
   if (!isOpen) return null;
 
   return (
@@ -704,7 +822,7 @@ export function ContractFormModal(props: Props) {
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
                 <div className="flex gap-2 items-center">
-                  <input type="text" disabled={formData.has_no_cnpj} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none flex-1" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
+                  <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
                   <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
@@ -783,8 +901,20 @@ export function ContractFormModal(props: Props) {
                             />
                         </div>
                     )}
-
-                    <div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" value={currentProcess.court || ''} onChange={(e) => setCurrentProcess({...currentProcess, court: e.target.value})} /></div>
+                    
+                    {/* TRIBUNAL como CustomSelect */}
+                    <div className="md:col-span-2">
+                        <CustomSelect 
+                            label="Tribunal *" 
+                            value={currentProcess.court || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
+                            options={courtSelectOptions} 
+                            onAction={handleAddCourt}
+                            actionLabel="Adicionar Tribunal"
+                            placeholder="Selecione"
+                            className="custom-select-small" 
+                        />
+                    </div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
                     <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
                   </div>
@@ -840,7 +970,19 @@ export function ContractFormModal(props: Props) {
                             placeholder="Selecione ou adicione"
                         />
                     </div>
-                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
+                    {/* COMARCA COMO MENU SUSPENSO */}
+                    <div className="md:col-span-4">
+                        <CustomSelect 
+                            label="Comarca" 
+                            value={currentProcess.comarca || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
+                            options={comarcaSelectOptions} 
+                            onAction={handleAddComarca}
+                            actionLabel="Adicionar Comarca"
+                            placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
+                            disabled={!currentProcess.uf}
+                        />
+                    </div>
                   </div>
 
                   {/* Linha 4: Data Distribuição, Justiça, Valor da Causa */}
@@ -852,21 +994,35 @@ export function ContractFormModal(props: Props) {
 
                   {/* Linha 5: Classe, Assunto */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Classe</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.process_class || ''} onChange={(e) => setCurrentProcess({...currentProcess, process_class: e.target.value})} /></div>
+                    {/* CLASSE COMO MENU SUSPENSO */}
+                    <div>
+                        <CustomSelect 
+                            label="Classe" 
+                            value={currentProcess.process_class || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
+                            options={classSelectOptions}
+                            onAction={handleAddClass}
+                            actionLabel="Adicionar Classe"
+                            placeholder="Selecione a Classe"
+                        />
+                    </div>
                     
-                    {/* ASSUNTO COM BOTÃO DE ADICIONAR */}
+                    {/* ASSUNTO COM MENU SUSPENSO (ADAPTADO PARA INPUT/SELECT) */}
                     <div>
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
                         <div className="flex gap-2">
-                            <input 
-                                type="text" 
-                                className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" 
-                                placeholder="Digite um assunto e clique em +"
-                                value={newSubject} 
-                                onChange={(e) => setNewSubject(toTitleCase(e.target.value))} 
-                                onKeyPress={(e) => e.key === 'Enter' && addSubject()}
-                            />
-                            <button onClick={addSubject} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
+                             <div className="flex-1">
+                                {/* Usando CustomSelect para selecionar assuntos existentes */}
+                                <CustomSelect 
+                                    value={newSubject}
+                                    onChange={(val: string) => setNewSubject(val)}
+                                    options={subjectSelectOptions}
+                                    placeholder="Selecione ou digite novo"
+                                    onAction={handleCreateSubjectOption}
+                                    actionLabel="Criar Novo Assunto no Banco"
+                                />
+                             </div>
+                            <button onClick={addSubjectToProcess} className="text-salomao-blue hover:text-blue-700 font-bold px-3 rounded-lg bg-blue-50">+</button>
                         </div>
                         {/* Lista de assuntos adicionados */}
                         <div className="flex flex-wrap gap-2 mt-2">
