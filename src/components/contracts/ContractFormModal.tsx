@@ -146,6 +146,10 @@ export function ContractFormModal(props: Props) {
   
   // Novo estado para adicionar assuntos
   const [newSubject, setNewSubject] = useState('');
+
+  // Novo estado para opções de Justiça (CustomSelect)
+  const [justiceOptions, setJusticeOptions] = useState<string[]>(['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar']);
+  const [showJusticeManager, setShowJusticeManager] = useState(false); // Caso queira um modal de gerenciamento similar ao de Áreas no futuro
   
   // Estado para modal de visualização do processo
   const [viewProcess, setViewProcess] = useState<ContractProcess | null>(null);
@@ -290,14 +294,16 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  // Funções para Assuntos
+  // Funções para Assuntos (ADICIONADAS E CORRIGIDAS)
   const addSubject = () => {
     if (!newSubject.trim()) return;
     const cleanSubject = toTitleCase(newSubject.trim());
+    // Garante que é um array para facilitar a manipulação na UI
     const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
     
     if (!currentSubjects.includes(cleanSubject)) {
         const updatedSubjects = [...currentSubjects, cleanSubject];
+        // Salva como string separada por ponto e vírgula
         setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
     }
     setNewSubject('');
@@ -455,6 +461,14 @@ export function ContractFormModal(props: Props) {
     const newLocation = window.prompt("Digite o novo local de faturamento:");
     if (newLocation && !billingLocations.includes(newLocation)) {
       setBillingLocations([...billingLocations, newLocation]);
+    }
+  };
+
+  // Função para adicionar novas opções de Justiça
+  const handleAddJustice = () => {
+    const newJustice = window.prompt("Digite o novo tipo de Justiça:");
+    if (newJustice && !justiceOptions.includes(newJustice)) {
+      setJusticeOptions([...justiceOptions, toTitleCase(newJustice)]);
     }
   };
 
@@ -650,6 +664,9 @@ export function ContractFormModal(props: Props) {
   const rejectionReasonOptions = [{ label: 'Cliente declinou', value: 'Cliente declinou' }, { label: 'Cliente não retornou', value: 'Cliente não retornou' }, { label: 'Caso ruim', value: 'Caso ruim' }, { label: 'Conflito de interesses', value: 'Conflito de interesses' }];
   const areaOptions = legalAreas.map(a => ({ label: a, value: a }));
   const magistrateTypes = [{ label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }];
+  
+  // Transformar opções de Justiça para o formato do CustomSelect
+  const justiceSelectOptions = justiceOptions.map(j => ({ label: j, value: j }));
 
   if (!isOpen) return null;
 
@@ -672,9 +689,9 @@ export function ContractFormModal(props: Props) {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
-                <div className="flex gap-2">
-                  <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
-                  <button onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50"><Search className="w-4 h-4" /></button>
+                <div className="flex gap-2 items-center">
+                  <input type="text" disabled={formData.has_no_cnpj} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
+                  <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
@@ -797,7 +814,7 @@ export function ContractFormModal(props: Props) {
                   {/* Linha 4: Data Distribuição, Justiça (Tipo de Ação removido) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Justiça</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.justice_type || ''} onChange={(e) => setCurrentProcess({...currentProcess, justice_type: e.target.value})} /></div>
+                    <div><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={handleAddJustice} actionLabel="Adicionar Justiça" /></div>
                   </div>
 
                   {/* Linha 5: Classe, Assunto */}
@@ -1154,6 +1171,10 @@ export function ContractFormModal(props: Props) {
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                             <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Posição</span>
                             <span className="text-sm font-medium text-gray-800">{viewProcess.position || '-'}</span>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tipo de Ação</span>
+                            <span className="text-sm font-medium text-gray-800">{viewProcess.action_type || '-'}</span>
                         </div>
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                             <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Data Distribuição</span>
