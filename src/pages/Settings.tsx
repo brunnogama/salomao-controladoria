@@ -204,17 +204,21 @@ export function Settings() {
   };
 
   return (
-    <div className="p-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
-           <SettingsIcon className="w-8 h-8" /> Configurações
-        </h1>
-        <p className="text-gray-500 mt-1">Gerenciamento do sistema e informações.</p>
+    // Removido max-w-7xl e mx-auto para alinhar com as outras páginas full-width
+    <div className="p-8 animate-in fade-in duration-500 h-full flex flex-col">
+      {/* Estrutura do header padronizada */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+            <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
+            <SettingsIcon className="w-8 h-8" /> Configurações
+            </h1>
+            <p className="text-gray-500 mt-1">Gerenciamento do sistema e informações.</p>
+        </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-8 flex-1 overflow-hidden">
         {/* SIDEBAR DE NAVEGAÇÃO */}
-        <div className="w-full lg:w-64 flex-shrink-0">
+        <div className="w-full lg:w-64 flex-shrink-0 overflow-y-auto">
           <nav className="space-y-1">
             <button 
               onClick={() => setActiveTab('users')}
@@ -245,8 +249,8 @@ export function Settings() {
           </nav>
         </div>
 
-        {/* CONTEÚDO PRINCIPAL */}
-        <div className="flex-1">
+        {/* CONTEÚDO PRINCIPAL - Scroll independente */}
+        <div className="flex-1 overflow-y-auto pr-2 pb-10">
           
           {/* --- ABA USUÁRIOS --- */}
           {activeTab === 'users' && (

@@ -119,13 +119,16 @@ export function History() {
   });
 
   return (
-    // Padronização: p-8 h-full flex flex-col (se necessário ocupar tudo) ou apenas p-8
-    <div className="p-8 animate-in fade-in duration-500 max-w-6xl mx-auto h-full flex flex-col">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
-          <HistoryIcon className="w-8 h-8" /> Histórico de Atividades
-        </h1>
-        <p className="text-gray-500 mt-1">Monitoramento completo de alterações no sistema (Audit Log).</p>
+    // Removido max-w-6xl e mx-auto para alinhar com as outras páginas full-width
+    <div className="p-8 animate-in fade-in duration-500 h-full flex flex-col">
+      {/* Estrutura do header padronizada com flex justify-between */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+            <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
+            <HistoryIcon className="w-8 h-8" /> Histórico de Atividades
+            </h1>
+            <p className="text-gray-500 mt-1">Monitoramento completo de alterações no sistema (Audit Log).</p>
+        </div>
       </div>
 
       {/* Filtros */}
