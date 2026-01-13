@@ -150,6 +150,9 @@ export function ContractFormModal(props: Props) {
   // Novo estado para opções de Justiça (CustomSelect)
   const [justiceOptions, setJusticeOptions] = useState<string[]>(['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar']);
   
+  // Novo estado para opções de Vara (CustomSelect)
+  const [varaOptions, setVaraOptions] = useState<string[]>(['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais']);
+  
   // Opções de Numerais para o select
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
   
@@ -472,6 +475,14 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // Função para adicionar novas opções de Vara
+  const handleAddVara = () => {
+    const newVara = window.prompt("Digite o novo tipo de Vara:");
+    if (newVara && !varaOptions.includes(newVara)) {
+      setVaraOptions([...varaOptions, toTitleCase(newVara)]);
+    }
+  };
+
   const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
@@ -667,6 +678,9 @@ export function ContractFormModal(props: Props) {
   
   // Transformar opções de Justiça para o formato do CustomSelect
   const justiceSelectOptions = justiceOptions.map(j => ({ label: j, value: j }));
+  
+  // Transformar opções de Vara para o formato do CustomSelect
+  const varaSelectOptions = varaOptions.map(v => ({ label: v, value: v }));
 
   if (!isOpen) return null;
 
@@ -690,7 +704,7 @@ export function ContractFormModal(props: Props) {
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
                 <div className="flex gap-2 items-center">
-                  <input type="text" disabled={formData.has_no_cnpj} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
+                  <input type="text" disabled={formData.has_no_cnpj} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none flex-1" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
                   <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
@@ -765,8 +779,6 @@ export function ContractFormModal(props: Props) {
                                 value={otherProcessType} 
                                 onChange={(e) => {
                                     setOtherProcessType(e.target.value);
-                                    // Se desejar salvar, pode concatenar no process_number ou usar um campo auxiliar
-                                    // Exemplo: setCurrentProcess({...currentProcess, action_type: e.target.value})
                                 }} 
                             />
                         </div>
@@ -816,14 +828,26 @@ export function ContractFormModal(props: Props) {
                             placeholder="Nº"
                         />
                     </div>
-                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.vara || ''} onChange={(e) => setCurrentProcess({...currentProcess, vara: e.target.value})} /></div>
+                    {/* VARA COMO MENU SUSPENSO */}
+                    <div className="md:col-span-5">
+                        <CustomSelect 
+                            label="Vara" 
+                            value={currentProcess.vara || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
+                            options={varaSelectOptions}
+                            onAction={handleAddVara}
+                            actionLabel="Adicionar Vara"
+                            placeholder="Selecione ou adicione"
+                        />
+                    </div>
                     <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
                   </div>
 
-                  {/* Linha 4: Data Distribuição, Justiça (Tipo de Ação removido) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
-                    <div><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={handleAddJustice} actionLabel="Adicionar Justiça" /></div>
+                  {/* Linha 4: Data Distribuição, Justiça, Valor da Causa */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
+                    <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={handleAddJustice} actionLabel="Adicionar Justiça" /></div>
+                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                   </div>
 
                   {/* Linha 5: Classe, Assunto */}
@@ -857,14 +881,11 @@ export function ContractFormModal(props: Props) {
 
                   </div>
 
-                  {/* Linha 6: Valor da Causa e Botão */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
-                    <div className="md:col-span-8 flex justify-end">
-                        <button onClick={handleProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md text-sm font-bold">
+                  {/* Botão de Ação */}
+                  <div className="flex justify-end mt-4">
+                        <button onClick={handleProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md text-sm font-bold w-full md:w-auto">
                             {editingProcessIndex !== null ? <><Check className="w-4 h-4 mr-2" /> Atualizar Processo</> : <><Plus className="w-4 h-4 mr-2" /> Adicionar Processo</>}
                         </button>
-                    </div>
                   </div>
                 </div>
 
