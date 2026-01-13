@@ -18,7 +18,10 @@ export function Proposals() {
   };
 
   return (
-    <div className="p-8 animate-in fade-in duration-500 h-full flex flex-col">
+    // Container principal padronizado com as outras páginas (Volumetria, etc)
+    <div className="p-8 animate-in fade-in duration-500">
+      
+      {/* Cabeçalho padronizado */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
@@ -28,7 +31,8 @@ export function Proposals() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+      {/* Conteúdo da página */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Formulário */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit">
           <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Dados da Proposta</h2>
@@ -89,7 +93,6 @@ export function Proposals() {
                 fileName={`Proposta_${formData.clientName.replace(/\s+/g, '_')}.pdf`}
                 className="bg-salomao-blue hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-bold shadow-lg flex items-center transition-all active:scale-95 no-underline"
               >
-                {/* Removida a render prop problemática e substituída por conteúdo estático */}
                 <div className="flex items-center">
                     <Download className="w-5 h-5 mr-2" /> 
                     Baixar Proposta PDF
