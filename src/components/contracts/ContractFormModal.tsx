@@ -533,13 +533,6 @@ export function ContractFormModal(props: Props) {
     }).eq('id', contractId);
   };
 
-  const handleAddLocation = () => {
-    const newLocation = window.prompt("Digite o novo local de faturamento:");
-    if (newLocation && !billingLocations.includes(newLocation)) {
-      setBillingLocations([...billingLocations, newLocation]);
-    }
-  };
-
   const handleSaveWithIntegrations = async () => {
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
@@ -573,8 +566,8 @@ export function ContractFormModal(props: Props) {
             process_count: undefined,
             analyst: undefined,
             analysts: undefined, 
-            client: undefined,   
-            partner: undefined,  
+            client: undefined,    
+            partner: undefined,   
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -638,8 +631,13 @@ export function ContractFormModal(props: Props) {
     }
   };
 
- 
-  const handleCNPJSearch = async () => {
+  const handleAddLocation = () => {
+    const newLocation = window.prompt("Digite o novo local de faturamento:");
+    if (newLocation && !billingLocations.includes(newLocation)) {
+      setBillingLocations([...billingLocations, newLocation]);
+    }
+  };
+const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
     const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
@@ -650,11 +648,43 @@ export function ContractFormModal(props: Props) {
 
     setLocalLoading(true);
     try {
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      let data;
       
-      if (!response.ok) throw new Error('CNPJ não encontrado na Receita Federal');
-      
-      const data = await response.json();
+      // Tentativa 1: BrasilAPI (sem v1 no path)
+      try {
+         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+         if (!response.ok) throw new Error('Falha BrasilAPI');
+         data = await response.json();
+         
+         // Se retornou erro da API
+         if (data.type === 'not_found' || data.message) {
+           throw new Error('CNPJ não encontrado');
+         }
+         
+      } catch (err) {
+         console.warn('BrasilAPI falhou, tentando API CNPJA...');
+         
+         // Tentativa 2: CNPJA (API Gratuita sem CORS)
+         try {
+           const responseBackup = await fetch(`https://api.cnpja.com/companies/${cnpjLimpo}`);
+           if (!responseBackup.ok) throw new Error('CNPJ não encontrado');
+           const cnpjaData = await responseBackup.json();
+           
+           // Normalizar dados da CNPJA para formato esperado
+           data = {
+             razao_social: cnpjaData.name || cnpjaData.alias?.name,
+             nome_fantasia: cnpjaData.alias?.name || cnpjaData.name,
+             logradouro: cnpjaData.address?.street,
+             numero: cnpjaData.address?.number,
+             complemento: cnpjaData.address?.details,
+             municipio: cnpjaData.address?.city,
+             uf: cnpjaData.address?.state,
+             email: cnpjaData.emails?.[0]?.address
+           };
+         } catch (err2) {
+           throw new Error('CNPJ não encontrado nas bases de dados disponíveis');
+         }
+      }
       
       setFormData(prev => ({
         ...prev,
@@ -683,12 +713,12 @@ export function ContractFormModal(props: Props) {
 
     } catch (error: any) {
       console.error('Erro ao buscar CNPJ:', error);
-      alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente.`);
+      alert(`❌ Não foi possível consultar o CNPJ.\n\n${error.message}\n\n💡 Você pode preencher manualmente.`);
     } finally {
       setLocalLoading(false);
     }
   };
-
+  
   const handleCNJSearch = async () => {
     if (!currentProcess.process_number) return;
     
@@ -857,446 +887,444 @@ export function ContractFormModal(props: Props) {
           <div><h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2></div>
           <button onClick={onClose}><X className="w-6 h-6 text-gray-400" /></button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
-            <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
-          </div>
-
-          <section className="space-y-5">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-              <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
-                <div className="flex gap-2 items-center">
-                  <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
-                  <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
-                </div>
-                <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
-              </div>
-              <div className="md:col-span-9"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
-              <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
-            </div>
-          </section>
-
-          <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
-            <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
-            {formData.has_legal_process && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                  {/* Linha 1: Numero, Tribunal, UF, Posição */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 items-end">
-                    <div className={isStandardCNJ ? "md:col-span-5" : "md:col-span-4"}>
-                        <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
-                            Número do Processo *
-                            {currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
-                        </label>
-                        <div className="flex items-center">
-                            <CustomSelect 
-                                value={isStandardCNJ ? 'cnj' : 'other'}
-                                onChange={(val: string) => {
-                                    setIsStandardCNJ(val === 'cnj');
-                                    if (val === 'cnj') {
-                                        setCurrentProcess({...currentProcess, process_number: maskCNJ(currentProcess.process_number || '')});
-                                        setOtherProcessType('');
-                                    }
-                                }}
-                                options={[
-                                    { label: 'CNJ', value: 'cnj' },
-                                    { label: 'Outro', value: 'other' }
-                                ]}
-                                className="mr-2 w-24"
-                            />
-                            
-                            <div className="flex-1 relative">
-                                <input 
-                                    type="text" 
-                                    className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8" 
-                                    placeholder={isStandardCNJ ? "0000000-00..." : "Nº Processo"} 
-                                    value={currentProcess.process_number} 
-                                    onChange={(e) => setCurrentProcess({
-                                        ...currentProcess, 
-                                        process_number: isStandardCNJ ? maskCNJ(e.target.value) : e.target.value
-                                    })} 
-                                />
-                                <button 
-                                    onClick={handleCNJSearch} 
-                                    disabled={!isStandardCNJ || searchingCNJ || !currentProcess.process_number} 
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
-                                    title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
-                                >
-                                    {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {/* Campo Extra para Tipo de Processo (se não for CNJ) */}
-                    {!isStandardCNJ && (
-                        <div className="md:col-span-2">
-                            <label className="text-[10px] text-gray-500 uppercase font-bold">Tipo (ex: AgInt)</label>
-                            <input 
-                                type="text" 
-                                className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" 
-                                value={otherProcessType} 
-                                onChange={(e) => {
-                                    setOtherProcessType(e.target.value);
-                                }} 
-                            />
-                        </div>
-                    )}
-                    
-                    {/* TRIBUNAL como CustomSelect */}
-                    <div className="md:col-span-2">
-                        <CustomSelect 
-                            label="Tribunal *" 
-                            value={currentProcess.court || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
-                            options={courtSelectOptions} 
-                            onAction={handleAddCourt}
-                            actionLabel="Adicionar Tribunal"
-                            placeholder="Selecione"
-                            className="custom-select-small" 
-                        />
-                    </div>
-                    <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
-                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
-                  </div>
-
-                  {/* Linha 2: Parte Oposta, Magistrado */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-5">
-                        <CustomSelect 
-                            label="Contrário (Parte Oposta) *" 
-                            value={currentProcess.opponent || formData.company_name || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
-                            options={opponentOptions.map(o => ({ label: o, value: o }))}
-                            onAction={handleAddOpponent}
-                            actionLabel="Adicionar Parte Oposta"
-                            placeholder="Selecione ou adicione"
-                        />
-                    </div>
-                    <div className="md:col-span-7">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
-                        <div className="flex gap-2">
-                            <div className="w-40">
-                                <CustomSelect 
-                                    value={newMagistrateTitle} 
-                                    onChange={(val: string) => setNewMagistrateTitle(val)} 
-                                    options={magistrateTypes} 
-                                />
-                            </div>
-                            <div className="flex-1">
-                                <CustomSelect 
-                                    value={newMagistrateName}
-                                    onChange={(val: string) => setNewMagistrateName(val)}
-                                    options={magistrateOptions.map(m => ({ label: m, value: m }))}
-                                    placeholder="Selecione magistrado"
-                                    onAction={handleAddMagistrateName}
-                                    actionLabel="Adicionar Novo Magistrado"
-                                />
-                            </div>
-                            <button onClick={addMagistrate} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {currentProcess.magistrates?.map((m, idx) => (
-                                <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">
-                                    <Gavel size={10} className="text-gray-400" />
-                                    <b>{m.title}:</b> {m.name}
-                                    <button onClick={() => removeMagistrate(idx)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                  </div>
-
-                  {/* Linha 3: Numeral | Vara | Comarca */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-3">
-                        <CustomSelect 
-                            label="Numeral" 
-                            value={(currentProcess as any).numeral || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, numeral: val} as any)} 
-                            options={numeralOptions} 
-                            placeholder="Nº"
-                        />
-                    </div>
-                    {/* VARA COMO MENU SUSPENSO */}
-                    <div className="md:col-span-5">
-                        <CustomSelect 
-                            label="Vara" 
-                            value={currentProcess.vara || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
-                            options={varaSelectOptions}
-                            onAction={handleAddVara}
-                            actionLabel="Adicionar Vara"
-                            placeholder="Selecione ou adicione"
-                        />
-                    </div>
-                    {/* COMARCA COMO MENU SUSPENSO */}
-                    <div className="md:col-span-4">
-                        <CustomSelect 
-                            label="Comarca" 
-                            value={currentProcess.comarca || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
-                            options={comarcaSelectOptions} 
-                            onAction={handleAddComarca}
-                            actionLabel="Adicionar Comarca"
-                            placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
-                            disabled={!currentProcess.uf}
-                        />
-                    </div>
-                  </div>
-
-                  {/* Linha 4: Data Distribuição, Justiça, Valor da Causa */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
-                    <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={handleAddJustice} actionLabel="Adicionar Justiça" /></div>
-                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
-                  </div>
-
-                  {/* Linha 5: Classe, Assunto */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {/* CLASSE COMO MENU SUSPENSO */}
-                    <div>
-                        <CustomSelect 
-                            label="Classe" 
-                            value={currentProcess.process_class || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
-                            options={classSelectOptions}
-                            onAction={handleAddClass}
-                            actionLabel="Adicionar Classe"
-                            placeholder="Selecione a Classe"
-                        />
-                    </div>
-                    
-                    {/* ASSUNTO COM MENU SUSPENSO (ADAPTADO PARA INPUT/SELECT) */}
-                    <div>
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
-                        <div className="flex gap-2">
-                             <div className="flex-1">
-                                {/* Usando CustomSelect para selecionar assuntos existentes */}
-                                <CustomSelect 
-                                    value={newSubject}
-                                    onChange={(val: string) => setNewSubject(val)}
-                                    options={subjectSelectOptions}
-                                    placeholder="Selecione ou digite novo"
-                                    onAction={handleCreateSubjectOption}
-                                    actionLabel="Criar Novo Assunto no Banco"
-                                />
-                             </div>
-                            <button onClick={addSubjectToProcess} className="text-salomao-blue hover:text-blue-700 font-bold px-3 rounded-lg bg-blue-50">+</button>
-                        </div>
-                        {/* Lista de assuntos adicionados */}
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {currentProcess.subject && currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '').map((subj, idx) => (
-                                <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">
-                                    {subj}
-                                    <button onClick={() => removeSubject(subj)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-
-                  </div>
-
-                  {/* Botão de Ação */}
-                  <div className="flex justify-end mt-4">
-                        <button onClick={handleProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md text-sm font-bold w-full md:w-auto">
-                            {editingProcessIndex !== null ? <><Check className="w-4 h-4 mr-2" /> Atualizar Processo</> : <><Plus className="w-4 h-4 mr-2" /> Adicionar Processo</>}
-                        </button>
-                  </div>
-                </div>
-
-                {/* Lista de Processos */}
-                {processes.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    {processes.map((p, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
-                        <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
-                          {/* NÚMERO CLICÁVEL */}
-                          <span 
-                            onClick={() => { setViewProcess(p); setViewProcessIndex(idx); }} // ADICIONADO: Setando o índice para edição posterior
-                            className="font-mono font-medium text-salomao-blue hover:underline cursor-pointer flex items-center"
-                            title="Clique para ver detalhes do processo"
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            {p.process_number}
-                          </span>
-                          <span className="text-gray-600">{p.court} ({p.uf})</span>
-                          <span className="text-gray-500 truncate">{p.opponent}</span>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          <section className="border-t border-black/5 pt-6">
-            <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
-            
-            {(formData.status === 'analysis') && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label>
-                    <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
-                  </div>
-                </div>
-                <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
-              </div>
-            )}
-            
-            {(formData.status === 'proposal' || formData.status === 'active') && (
-              <div className="space-y-6 animate-in slide-in-from-top-2">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
-                   <div>
-                     <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
-                     <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
-                   </div>
-                   
-                   {/* Pró-Labore Simplificado */}
-                   <div>
-                     <FinancialInputWithInstallments 
-                       label="Pró-Labore (R$)" 
-                       value={formatForInput(formData.pro_labore)} 
-                       onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
-                       installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
-                     />
-                   </div>
-
-                   {/* Êxito Intermediário (Mantido como Lista/Tags) */}
-                   <div>
-                     <FinancialInputWithInstallments 
-                       label="Êxito Intermediário" 
-                       value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
-                       installments={interimInstallments} onChangeInstallments={setInterimInstallments}
-                       onAdd={() => { addIntermediateFee(); setInterimInstallments('1x'); }}
-                     />
-                     <div className="flex flex-wrap gap-2 mt-2">
-                       {formData.intermediate_fees?.map((fee, idx) => (
-                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">{fee}<button onClick={() => removeIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button></span>
-                       ))}
-                     </div>
-                   </div>
-
-                   {/* Êxito Final Simplificado */}
-                   <div>
-                     <FinancialInputWithInstallments 
-                       label="Êxito Final (R$)" 
-                       value={formatForInput(formData.final_success_fee)} 
-                       onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
-                       installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
-                     />
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
-                  <div>
-                    <label className="text-xs font-medium block mb-1">Êxito %</label>
-                    <div className="flex rounded-lg shadow-sm">
-                      <input type="text" className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
-                      <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                       {(formData as any).percent_extras?.map((val: string, idx: number) => (
-                         <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
-                           {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                         </span>
-                       ))}
-                     </div>
-                  </div>
-
-                  {/* Outros Honorários Simplificado */}
-                  <div>
-                    <FinancialInputWithInstallments 
-                      label="Outros Honorários (R$)" 
-                      value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
-                      installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
-                    />
-                  </div>
-
-                  {/* Fixo Mensal Simplificado */}
-                  <div>
-                    <FinancialInputWithInstallments 
-                      label="Fixo Mensal (R$)" 
-                      value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
-                      installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-end pb-3"><div className="flex items-center"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-0" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium whitespace-nowrap">Hon. de Timesheet</label></div></div>
-              </div>
-            )}
-
-            {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
-              <div className="mb-8 mt-6">
-                <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
-                {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
-              </div>
-            )}
-
-            {formData.status === 'active' && (
-              <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                  <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                  <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
-                  <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
-                </div>
-              </div>
-            )}
-
-            {formData.status === 'rejected' && (
-              <div className="grid grid-cols-3 gap-4">
-                <div><label className="text-xs font-medium block mb-1">Data Rejeição</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /></div>
-                <CustomSelect label="Rejeitado por" value={formData.rejected_by || ''} onChange={(val: string) => setFormData({...formData, rejected_by: val})} options={rejectionByOptions} />
-                <CustomSelect label="Motivo" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
-              </div>
-            )}
-          </section>
-
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
-
-          {isEditing && timelineData.length > 0 && (
-            <div className="border-t border-black/5 pt-6">
-              <div className="flex justify-between items-center mb-6"><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center"><HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso</h3><span className="bg-white/80 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center"><Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, formData)}</span></div>
-              <div className="relative border-l-2 border-black/5 ml-3 space-y-8 pb-4">
-                {timelineData.map((t, idx) => {
-                  const currentEventDate = getEffectiveDate(t.new_status, t.changed_at, formData);
-                  const nextEvent = timelineData[idx + 1];
-                  let duration = 'Início';
-                  if (nextEvent) {
-                    const prevEventDate = getEffectiveDate(nextEvent.new_status, nextEvent.changed_at, formData);
-                    duration = getDurationBetween(prevEventDate, currentEventDate);
-                  }
-                  const isCurrent = idx === 0;
-                  return (
-                    <div key={t.id} className="relative pl-8">
-                      <span className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${isCurrent ? 'bg-salomao-blue border-blue-200' : 'bg-gray-300 border-white'}`}></span>
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between bg-white p-4 rounded-lg border border-gray-100 hover:border-blue-100 transition-colors shadow-sm">
-                        <div>
-                          <h4 className={`text-sm font-bold ${isCurrent ? 'text-salomao-blue' : 'text-gray-600'}`}>{getStatusLabel(t.new_status)}</h4>
-                          <p className="text-xs text-gray-400 mt-1 flex items-center"><CalendarCheck className="w-3 h-3 mr-1" />{currentEventDate.toLocaleDateString('pt-BR')}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Alterado por: <span className="font-medium text-gray-600">{t.changed_by}</span></p>
-                        </div>
-                        <div className="mt-2 sm:mt-0 flex flex-col items-end"><span className="text-[10px] uppercase font-bold text-gray-400 mb-1">Duração da fase anterior</span><span className="bg-gray-50 px-2 py-1 rounded border border-gray-200 text-xs font-mono text-gray-600">{duration}</span></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+<div className="flex-1 overflow-y-auto p-8 space-y-8">
+  {/* 1. STATUS ATUAL DO CASO + DATA DA FASE */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
+      <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
+    </div>
+    
+    <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
+      {formData.status === 'analysis' && (
+        <div>
+          <label className="text-xs font-medium block mb-1 text-gray-600">Data Prospect <span className="text-red-500">*</span></label>
+          <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
         </div>
+      )}
+      {formData.status === 'proposal' && (
+        <div>
+          <label className="text-xs font-medium block mb-1 text-gray-600">Data Proposta <span className="text-red-500">*</span></label>
+          <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.proposal_date || ''} onChange={e => setFormData({...formData, proposal_date: e.target.value})} />
+        </div>
+      )}
+      {formData.status === 'active' && (
+        <div>
+          <label className="text-xs font-medium block mb-1 text-gray-600">Data Assinatura <span className="text-red-500">*</span></label>
+          <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.contract_date || ''} onChange={e => setFormData({...formData, contract_date: e.target.value})} />
+        </div>
+      )}
+      {formData.status === 'rejected' && (
+        <div>
+          <label className="text-xs font-medium block mb-1 text-gray-600">Data Rejeição</label>
+          <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.rejection_date || ''} onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
+        </div>
+      )}
+      {!['analysis', 'proposal', 'active', 'rejected'].includes(formData.status) && (
+        <div className="text-center text-sm text-gray-400 py-3">Selecione um status</div>
+      )}
+    </div>
+  </div>
+
+  {/* 2. DETALHES DA FASE */}
+  <section className="border-t border-black/5 pt-6">
+    <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
+    
+    {formData.status === 'analysis' && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+        <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
+      </div>
+    )}
+    
+    {(formData.status === 'proposal' || formData.status === 'active') && (
+      <div className="space-y-6 animate-in slide-in-from-top-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
+          <div>
+            <FinancialInputWithInstallments 
+              label="Pró-Labore (R$)" 
+              value={formatForInput(formData.pro_labore)} 
+              onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
+              installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
+            />
+          </div>
+          <div>
+            <FinancialInputWithInstallments 
+              label="Êxito Intermediário" 
+              value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
+              installments={interimInstallments} onChangeInstallments={setInterimInstallments}
+              onAdd={() => { addIntermediateFee(); setInterimInstallments('1x'); }}
+            />
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.intermediate_fees?.map((fee, idx) => (
+                <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">{fee}<button onClick={() => removeIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button></span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <FinancialInputWithInstallments 
+              label="Êxito Final (R$)" 
+              value={formatForInput(formData.final_success_fee)} 
+              onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
+              installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium block mb-1">Êxito %</label>
+            <div className="flex rounded-lg shadow-sm">
+              <input type="text" className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
+              <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {(formData as any).percent_extras?.map((val: string, idx: number) => (
+                <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                  {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+          <div>
+            <FinancialInputWithInstallments 
+              label="Outros Honorários (R$)" 
+              value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
+              installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
+            />
+          </div>
+          <div>
+            <FinancialInputWithInstallments 
+              label="Fixo Mensal (R$)" 
+              value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
+              installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
+            />
+          </div>
+        </div>
+        <div className="flex items-end pb-3"><div className="flex items-center"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-0" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium whitespace-nowrap">Hon. de Timesheet</label></div></div>
+      </div>
+    )}
+    
+    {formData.status === 'active' && (
+      <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
+          <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
+          <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
+        </div>
+      </div>
+    )}
+    
+    {formData.status === 'rejected' && (
+      <div className="grid grid-cols-2 gap-4">
+        <CustomSelect label="Rejeitado por" value={formData.rejected_by || ''} onChange={(val: string) => setFormData({...formData, rejected_by: val})} options={rejectionByOptions} />
+        <CustomSelect label="Motivo" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
+      </div>
+    )}
+  </section>
+
+  {/* 3. DADOS DO CLIENTE */}
+  <section className="space-y-5 border-t border-black/5 pt-6">
+    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+      <div className="md:col-span-3">
+        <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
+        <div className="flex gap-2 items-center">
+          <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
+          <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
+        </div>
+        <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
+      </div>
+      <div className="md:col-span-9"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
+      <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
+    </div>
+  </section>
+
+  {/* 4. PROCESSOS JUDICIAIS */}
+  <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
+    <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
+    {formData.has_legal_process && (
+      <div className="space-y-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+          {/* Todo o conteúdo do formulário de processos permanece igual */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 items-end">
+            <div className={isStandardCNJ ? "md:col-span-5" : "md:col-span-4"}>
+                <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
+                    Número do Processo *
+                    {currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
+                </label>
+                <div className="flex items-center">
+                    <CustomSelect 
+                        value={isStandardCNJ ? 'cnj' : 'other'}
+                        onChange={(val: string) => {
+                            setIsStandardCNJ(val === 'cnj');
+                            if (val === 'cnj') {
+                                setCurrentProcess({...currentProcess, process_number: maskCNJ(currentProcess.process_number || '')});
+                                setOtherProcessType('');
+                            }
+                        }}
+                        options={[
+                            { label: 'CNJ', value: 'cnj' },
+                            { label: 'Outro', value: 'other' }
+                        ]}
+                        className="mr-2 w-24"
+                    />
+                    
+                    <div className="flex-1 relative">
+                        <input 
+                            type="text" 
+                            className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8" 
+                            placeholder={isStandardCNJ ? "0000000-00..." : "Nº Processo"} 
+                            value={currentProcess.process_number} 
+                            onChange={(e) => setCurrentProcess({
+                                ...currentProcess, 
+                                process_number: isStandardCNJ ? maskCNJ(e.target.value) : e.target.value
+                            })} 
+                        />
+                        <button 
+                            onClick={handleCNJSearch} 
+                            disabled={!isStandardCNJ || searchingCNJ || !currentProcess.process_number} 
+                            className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
+                            title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
+                        >
+                            {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            {!isStandardCNJ && (
+                <div className="md:col-span-2">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold">Tipo (ex: AgInt)</label>
+                    <input 
+                        type="text" 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" 
+                        value={otherProcessType} 
+                        onChange={(e) => {
+                            setOtherProcessType(e.target.value);
+                        }} 
+                    />
+                </div>
+            )}
+            
+            <div className="md:col-span-2">
+                <CustomSelect 
+                    label="Tribunal *" 
+                    value={currentProcess.court || ''} 
+                    onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
+                    options={courtSelectOptions} 
+                    onAction={handleAddCourt}
+                    actionLabel="Adicionar Tribunal"
+                    placeholder="Selecione"
+                    className="custom-select-small" 
+                />
+            </div>
+            <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
+            <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+            <div className="md:col-span-5">
+                <CustomSelect 
+                    label="Contrário (Parte Oposta) *" 
+                    value={currentProcess.opponent || formData.company_name || ''} 
+                    onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
+                    options={opponentOptions.map(o => ({ label: o, value: o }))}
+                    onAction={handleAddOpponent}
+                    actionLabel="Adicionar Parte Oposta"
+                    placeholder="Selecione ou adicione"
+                />
+            </div>
+            <div className="md:col-span-7">
+                <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
+                <div className="flex gap-2">
+                    <div className="w-40">
+                        <CustomSelect 
+                            value={newMagistrateTitle} 
+                            onChange={(val: string) => setNewMagistrateTitle(val)} 
+                            options={magistrateTypes} 
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <CustomSelect 
+                            value={newMagistrateName}
+                            onChange={(val: string) => setNewMagistrateName(val)}
+                            options={magistrateOptions.map(m => ({ label: m, value: m }))}
+                            placeholder="Selecione magistrado"
+                            onAction={handleAddMagistrateName}
+                            actionLabel="Adicionar Novo Magistrado"
+                        />
+                    </div>
+                    <button onClick={addMagistrate} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                    {currentProcess.magistrates?.map((m, idx) => (
+                        <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">
+                            <Gavel size={10} className="text-gray-400" />
+                            <b>{m.title}:</b> {m.name}
+                            <button onClick={() => removeMagistrate(idx)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button>
+                        </span>
+                    ))}
+                </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+            <div className="md:col-span-3">
+                <CustomSelect 
+                    label="Numeral" 
+                    value={(currentProcess as any).numeral || ''} 
+                    onChange={(val: string) => setCurrentProcess({...currentProcess, numeral: val} as any)} 
+                    options={numeralOptions} 
+                    placeholder="Nº"
+                />
+            </div>
+            <div className="md:col-span-5">
+                <CustomSelect 
+                    label="Vara" 
+                    value={currentProcess.vara || ''} 
+                    onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
+                    options={varaSelectOptions}
+                    onAction={handleAddVara}
+                    actionLabel="Adicionar Vara"
+                    placeholder="Selecione ou adicione"
+                />
+            </div>
+            <div className="md:col-span-4">
+                <CustomSelect 
+                    label="Comarca" 
+                    value={currentProcess.comarca || ''} 
+                    onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
+                    options={comarcaSelectOptions} 
+                    onAction={handleAddComarca}
+                    actionLabel="Adicionar Comarca"
+                    placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
+                    disabled={!currentProcess.uf}
+                />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+            <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
+            <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={handleAddJustice} actionLabel="Adicionar Justiça" /></div>
+            <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <CustomSelect 
+                    label="Classe" 
+                    value={currentProcess.process_class || ''} 
+                    onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
+                    options={classSelectOptions}
+                    onAction={handleAddClass}
+                    actionLabel="Adicionar Classe"
+                    placeholder="Selecione a Classe"
+                />
+            </div>
+            
+            <div>
+                <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
+                <div className="flex gap-2">
+                      <div className="flex-1">
+                        <CustomSelect 
+                            value={newSubject}
+                            onChange={(val: string) => setNewSubject(val)}
+                            options={subjectSelectOptions}
+                            placeholder="Selecione ou digite novo"
+                            onAction={handleCreateSubjectOption}
+                            actionLabel="Criar Novo Assunto no Banco"
+                        />
+                      </div>
+                    <button onClick={addSubjectToProcess} className="text-salomao-blue hover:text-blue-700 font-bold px-3 rounded-lg bg-blue-50">+</button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                    {currentProcess.subject && currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '').map((subj, idx) => (
+                        <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">
+                            {subj}
+                            <button onClick={() => removeSubject(subj)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button>
+                        </span>
+                    ))}
+                </div>
+            </div>
+          </div>
+          <div className="flex justify-end mt-4">
+                <button onClick={handleProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md text-sm font-bold w-full md:w-auto">
+                    {editingProcessIndex !== null ? <><Check className="w-4 h-4 mr-2" /> Atualizar Processo</> : <><Plus className="w-4 h-4 mr-2" /> Adicionar Processo</>}
+                </button>
+          </div>
+        </div>
+        {processes.length > 0 && (
+          <div className="space-y-2 mt-4">
+            {processes.map((p, idx) => (
+              <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
+                <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
+                  <span 
+                    onClick={() => { setViewProcess(p); setViewProcessIndex(idx); }}
+                    className="font-mono font-medium text-salomao-blue hover:underline cursor-pointer flex items-center"
+                    title="Clique para ver detalhes do processo"
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    {p.process_number}
+                  </span>
+                  <span className="text-gray-600">{p.court} ({p.uf})</span>
+                  <span className="text-gray-500 truncate">{p.opponent}</span>
+                </div>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+  </section>
+
+  {/* 5. ARQUIVOS & DOCUMENTOS */}
+  {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
+    <div className="border-t border-black/5 pt-6">
+      <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
+      {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
+    </div>
+  )}
+
+  {/* 6. OBSERVAÇÕES GERAIS */}
+  <div className="border-t border-black/5 pt-6">
+    <label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label>
+    <textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea>
+  </div>
+
+  {/* 7. TIMELINE */}
+  {isEditing && timelineData.length > 0 && (
+    <div className="border-t border-black/5 pt-6">
+      <div className="flex justify-between items-center mb-6"><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center"><HistoryIcon className="w-4 h-4 mr-2" /> Timeline do Caso</h3><span className="bg-white/80 text-salomao-gold px-3 py-1 rounded-full text-xs font-bold border border-salomao-gold/20 flex items-center"><Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, formData)}</span></div>
+      <div className="relative border-l-2 border-black/5 ml-3 space-y-8 pb-4">
+        {timelineData.map((t, idx) => {
+          const currentEventDate = getEffectiveDate(t.new_status, t.changed_at, formData);
+          const nextEvent = timelineData[idx + 1];
+          let duration = 'Início';
+          if (nextEvent) {
+            const prevEventDate = getEffectiveDate(nextEvent.new_status, nextEvent.changed_at, formData);
+            duration = getDurationBetween(prevEventDate, currentEventDate);
+          }
+          const isCurrent = idx === 0;
+          return (
+            <div key={t.id} className="relative pl-8">
+              <span className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${isCurrent ? 'bg-salomao-blue border-blue-200' : 'bg-gray-300 border-white'}`}></span>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between bg-white p-4 rounded-lg border border-gray-100 hover:border-blue-100 transition-colors shadow-sm">
+                <div>
+                  <h4 className={`text-sm font-bold ${isCurrent ? 'text-salomao-blue' : 'text-gray-600'}`}>{getStatusLabel(t.new_status)}</h4>
+                  <p className="text-xs text-gray-400 mt-1 flex items-center"><CalendarCheck className="w-3 h-3 mr-1" />{currentEventDate.toLocaleDateString('pt-BR')}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Alterado por: <span className="font-medium text-gray-600">{t.changed_by}</span></p>
+                </div>
+                <div className="mt-2 sm:mt-0 flex flex-col items-end"><span className="text-[10px] uppercase font-bold text-gray-400 mb-1">Duração da fase anterior</span><span className="bg-gray-50 px-2 py-1 rounded border border-gray-200 text-xs font-mono text-gray-600">{duration}</span></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</div>
+        
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
           <button onClick={handleSaveWithIntegrations} disabled={isLoading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{isLoading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
