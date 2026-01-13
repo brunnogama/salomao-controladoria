@@ -164,6 +164,10 @@ export function ContractFormModal(props: Props) {
 
   const isLoading = parentLoading || localLoading;
 
+  // Estados para menus suspensos de Magistrados e Oponentes
+  const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
+  const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
+
   useEffect(() => {
     if (isOpen) {
       fetchStatuses();
@@ -182,22 +186,19 @@ export function ContractFormModal(props: Props) {
   }, [isOpen, formData.id]);
 
   // Carrega tabelas auxiliares do Supabase
-  const fetchAuxiliaryTables = async () => {
-    // Busca Tribunais
-    const { data: courts } = await supabase.from('courts').select('name').order('name');
-    if (courts) setCourtOptions(courts.map(c => c.name));
+ const fetchAuxiliaryTables = async () => {
+    // ... código existente ...
 
-    // Busca Classes
-    const { data: classes } = await supabase.from('process_classes').select('name').order('name');
-    if (classes) setClassOptions(classes.map(c => c.name));
+    // Busca Magistrados
+    const { data: mags } = await supabase.from('magistrates').select('name').order('name');
+    if (mags) setMagistrateOptions(mags.map(m => m.name));
 
-    // Busca Assuntos
-    const { data: subjects } = await supabase.from('process_subjects').select('name').order('name');
-    if (subjects) setSubjectOptions(subjects.map(s => s.name));
+    // Busca Partes Opostas
+    const { data: opps } = await supabase.from('opponents').select('name').order('name');
+    if (opps) setOpponentOptions(opps.map(o => o.name));
 
-    // Busca Comarcas (Inicialmente todas ou por UF se já tiver UF selecionada)
-    fetchComarcas(currentProcess.uf);
-  };
+    // ... restante do código ...
+};
 
   const fetchComarcas = async (uf?: string) => {
     let query = supabase.from('comarcas').select('name');
@@ -340,6 +341,47 @@ export function ContractFormModal(props: Props) {
       setJusticeOptions([...justiceOptions, toTitleCase(newJustice)]);
     }
   };
+// Adicionar novo magistrado ao banco
+const handleAddMagistrateName = async () => {
+    if (!newMagistrateName.trim()) return;
+    
+    const cleanName = toTitleCase(newMagistrateName.trim());
+    
+    if (!magistrateOptions.includes(cleanName)) {
+        const { error } = await supabase
+            .from('magistrates')
+            .insert({ name: cleanName, title: newMagistrateTitle });
+        
+        if (!error) {
+            setMagistrateOptions([...magistrateOptions, cleanName].sort());
+            addMagistrate(); // Adiciona à lista do processo
+        } else {
+            alert("Erro ao salvar magistrado: " + error.message);
+        }
+    } else {
+        addMagistrate(); // Se já existe, apenas adiciona à lista
+    }
+};
+
+// Adicionar novo oponente ao banco
+const handleAddOpponent = async () => {
+    const newOpponent = window.prompt("Digite o nome da Parte Oposta:");
+    if (newOpponent) {
+        const cleanOpponent = toTitleCase(newOpponent);
+        if (!opponentOptions.includes(cleanOpponent)) {
+            const { error } = await supabase
+                .from('opponents')
+                .insert({ name: cleanOpponent });
+            
+            if (!error) {
+                setOpponentOptions([...opponentOptions, cleanOpponent].sort());
+                setCurrentProcess({...currentProcess, opponent: cleanOpponent});
+            } else {
+                alert("Erro ao salvar oponente: " + error.message);
+            }
+        }
+    }
+};
 
   const handleAddVara = () => {
     const newVara = window.prompt("Digite o novo tipo de Vara:");
@@ -920,18 +962,39 @@ export function ContractFormModal(props: Props) {
                   </div>
 
                   {/* Linha 2: Parte Oposta, Magistrado */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta) *</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome da parte..." value={currentProcess.opponent || formData.company_name || ''} onChange={(e) => setCurrentProcess({...currentProcess, opponent: e.target.value})} /></div>
-                    <div className="md:col-span-7">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
-                        <div className="flex gap-2">
-                            <div className="w-40">
-                                <CustomSelect 
-                                    value={newMagistrateTitle} 
-                                    onChange={(val: string) => setNewMagistrateTitle(val)} 
-                                    options={magistrateTypes} 
-                                />
-                            </div>
+                  <div className="md:col-span-5">
+    <CustomSelect 
+        label="Contrário (Parte Oposta) *" 
+        value={currentProcess.opponent || formData.company_name || ''} 
+        onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
+        options={opponentOptions.map(o => ({ label: o, value: o }))}
+        onAction={handleAddOpponent}
+        actionLabel="Adicionar Parte Oposta"
+        placeholder="Selecione ou adicione"
+    />
+</div>
+                   <div className="md:col-span-7">
+    <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
+    <div className="flex gap-2">
+        <div className="w-40">
+            <CustomSelect 
+                value={newMagistrateTitle} 
+                onChange={(val: string) => setNewMagistrateTitle(val)} 
+                options={magistrateTypes} 
+            />
+        </div>
+        <div className="flex-1">
+            <CustomSelect 
+                value={newMagistrateName}
+                onChange={(val: string) => setNewMagistrateName(val)}
+                options={magistrateOptions.map(m => ({ label: m, value: m }))}
+                placeholder="Selecione magistrado"
+            />
+        </div>
+        <button onClick={handleAddMagistrateName} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
+    </div>
+    {/* ... tags existentes continuam iguais ... */}
+</div>
                             <input type="text" className="flex-1 border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" placeholder="Nome do Magistrado" value={newMagistrateName} onChange={(e) => setNewMagistrateName(toTitleCase(e.target.value))} />
                             <button onClick={addMagistrate} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
                         </div>
