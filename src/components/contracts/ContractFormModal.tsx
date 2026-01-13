@@ -638,6 +638,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // --- BUSCA CNPJ CORRIGIDA E BLINDADA ---
   const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
@@ -649,11 +650,37 @@ export function ContractFormModal(props: Props) {
 
     setLocalLoading(true);
     try {
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      let data;
       
-      if (!response.ok) throw new Error('CNPJ não encontrado na Receita Federal');
-      
-      const data = await response.json();
+      // Tentativa 1: BrasilAPI
+      try {
+         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+         if (!response.ok) throw new Error('Not found on BrasilAPI');
+         data = await response.json();
+         
+      } catch (err) {
+         console.warn('BrasilAPI falhou (404 ou erro), tentando Fallback (Publica CNPJ)...');
+         
+         // Tentativa 2: Fallback Robusto (CNPJ.WS)
+         try {
+           const responseBackup = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjLimpo}`);
+           if (!responseBackup.ok) throw new Error('CNPJ não encontrado nas bases públicas.');
+           const dataWs = await responseBackup.json();
+           
+           data = {
+             razao_social: dataWs.razao_social,
+             nome_fantasia: dataWs.estabelecimento.nome_fantasia,
+             logradouro: dataWs.estabelecimento.logradouro,
+             numero: dataWs.estabelecimento.numero,
+             complemento: dataWs.estabelecimento.complemento,
+             municipio: dataWs.estabelecimento.cidade.nome,
+             uf: dataWs.estabelecimento.estado.sigla,
+             email: dataWs.estabelecimento.email
+           };
+         } catch (err2: any) {
+           throw new Error(err2.message || 'CNPJ não encontrado.');
+         }
+      }
       
       setFormData(prev => ({
         ...prev,
@@ -682,7 +709,7 @@ export function ContractFormModal(props: Props) {
 
     } catch (error: any) {
       console.error('Erro ao buscar CNPJ:', error);
-      alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente.`);
+      alert(`❌ Não foi possível consultar o CNPJ.\n\n${error.message}\n\n💡 Você pode preencher manualmente.`);
     } finally {
       setLocalLoading(false);
     }
@@ -948,18 +975,21 @@ export function ContractFormModal(props: Props) {
                         </div>
                     )}
                     
-                    {/* TRIBUNAL como CustomSelect */}
+                    {/* TRIBUNAL como CustomSelect com Botão Externo */}
                     <div className="md:col-span-2 lg:col-span-2">
-                        <CustomSelect 
-                            label="Tribunal *" 
-                            value={currentProcess.court || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
-                            options={courtSelectOptions} 
-                            onAction={handleAddCourt}
-                            actionLabel="Adicionar Tribunal"
-                            placeholder="Selecione"
-                            className="custom-select-small" 
-                        />
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Tribunal *</label>
+                        <div className="flex gap-2 items-center">
+                             <div className="flex-1 min-w-0">
+                                <CustomSelect 
+                                    value={currentProcess.court || ''} 
+                                    onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
+                                    options={courtSelectOptions} 
+                                    placeholder="Selecione"
+                                    className="custom-select-small" 
+                                />
+                             </div>
+                            <button onClick={handleAddCourt} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Tribunal"><Plus className="w-4 h-4" /></button>
+                        </div>
                     </div>
                     <div className="md:col-span-2 lg:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
                     <div className={isStandardCNJ ? "md:col-span-3 lg:col-span-3" : "md:col-span-2 lg:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
@@ -968,37 +998,41 @@ export function ContractFormModal(props: Props) {
                   {/* Linha 2: Parte Oposta, Magistrado */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-12 lg:col-span-5">
-                        <CustomSelect 
-                            label="Contrário (Parte Oposta) *" 
-                            value={currentProcess.opponent || formData.company_name || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
-                            options={opponentOptions.map(o => ({ label: o, value: o }))}
-                            onAction={handleAddOpponent}
-                            actionLabel="Adicionar Parte Oposta"
-                            placeholder="Selecione ou adicione"
-                        />
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Contrário (Parte Oposta) *</label>
+                        <div className="flex gap-2 items-center">
+                            <div className="flex-1 min-w-0">
+                                <CustomSelect 
+                                    value={currentProcess.opponent || formData.company_name || ''} 
+                                    onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
+                                    options={opponentOptions.map(o => ({ label: o, value: o }))}
+                                    placeholder="Selecione ou adicione"
+                                />
+                            </div>
+                            <button onClick={handleAddOpponent} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Parte Oposta"><Plus className="w-4 h-4" /></button>
+                        </div>
                     </div>
                     <div className="md:col-span-12 lg:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
                         <div className="flex flex-col sm:flex-row gap-2 items-end">
-                            <div className="w-full sm:w-40">
+                            <div className="w-full sm:w-40 shrink-0">
                                 <CustomSelect 
                                     value={newMagistrateTitle} 
                                     onChange={(val: string) => setNewMagistrateTitle(val)} 
                                     options={magistrateTypes} 
                                 />
                             </div>
-                            <div className="flex-1 w-full min-w-0">
-                                <CustomSelect 
-                                    value={newMagistrateName}
-                                    onChange={(val: string) => setNewMagistrateName(val)}
-                                    options={magistrateOptions.map(m => ({ label: m, value: m }))}
-                                    placeholder="Selecione magistrado"
-                                    onAction={handleAddMagistrateName}
-                                    actionLabel="Adicionar Novo Magistrado"
-                                />
+                            <div className="flex-1 w-full min-w-0 flex gap-2">
+                                <div className="flex-1">
+                                    <CustomSelect 
+                                        value={newMagistrateName}
+                                        onChange={(val: string) => setNewMagistrateName(val)}
+                                        options={magistrateOptions.map(m => ({ label: m, value: m }))}
+                                        placeholder="Selecione magistrado"
+                                    />
+                                </div>
+                                <button onClick={handleAddMagistrateName} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Criar Novo Nome de Magistrado"><Plus className="w-4 h-4" /></button>
                             </div>
-                            <button onClick={addMagistrate} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50 shrink-0">+</button>
+                            <button onClick={addMagistrate} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar à lista"><Plus className="w-4 h-4" /></button>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">
                             {currentProcess.magistrates?.map((m, idx) => (
@@ -1025,28 +1059,34 @@ export function ContractFormModal(props: Props) {
                     </div>
                     {/* VARA COMO MENU SUSPENSO */}
                     <div className="md:col-span-5">
-                        <CustomSelect 
-                            label="Vara" 
-                            value={currentProcess.vara || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
-                            options={varaSelectOptions}
-                            onAction={handleAddVara}
-                            actionLabel="Adicionar Vara"
-                            placeholder="Selecione ou adicione"
-                        />
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Vara</label>
+                        <div className="flex gap-2 items-center">
+                             <div className="flex-1 min-w-0">
+                                <CustomSelect 
+                                    value={currentProcess.vara || ''} 
+                                    onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
+                                    options={varaSelectOptions}
+                                    placeholder="Selecione ou adicione"
+                                />
+                             </div>
+                            <button onClick={handleAddVara} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Vara"><Plus className="w-4 h-4" /></button>
+                        </div>
                     </div>
                     {/* COMARCA COMO MENU SUSPENSO */}
                     <div className="md:col-span-4">
-                        <CustomSelect 
-                            label="Comarca" 
-                            value={currentProcess.comarca || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
-                            options={comarcaSelectOptions} 
-                            onAction={handleAddComarca}
-                            actionLabel="Adicionar Comarca"
-                            placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
-                            disabled={!currentProcess.uf}
-                        />
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label>
+                        <div className="flex gap-2 items-center">
+                             <div className="flex-1 min-w-0">
+                                <CustomSelect 
+                                    value={currentProcess.comarca || ''} 
+                                    onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
+                                    options={comarcaSelectOptions} 
+                                    placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
+                                    disabled={!currentProcess.uf}
+                                />
+                             </div>
+                            <button onClick={handleAddComarca} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Comarca"><Plus className="w-4 h-4" /></button>
+                        </div>
                     </div>
                   </div>
 
@@ -1061,15 +1101,18 @@ export function ContractFormModal(props: Props) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     {/* CLASSE COMO MENU SUSPENSO */}
                     <div>
-                        <CustomSelect 
-                            label="Classe" 
-                            value={currentProcess.process_class || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
-                            options={classSelectOptions}
-                            onAction={handleAddClass}
-                            actionLabel="Adicionar Classe"
-                            placeholder="Selecione a Classe"
-                        />
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Classe</label>
+                        <div className="flex gap-2 items-center">
+                             <div className="flex-1 min-w-0">
+                                <CustomSelect 
+                                    value={currentProcess.process_class || ''} 
+                                    onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
+                                    options={classSelectOptions}
+                                    placeholder="Selecione a Classe"
+                                />
+                             </div>
+                            <button onClick={handleAddClass} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar Classe"><Plus className="w-4 h-4" /></button>
+                        </div>
                     </div>
                     
                     {/* ASSUNTO COM MENU SUSPENSO (ADAPTADO PARA INPUT/SELECT) */}
