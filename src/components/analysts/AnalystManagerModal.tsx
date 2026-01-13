@@ -104,11 +104,6 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
     }
   };
 
-  const handleCancel = () => {
-    setFormData({ name: '', email: '' });
-    setEditingId(null);
-  };
-
   if (!isOpen) return null;
 
   return (
