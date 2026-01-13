@@ -1,3 +1,5 @@
+// Caminho: src/components/modals/ContractFormModal.tsx
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye } from 'lucide-react';
@@ -1028,11 +1030,13 @@ export function ContractFormModal(props: Props) {
                                         onChange={(val: string) => setNewMagistrateName(val)}
                                         options={magistrateOptions.map(m => ({ label: m, value: m }))}
                                         placeholder="Selecione magistrado"
+                                        onAction={handleAddMagistrateName}
+                                        actionLabel="Cadastrar Novo Magistrado"
+                                        actionIcon={Plus}
                                     />
                                 </div>
-                                <button onClick={handleAddMagistrateName} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Criar Novo Nome de Magistrado"><Plus className="w-4 h-4" /></button>
                             </div>
-                            <button onClick={addMagistrate} className="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-salomao-blue p-2 rounded-lg shrink-0 transition-colors" type="button" title="Adicionar à lista"><Plus className="w-4 h-4" /></button>
+                            <button onClick={addMagistrate} className="bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 transition-colors shrink-0 shadow-sm border border-blue-800" type="button" title="Incluir na lista"><Plus className="w-5 h-5" /></button>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">
                             {currentProcess.magistrates?.map((m, idx) => (
@@ -1128,9 +1132,10 @@ export function ContractFormModal(props: Props) {
                                     placeholder="Selecione ou digite novo"
                                     onAction={handleCreateSubjectOption}
                                     actionLabel="Criar Novo Assunto no Banco"
+                                    actionIcon={Plus}
                                 />
                              </div>
-                            <button onClick={addSubjectToProcess} className="text-salomao-blue hover:text-blue-700 font-bold px-3 rounded-lg bg-blue-50 shrink-0">+</button>
+                            <button onClick={addSubjectToProcess} className="bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 transition-colors shrink-0 shadow-sm border border-blue-800" title="Incluir na lista"><Plus className="w-5 h-5" /></button>
                         </div>
                         {/* Lista de assuntos adicionados */}
                         <div className="flex flex-wrap gap-2 mt-2">
