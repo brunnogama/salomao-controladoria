@@ -10,7 +10,8 @@ import { Clients } from './pages/Clients';
 import { Finance } from './pages/Finance';
 import { Settings } from './pages/Settings';
 import { History } from './pages/History';
-import { Volumetry } from './pages/Volumetry'; // Nova Importação
+import { Volumetry } from './pages/Volumetry';
+import { Proposals } from './pages/Proposals'; // Importação do novo módulo
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -35,9 +36,9 @@ function App() {
           <Route path="/financeiro" element={<Finance />} />
           <Route path="/ged" element={<GED />} />
           
-          <Route path="/propostas" element={<PagePlaceholder title="Propostas Comerciais" />} />
+          {/* Rota Atualizada para Propostas Real */}
+          <Route path="/propostas" element={<Proposals />} />
           
-          {/* Rota Atualizada para Volumetria Real */}
           <Route path="/volumetria" element={<Volumetry />} />
           
           <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
