@@ -566,8 +566,8 @@ export function ContractFormModal(props: Props) {
             process_count: undefined,
             analyst: undefined,
             analysts: undefined, 
-            client: undefined,    
-            partner: undefined,   
+            client: undefined,   
+            partner: undefined,  
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -649,11 +649,19 @@ export function ContractFormModal(props: Props) {
 
     setLocalLoading(true);
     try {
-      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-      
-      if (!response.ok) throw new Error('CNPJ não encontrado na Receita Federal');
-      
-      const data = await response.json();
+      let data;
+      // Tenta BrasilAPI primeiro
+      try {
+          const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+          if (!response.ok) throw new Error('Not found');
+          data = await response.json();
+      } catch (e) {
+          // Se falhar (404), tenta Minha Receita (Fallback automático para corrigir o erro 404)
+          console.warn("BrasilAPI falhou, tentando fallback...");
+          const responseBackup = await fetch(`https://minha-receita.org/${cnpjLimpo}`);
+          if (!responseBackup.ok) throw new Error('CNPJ não encontrado na Receita Federal');
+          data = await responseBackup.json();
+      }
       
       setFormData(prev => ({
         ...prev,
