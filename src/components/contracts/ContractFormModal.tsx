@@ -630,13 +630,6 @@ export function ContractFormModal(props: Props) {
         setLocalLoading(false);
     }
   };
-
-  const handleAddLocation = () => {
-    const newLocation = window.prompt("Digite o novo local de faturamento:");
-    if (newLocation && !billingLocations.includes(newLocation)) {
-      setBillingLocations([...billingLocations, newLocation]);
-    }
-  };
 const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
@@ -650,39 +643,44 @@ const handleCNPJSearch = async () => {
     try {
       let data;
       
-      // Tentativa 1: BrasilAPI (sem v1 no path)
+      // Tentativa 1: ReceitaWS (API gratuita e confiável)
       try {
-         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-         if (!response.ok) throw new Error('Falha BrasilAPI');
-         data = await response.json();
+         const response = await fetch(`https://receitaws.com.br/v1/cnpj/${cnpjLimpo}`);
+         if (!response.ok) throw new Error('Falha ReceitaWS');
+         const receitaData = await response.json();
          
-         // Se retornou erro da API
-         if (data.type === 'not_found' || data.message) {
-           throw new Error('CNPJ não encontrado');
+         // Verificar se retornou erro
+         if (receitaData.status === 'ERROR') {
+           throw new Error(receitaData.message || 'CNPJ não encontrado');
          }
          
-      } catch (err) {
-         console.warn('BrasilAPI falhou, tentando API CNPJA...');
+         // Normalizar dados da ReceitaWS
+         data = {
+           razao_social: receitaData.nome,
+           nome_fantasia: receitaData.fantasia,
+           logradouro: receitaData.logradouro,
+           numero: receitaData.numero,
+           complemento: receitaData.complemento,
+           municipio: receitaData.municipio,
+           uf: receitaData.uf,
+           email: receitaData.email
+         };
          
-         // Tentativa 2: CNPJA (API Gratuita sem CORS)
+      } catch (err) {
+         console.warn('ReceitaWS falhou, tentando BrasilAPI...');
+         
+         // Tentativa 2: BrasilAPI (Fallback)
          try {
-           const responseBackup = await fetch(`https://api.cnpja.com/companies/${cnpjLimpo}`);
+           const responseBackup = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
            if (!responseBackup.ok) throw new Error('CNPJ não encontrado');
-           const cnpjaData = await responseBackup.json();
+           data = await responseBackup.json();
            
-           // Normalizar dados da CNPJA para formato esperado
-           data = {
-             razao_social: cnpjaData.name || cnpjaData.alias?.name,
-             nome_fantasia: cnpjaData.alias?.name || cnpjaData.name,
-             logradouro: cnpjaData.address?.street,
-             numero: cnpjaData.address?.number,
-             complemento: cnpjaData.address?.details,
-             municipio: cnpjaData.address?.city,
-             uf: cnpjaData.address?.state,
-             email: cnpjaData.emails?.[0]?.address
-           };
+           // Se retornou erro da API
+           if (data.type === 'not_found' || data.message) {
+             throw new Error('CNPJ não encontrado');
+           }
          } catch (err2) {
-           throw new Error('CNPJ não encontrado nas bases de dados disponíveis');
+           throw new Error('CNPJ não encontrado nas bases de dados disponíveis. Verifique o número digitado.');
          }
       }
       
@@ -713,11 +711,12 @@ const handleCNPJSearch = async () => {
 
     } catch (error: any) {
       console.error('Erro ao buscar CNPJ:', error);
-      alert(`❌ Não foi possível consultar o CNPJ.\n\n${error.message}\n\n💡 Você pode preencher manualmente.`);
+      alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente os dados.`);
     } finally {
       setLocalLoading(false);
     }
   };
+ 
   
   const handleCNJSearch = async () => {
     if (!currentProcess.process_number) return;
