@@ -149,7 +149,9 @@ export function ContractFormModal(props: Props) {
 
   // Novo estado para opções de Justiça (CustomSelect)
   const [justiceOptions, setJusticeOptions] = useState<string[]>(['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar']);
-  const [showJusticeManager, setShowJusticeManager] = useState(false); // Caso queira um modal de gerenciamento similar ao de Áreas no futuro
+  
+  // Opções de Numerais para o select
+  const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
   
   // Estado para modal de visualização do processo
   const [viewProcess, setViewProcess] = useState<ContractProcess | null>(null);
@@ -294,16 +296,14 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  // Funções para Assuntos (ADICIONADAS E CORRIGIDAS)
+  // Funções para Assuntos
   const addSubject = () => {
     if (!newSubject.trim()) return;
     const cleanSubject = toTitleCase(newSubject.trim());
-    // Garante que é um array para facilitar a manipulação na UI
     const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
     
     if (!currentSubjects.includes(cleanSubject)) {
         const updatedSubjects = [...currentSubjects, cleanSubject];
-        // Salva como string separada por ponto e vírgula
         setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
     }
     setNewSubject('');
@@ -805,10 +805,19 @@ export function ContractFormModal(props: Props) {
                     </div>
                   </div>
 
-                  {/* Linha 3: Vara, Comarca */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.vara || ''} onChange={(e) => setCurrentProcess({...currentProcess, vara: e.target.value})} /></div>
-                    <div><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
+                  {/* Linha 3: Numeral | Vara | Comarca */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+                    <div className="md:col-span-3">
+                        <CustomSelect 
+                            label="Numeral" 
+                            value={(currentProcess as any).numeral || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, numeral: val} as any)} 
+                            options={numeralOptions} 
+                            placeholder="Nº"
+                        />
+                    </div>
+                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Vara</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.vara || ''} onChange={(e) => setCurrentProcess({...currentProcess, vara: e.target.value})} /></div>
+                    <div className="md:col-span-4"><label className="text-[10px] text-gray-500 uppercase font-bold">Comarca</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.comarca || ''} onChange={(e) => setCurrentProcess({...currentProcess, comarca: e.target.value})} /></div>
                   </div>
 
                   {/* Linha 4: Data Distribuição, Justiça (Tipo de Ação removido) */}
