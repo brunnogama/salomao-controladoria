@@ -55,7 +55,7 @@ const FinancialInputWithInstallments = ({
           placeholder="R$ 0,00"
         />
         <div className={`w-20 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}>
-           <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
+            <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
         </div>
         {onAdd && (
           <button 
@@ -133,6 +133,7 @@ export function ContractFormModal(props: Props) {
   const [interimInstallments, setInterimInstallments] = useState('1x');
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
+  const [showUnsavedProcessWarning, setShowUnsavedProcessWarning] = useState(false);
   
   // Estado local para adicionar magistrados
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('Juiz');
@@ -180,6 +181,7 @@ export function ContractFormModal(props: Props) {
       // Limpar UF do processo ao abrir novo modal
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
       setNewSubject('');
+      setShowUnsavedProcessWarning(false);
     }
   }, [isOpen, formData.id]);
 
@@ -488,6 +490,27 @@ export function ContractFormModal(props: Props) {
     setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
   };
 
+  // Função para verificar se há dados no formulário de processo não salvos
+  const hasUnsavedProcessData = () => {
+    if (!formData.has_legal_process) return false;
+    
+    return !!(
+      currentProcess.process_number ||
+      currentProcess.court ||
+      currentProcess.uf ||
+      currentProcess.opponent ||
+      currentProcess.position ||
+      currentProcess.vara ||
+      currentProcess.comarca ||
+      currentProcess.justice_type ||
+      currentProcess.distribution_date ||
+      currentProcess.cause_value ||
+      currentProcess.process_class ||
+      currentProcess.subject ||
+      (currentProcess.magistrates && currentProcess.magistrates.length > 0)
+    );
+  };
+
   // --- FIM FUNÇÕES ADIÇÃO ---
 
   const generateFinancialInstallments = async (contractId: string) => {
@@ -534,6 +557,12 @@ export function ContractFormModal(props: Props) {
   };
 
   const handleSaveWithIntegrations = async () => {
+    // Verificar se há dados de processo não salvos
+    if (hasUnsavedProcessData()) {
+      setShowUnsavedProcessWarning(true);
+      return;
+    }
+
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
 
@@ -1524,6 +1553,79 @@ export function ContractFormModal(props: Props) {
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* Modal de Aviso - Processo Não Adicionado */}
+      {showUnsavedProcessWarning && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[90] p-4 animate-in fade-in">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95">
+            {/* Header com gradiente */}
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
+                <AlertCircle className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Dados Não Salvos</h3>
+                <p className="text-sm text-white/90 mt-1">Processo judicial pendente</p>
+              </div>
+            </div>
+            
+            {/* Conteúdo */}
+            <div className="p-6 space-y-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  Você preencheu informações no <span className="font-bold text-orange-600">formulário de processo judicial</span>, mas não clicou em{' '}
+                  <span className="inline-flex items-center px-2 py-0.5 bg-salomao-blue text-white rounded text-xs font-bold">
+                    <Plus className="w-3 h-3 mr-1" /> Adicionar Processo
+                  </span>
+                </p>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-xs text-blue-800 font-medium mb-2">💡 O que fazer?</p>
+                <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                  <li>Clique em <b>"Adicionar Processo"</b> para salvar os dados</li>
+                  <li>Ou limpe os campos se não deseja incluir o processo</li>
+                </ul>
+              </div>
+            </div>
+            
+            {/* Footer com ações */}
+            <div className="bg-gray-50 p-4 flex justify-end gap-3 border-t border-gray-200">
+              <button
+                 onClick={() => setShowUnsavedProcessWarning(false)}
+                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Voltar e Corrigir
+              </button>
+              <button
+                 onClick={() => {
+                   // Limpar formulário de processo
+                   setCurrentProcess({
+                     process_number: '',
+                     court: '',
+                     uf: '',
+                     opponent: '',
+                     position: '',
+                     vara: '',
+                     comarca: '',
+                     justice_type: '',
+                     distribution_date: '',
+                     cause_value: '',
+                     process_class: '',
+                     subject: '',
+                     magistrates: []
+                   } as any);
+                   setShowUnsavedProcessWarning(false);
+                 }}
+                 className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors flex items-center"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Descartar Dados
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
