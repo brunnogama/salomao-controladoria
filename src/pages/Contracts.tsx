@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Search, Filter, MoreHorizontal, Calendar, DollarSign, User, Briefcase, FileText, 
-  CheckCircle2, Clock, XCircle, AlertCircle, Scale, Tag, Loader2, 
+  Plus, Search, Filter, Calendar, DollarSign, User, Briefcase, 
+  CheckCircle2, Clock, Scale, Tag, Loader2, 
   LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
-  FileSignature // Importado para corresponder à Sidebar
+  FileSignature
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
+import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal'; // IMPORTADO
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
-// ... (getStatusColor, getStatusLabel, formatMoney MANTIDOS)
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -43,7 +43,6 @@ const formatMoney = (val: number | string | undefined) => {
   return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-// Nova função auxiliar para somar êxitos
 const calculateTotalSuccess = (c: Contract) => {
     let total = parseCurrency(c.final_success_fee);
     if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -65,14 +64,15 @@ export function Contracts() {
   // Filtros e Ordenação
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [partnerFilter, setPartnerFilter] = useState(''); // Novo filtro de sócio
+  const [partnerFilter, setPartnerFilter] = useState('');
   
-  // Alterado padrão para Nome e Lista
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Modais
+  const [isModalOpen, setIsModalOpen] = useState(false); // Form Modal
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Details Modal (View)
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
   
@@ -138,10 +138,11 @@ export function Contracts() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = async (contract: Contract) => {
+  // Função para abrir o Modal de Visualização (Timeline)
+  const handleView = async (contract: Contract) => {
     setFormData(contract);
-    setIsEditing(true);
     
+    // Buscar dados complementares para visualização
     const [procRes, timeRes] = await Promise.all([
         supabase.from('contract_processes').select('*').eq('contract_id', contract.id),
         supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false })
@@ -150,10 +151,28 @@ export function Contracts() {
     if (procRes.data) setProcesses(procRes.data);
     if (timeRes.data) setTimelineData(timeRes.data);
     
-    setIsModalOpen(true);
+    setIsDetailsModalOpen(true);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  // Função para abrir o Modal de Edição (Formulário) - chamado pelo botão "Editar" dentro do Details
+  const handleEdit = () => {
+    setIsDetailsModalOpen(false); // Fecha visualização
+    setIsEditing(true);
+    setIsModalOpen(true); // Abre edição
+  };
+
+  const handleDelete = async () => {
+    if (!formData.id) return;
+    if (confirm('Tem certeza que deseja excluir este contrato?')) {
+      const { error } = await supabase.from('contracts').delete().eq('id', formData.id);
+      if (!error) {
+        setIsDetailsModalOpen(false);
+        fetchData();
+      }
+    }
+  };
+
+  const handleDeleteFromList = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm('Tem certeza que deseja excluir este contrato?')) {
       const { error } = await supabase.from('contracts').delete().eq('id', id);
@@ -228,7 +247,6 @@ export function Contracts() {
     XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
-  // Helper para obter a data relevante com base no status
   const getRelevantDate = (c: Contract) => {
     switch (c.status) {
         case 'analysis': return c.prospect_date || c.created_at;
@@ -338,7 +356,6 @@ export function Contracts() {
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 items-center">
-          {/* Filtro de Status */}
           <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[150px]">
             <Filter className="w-4 h-4 text-gray-500 mr-2" />
             <select 
@@ -355,7 +372,6 @@ export function Contracts() {
             </select>
           </div>
 
-          {/* Filtro de Sócio (Adicionado) */}
           <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[150px]">
             <User className="w-4 h-4 text-gray-500 mr-2" />
             <select 
@@ -370,7 +386,6 @@ export function Contracts() {
             </select>
           </div>
 
-          {/* Ordenação por Nome/Data */}
           <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button 
                 onClick={() => { if(sortBy !== 'name') { setSortBy('name'); setSortOrder('asc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
@@ -410,7 +425,7 @@ export function Contracts() {
               {filteredContracts.map((contract) => {
                 const totalExito = calculateTotalSuccess(contract);
                 return (
-                  <div key={contract.id} onClick={() => handleEdit(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
+                  <div key={contract.id} onClick={() => handleView(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
                     
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0 pr-8">
@@ -419,15 +434,10 @@ export function Contracts() {
                           {getStatusLabel(contract.status)}
                         </span>
                       </div>
-                      <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
-                          <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-3.5 h-3.5" /></button>
-                          <button onClick={(e) => handleDelete(e, contract.id!)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
                     </div>
 
                     <div className="space-y-1.5 text-xs text-gray-600">
                       <div className="flex items-center">
-                         {/* ALTERADO DE ÁREA PARA PROCESSOS NO MODO GRID */}
                         <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
                         <span className="truncate">
                           {(contract as any).processes && (contract as any).processes.length > 0 
@@ -439,7 +449,6 @@ export function Contracts() {
                         <User className="w-3.5 h-3.5 mr-2 text-salomao-gold" />
                         <span className="truncate">{contract.partner_name || 'Sem sócio'}</span>
                       </div>
-                      {/* Removido o item antigo de Scale que mostrava a contagem de processos, já que agora mostramos os números */}
                       {contract.status === 'active' && contract.hon_number && (
                         <div className="flex items-center">
                           <Tag className="w-3.5 h-3.5 mr-2 text-gray-400" />
@@ -477,7 +486,6 @@ export function Contracts() {
                         <tr>
                             <th className="p-3">Status</th>
                             <th className="p-3">Cliente</th>
-                            {/* ALTERADO DE ÁREA PARA PROCESSOS NA TABELA */}
                             <th className="p-3">Processos</th>
                             <th className="p-3">Sócio</th>
                             <th className="p-3">HON</th>
@@ -487,10 +495,9 @@ export function Contracts() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredContracts.map(contract => (
-                            <tr key={contract.id} onClick={() => handleEdit(contract)} className="hover:bg-gray-50 cursor-pointer group">
+                            <tr key={contract.id} onClick={() => handleView(contract)} className="hover:bg-gray-50 cursor-pointer group">
                                 <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
                                 <td className="p-3 font-medium text-gray-800">{contract.client_name}</td>
-                                {/* ALTERADO DE ÁREA PARA PROCESSOS NA CÉLULA */}
                                 <td className="p-3 text-gray-600 max-w-[200px] truncate" title={(contract as any).processes?.map((p: any) => p.process_number).join(', ')}>
                                     {(contract as any).processes && (contract as any).processes.length > 0 
                                       ? (contract as any).processes.map((p: any) => p.process_number).join(', ') 
@@ -501,8 +508,8 @@ export function Contracts() {
                                 <td className="p-3 text-right text-gray-500">{new Date(getRelevantDate(contract) || '').toLocaleDateString()}</td>
                                 <td className="p-3 text-right">
                                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
-                                        <button onClick={(e) => { e.stopPropagation(); handleEdit(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
-                                        <button onClick={(e) => handleDelete(e, contract.id!)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleView(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                                        <button onClick={(e) => handleDeleteFromList(e, contract.id!)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
                                     </div>
                                 </td>
                             </tr>
@@ -514,6 +521,18 @@ export function Contracts() {
         </>
       )}
 
+      {/* Modal de Visualização com Timeline */}
+      <ContractDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        contract={formData}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        processes={processes}
+        timelineData={timelineData}
+      />
+
+      {/* Modal de Edição */}
       <ContractFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
