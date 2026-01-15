@@ -150,6 +150,7 @@ export function ContractFormModal(props: Props) {
   const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
   const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
+  const [positionOptions, setPositionOptions] = useState<string[]>([]); // Novo estado para Posição
 
   // GERENCIAMENTO DE TABELAS AUXILIARES
   const [managementModal, setManagementModal] = useState<{ table: string, title: string, ufFilter?: string } | null>(null);
@@ -198,6 +199,7 @@ export function ContractFormModal(props: Props) {
     fetchAndSet('process_subjects', setSubjectOptions);
     fetchAndSet('magistrates', setMagistrateOptions);
     fetchAndSet('opponents', setOpponentOptions);
+    fetchAndSet('process_positions', setPositionOptions); // Busca de posições adicionada
 
     fetchComarcas(currentProcess.uf);
   };
@@ -826,7 +828,7 @@ export function ContractFormModal(props: Props) {
                         <CustomSelect label="Tribunal *" value={currentProcess.court || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} options={courtOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('courts', 'Gerenciar Tribunais')} actionLabel="Gerenciar Tribunais" actionIcon={Settings} placeholder="Selecione" />
                     </div>
                     <div className="md:col-span-2 lg:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={UFS.map(uf => ({ label: uf.nome, value: uf.sigla }))} placeholder="UF" className="custom-select-small" /></div>
-                    <div className={isStandardCNJ ? "md:col-span-3 lg:col-span-3" : "md:col-span-2 lg:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={[{ label: 'Autor', value: 'Autor' }, { label: 'Réu', value: 'Réu' }, { label: 'Terceiro Interessado', value: 'Terceiro' }]} className="custom-select-small" /></div>
+                    <div className={isStandardCNJ ? "md:col-span-3 lg:col-span-3" : "md:col-span-2 lg:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions.map(p => ({ label: p, value: p }))} onAction={() => handleOpenManager('process_positions', 'Gerenciar Posições')} actionLabel="Gerenciar Posições" actionIcon={Settings} className="custom-select-small" /></div>
                   </div>
 
                   {/* Linha 2 */}
