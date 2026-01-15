@@ -51,12 +51,10 @@ const calculateTotalSuccess = (c: Contract) => {
     return total;
 };
 
-// Componente Local de Filtro Padronizado (Mesma UI do SearchableSelect)
+// Componente Local de Filtro Padronizado (Sem busca interna, apenas UI de select)
 const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: any, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -67,18 +65,6 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-        inputRef.current.focus();
-    } else if (!isOpen) {
-        setSearchTerm('');
-    }
-  }, [isOpen]);
-
-  const filteredOptions = options.filter((opt) => 
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const displayValue = options.find((opt) => opt.value === value)?.label || placeholder;
 
@@ -94,40 +80,19 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
       </div>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col animate-in fade-in zoom-in-95">
-          <div className="p-2 border-b border-gray-100 bg-white sticky top-0">
-            <div className="flex items-center bg-gray-50 rounded-md px-2 border border-gray-200">
-              <Search className="w-3 h-3 text-gray-400 mr-2" />
-              <input 
-                ref={inputRef}
-                type="text" 
-                className="w-full bg-transparent p-1.5 text-xs outline-none text-gray-700"
-                placeholder="Filtrar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-              />
+        <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto flex flex-col animate-in fade-in zoom-in-95">
+          {options.map((opt) => (
+            <div 
+              key={opt.value} 
+              className={`px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer ${value === opt.value ? 'bg-blue-50 font-medium' : ''}`}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+            >
+              {opt.label}
             </div>
-          </div>
-          
-          <div className="overflow-y-auto flex-1">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt) => (
-                <div 
-                  key={opt.value} 
-                  className={`px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer ${value === opt.value ? 'bg-blue-50 font-medium' : ''}`}
-                  onClick={() => {
-                    onChange(opt.value);
-                    setIsOpen(false);
-                  }}
-                >
-                  {opt.label}
-                </div>
-              ))
-            ) : (
-              <div className="px-3 py-2 text-xs text-gray-400 text-center">Sem resultados</div>
-            )}
-          </div>
+          ))}
         </div>
       )}
     </div>
