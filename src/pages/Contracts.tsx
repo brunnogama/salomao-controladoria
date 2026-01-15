@@ -71,12 +71,12 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
   return (
     <div className="relative min-w-[200px]" ref={wrapperRef}>
       <div 
-        className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+        className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors select-none"
         onClick={() => setIsOpen(!isOpen)}
       >
         {Icon && <Icon className="w-4 h-4 text-gray-500 mr-2 shrink-0" />}
-        <span className="text-sm text-gray-700 flex-1 truncate select-none">{displayValue}</span>
-        <ChevronDown className="w-3 h-3 text-gray-500 ml-2 shrink-0" />
+        <span className="text-sm text-gray-700 flex-1 truncate">{displayValue}</span>
+        <ChevronDown className={`w-3 h-3 text-gray-500 ml-2 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
       {isOpen && (
