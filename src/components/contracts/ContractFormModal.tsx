@@ -179,6 +179,12 @@ export function ContractFormModal(props: Props) {
     }
   }, [isOpen, formData.id]);
 
+  // Função reinserida para corrigir o erro de build
+  const fetchDocuments = async () => {
+    const { data } = await supabase.from('contract_documents').select('*').eq('contract_id', formData.id).order('uploaded_at', { ascending: false });
+    if (data) setDocuments(data);
+  };
+
   const sortStringArray = (arr: string[]) => arr.sort((a, b) => a.localeCompare(b));
 
   const fetchAuxiliaryTables = async () => {
@@ -334,32 +340,105 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  const generateFinancialInstallments = async (contractId: string) => { /* Mantido */ };
-  const forceUpdateFinancials = async (contractId: string) => { /* Mantido */ };
+  const generateFinancialInstallments = async (contractId: string) => {
+    if (formData.status !== 'active') return;
+    await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
+    
+    const installmentsToInsert: any[] = [];
+    const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string) => {
+      const totalValue = parseCurrency(totalValueStr);
+      if (totalValue <= 0) return;
+      const numInstallments = parseInt((installmentsStr || '1x').replace('x', '')) || 1;
+      const amountPerInstallment = totalValue / numInstallments;
+      for (let i = 1; i <= numInstallments; i++) {
+        installmentsToInsert.push({ contract_id: contractId, type: type, installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString() });
+      }
+    };
+
+    addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
+    addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
+    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
+    addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
+
+    if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
+      formData.intermediate_fees.forEach(fee => {
+        const val = parseCurrency(fee);
+        if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'intermediate_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
+      });
+    }
+    if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
+  };
+
+  const forceUpdateFinancials = async (contractId: string) => {
+    const cleanPL = parseCurrency(formData.pro_labore || "");
+    const cleanSuccess = parseCurrency(formData.final_success_fee || "");
+    const cleanFixed = parseCurrency(formData.fixed_monthly_fee || "");
+    const cleanOther = parseCurrency(formData.other_fees || "");
+
+    await supabase.from('contracts').update({
+      pro_labore: cleanPL,
+      final_success_fee: cleanSuccess,
+      fixed_monthly_fee: cleanFixed,
+      other_fees: cleanOther
+    }).eq('id', contractId);
+  };
 
   const handleSaveWithIntegrations = async () => {
-    // ... Lógica de salvamento mantida integralmente ...
+    // Verificar se há dados de processo não salvos
+    if (hasUnsavedProcessData()) {
+      setShowUnsavedProcessWarning(true);
+      return;
+    }
+
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
-    // (Resto das validações mantidas)
+
+    if (formData.status === 'analysis' && !formData.prospect_date) return alert('A "Data Prospect" é obrigatória para contratos em Análise.');
+    if (formData.status === 'proposal' && !formData.proposal_date) return alert('A "Data Proposta" é obrigatória para Propostas Enviadas.');
+    if (formData.status === 'active') {
+      if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
+      if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
+      if (!formData.billing_location) return alert('O "Local Faturamento" é obrigatório para Contratos Fechados.');
+      if (formData.physical_signature === undefined) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
+    }
 
     setLocalLoading(true);
     try {
-        // (Lógica de Upsert Cliente mantida)
         const clientId = await upsertClient();
-        if (!clientId) throw new Error("Falha ao salvar dados do cliente.");
+        if (!clientId) {
+            throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
+        }
         
         const contractPayload: any = {
-            ...formData, client_id: clientId,
+            ...formData,
+            client_id: clientId,
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
-            partner_name: undefined, analyzed_by_name: undefined, process_count: undefined, analyst: undefined, analysts: undefined, client: undefined, partner: undefined, processes: undefined, partners: undefined, id: undefined, pro_labore_extras: undefined, final_success_extras: undefined, fixed_monthly_extras: undefined, other_fees_extras: undefined, percent_extras: undefined
+            
+            partner_name: undefined,
+            analyzed_by_name: undefined,
+            process_count: undefined,
+            analyst: undefined,
+            analysts: undefined, 
+            client: undefined,    
+            partner: undefined,   
+            processes: undefined,
+            partners: undefined,
+            id: undefined,
+            
+            pro_labore_extras: undefined,
+            final_success_extras: undefined,
+            fixed_monthly_extras: undefined,
+            other_fees_extras: undefined,
+            percent_extras: undefined
         };
+
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
 
         let savedId = formData.id;
+
         if (formData.id) {
             const { error } = await supabase.from('contracts').update(contractPayload).eq('id', formData.id);
             if (error) throw error;
@@ -370,51 +449,322 @@ export function ContractFormModal(props: Props) {
         }
 
         if (savedId) {
-            // (Processos e Tarefas mantidos)
+            await forceUpdateFinancials(savedId);
+            await generateFinancialInstallments(savedId);
+            
+            // Salvar processos
             if (processes.length > 0) {
                 await supabase.from('contract_processes').delete().eq('contract_id', savedId);
                 const processesToInsert = processes.map(p => ({ ...p, contract_id: savedId }));
                 await supabase.from('contract_processes').insert(processesToInsert);
             }
+            
+            if (formData.status === 'active' && formData.physical_signature === false) {
+                const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').single();
+                if (!data) {
+                  const dueDate = addDays(new Date(), 5);
+                  await supabase.from('kanban_tasks').insert({ title: `Coletar Assinatura: ${formData.client_name}`, description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`, priority: 'Alta', status: 'signature', contract_id: savedId, due_date: dueDate.toISOString(), position: 0 });
+                }
+            }
         }
+
         onSave();
         onClose();
+
     } catch (error: any) {
         console.error('Erro ao salvar contrato:', error);
-        alert(`Não foi possível salvar as alterações.\n\n${error.message}`);
+        if (error.code === '23505' || error.message?.includes('contracts_hon_number_key')) {
+            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.');
+        } else if (error.code === 'PGRST204') {
+             console.warn('Erro de estrutura de dados:', error.message);
+             const column = error.message.match(/'([^']+)'/)?.[1];
+             alert(`Erro Técnico: Tentativa de salvar campo inválido (${column}).`);
+        } else {
+            alert(`Não foi possível salvar as alterações.\n\n${error.message}`);
+        }
     } finally {
         setLocalLoading(false);
     }
   };
 
   const upsertClient = async () => {
-      // (Função mantida integralmente)
       if (!formData.client_name) return null;
+
       const clientData = {
-          name: formData.client_name,
-          cnpj: (formData.has_no_cnpj || !formData.cnpj) ? null : formData.cnpj,
-          is_person: clientExtraData.is_person || formData.has_no_cnpj || (formData.cnpj.length > 0 && formData.cnpj.length <= 14),
-          uf: formData.uf,
-          partner_id: formData.partner_id
+        name: formData.client_name,
+        cnpj: (formData.has_no_cnpj || !formData.cnpj) ? null : formData.cnpj,
+        is_person: clientExtraData.is_person || formData.has_no_cnpj || (formData.cnpj.length > 0 && formData.cnpj.length <= 14),
+        uf: formData.uf,
+        address: clientExtraData.address || undefined,
+        city: clientExtraData.city || undefined,
+        complement: clientExtraData.complement || undefined,
+        number: clientExtraData.number || undefined,
+        email: clientExtraData.email || undefined,
+        partner_id: formData.partner_id
       };
+
       if (clientData.cnpj) {
-          const { data } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
-          if (data) { await supabase.from('clients').update(clientData).eq('id', data.id); return data.id; }
-          const { data: n, error } = await supabase.from('clients').insert(clientData).select().single();
-          return error ? null : n.id;
+        const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
+        
+        if (existingClient) {
+          await supabase.from('clients').update(clientData).eq('id', existingClient.id);
+          return existingClient.id;
+        } else {
+          const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
+          if (error) { 
+              console.error('Erro ao criar cliente com CNPJ:', error); 
+              return null; 
+          }
+          return newClient.id;
+        }
       } else {
-          if (formData.client_id) { await supabase.from('clients').update(clientData).eq('id', formData.client_id); return formData.client_id; }
-          const { data: n, error } = await supabase.from('clients').insert(clientData).select().single();
-          return error ? null : n.id;
+        if (formData.client_id) {
+           const { error } = await supabase.from('clients').update(clientData).eq('id', formData.client_id);
+           if (error) console.error("Erro ao atualizar cliente sem CNPJ:", error);
+           return formData.client_id;
+        } else {
+           const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
+           if (error) { 
+               console.error('Erro ao criar cliente sem CNPJ:', error); 
+               return null; 
+           }
+           return newClient.id;
+        }
       }
   };
 
-  const handleCNPJSearch = async () => { /* Mantido */ };
-  const handleCNJSearch = async () => { /* Mantido */ };
-  const handleOpenJusbrasil = () => { /* Mantido */ };
-  const handleFileUpload = async (e: any, type: string) => { /* Mantido */ };
-  const handleDownload = async (path: string) => { /* Mantido */ };
-  const handleDeleteDocument = async (id: string, path: string) => { /* Mantido */ };
+  const hasUnsavedProcessData = () => {
+    if (!formData.has_legal_process) return false;
+    
+    return !!(
+      currentProcess.process_number ||
+      currentProcess.court ||
+      currentProcess.uf ||
+      currentProcess.opponent ||
+      currentProcess.position ||
+      currentProcess.vara ||
+      currentProcess.comarca ||
+      currentProcess.justice_type ||
+      currentProcess.distribution_date ||
+      currentProcess.cause_value ||
+      currentProcess.process_class ||
+      currentProcess.subject ||
+      (currentProcess.magistrates && currentProcess.magistrates.length > 0)
+    );
+  };
+
+  const handleCNPJSearch = async () => {
+    if (!formData.cnpj || formData.has_no_cnpj) return;
+    
+    const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) {
+      alert('CNPJ inválido. Digite 14 dígitos.');
+      return;
+    }
+
+    setLocalLoading(true);
+    try {
+      let data;
+      
+      // Tentativa 1: BrasilAPI
+      try {
+         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+         if (!response.ok) throw new Error('Not found on BrasilAPI');
+         data = await response.json();
+         
+      } catch (err) {
+         console.warn('BrasilAPI falhou (404 ou erro), tentando Fallback (Publica CNPJ)...');
+         
+         // Tentativa 2: Fallback Robusto (CNPJ.WS)
+         try {
+           const responseBackup = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjLimpo}`);
+           if (!responseBackup.ok) throw new Error('CNPJ não encontrado nas bases públicas.');
+           const dataWs = await responseBackup.json();
+           
+           data = {
+             razao_social: dataWs.razao_social,
+             nome_fantasia: dataWs.estabelecimento.nome_fantasia,
+             logradouro: dataWs.estabelecimento.logradouro,
+             numero: dataWs.estabelecimento.numero,
+             complemento: dataWs.estabelecimento.complemento,
+             municipio: dataWs.estabelecimento.cidade.nome,
+             uf: dataWs.estabelecimento.estado.sigla,
+             email: dataWs.estabelecimento.email
+           };
+         } catch (err2: any) {
+           throw new Error(err2.message || 'CNPJ não encontrado.');
+         }
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''),
+        uf: data.uf || prev.uf
+      }));
+
+      setClientExtraData({
+        address: toTitleCase(data.logradouro || ''),
+        number: data.numero || '',
+        complement: toTitleCase(data.complemento || ''),
+        city: toTitleCase(data.municipio || ''),
+        email: data.email || '',
+        is_person: false
+      });
+
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('cnpj', cnpjLimpo)
+        .single();
+
+      if (existingClient) {
+        setFormData(prev => ({ ...prev, client_id: existingClient.id }));
+      }
+
+    } catch (error: any) {
+      console.error('Erro ao buscar CNPJ:', error);
+      alert(`❌ Não foi possível consultar o CNPJ.\n\n${error.message}\n\n💡 Você pode preencher manualmente.`);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleCNJSearch = async () => {
+    if (!currentProcess.process_number) return;
+    
+    const numeroLimpo = currentProcess.process_number.replace(/\D/g, '');
+    if (numeroLimpo.length !== 20) {
+      alert('Número de processo inválido. Deve ter 20 dígitos.');
+      return;
+    }
+
+    setSearchingCNJ(true);
+    try {
+      const decoded = decodeCNJ(numeroLimpo);
+      if (!decoded) {
+        throw new Error('Não foi possível decodificar o número do processo');
+      }
+      
+      const uf = decoded.tribunal === 'STF' ? 'DF' : decoded.uf;
+      
+      // Tenta adicionar o tribunal à lista local e ao banco se não existir
+      if (!courtOptions.includes(decoded.tribunal)) {
+          // Tenta inserir no Supabase (silenciosamente se falhar/já existir)
+          await supabase.from('courts').insert({ name: decoded.tribunal }).select();
+          setCourtOptions([...courtOptions, decoded.tribunal].sort());
+      }
+      
+      setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal, uf: uf })); // Atualiza UF do processo também
+    } catch (error: any) {
+      alert(`❌ Erro ao decodificar CNJ: ${error.message}`);
+    } finally {
+      setSearchingCNJ(false);
+    }
+  };
+
+  const handleOpenJusbrasil = () => {
+    if (currentProcess.process_number) {
+      const numero = currentProcess.process_number.replace(/\D/g, '');
+      window.open(`https://www.jusbrasil.com.br/processos/numero/${numero}`, '_blank');
+    }
+  };
+  
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!formData.id) {
+      alert("⚠️ Você precisa salvar o contrato pelo menos uma vez antes de anexar arquivos.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const sanitizedFileName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+      const filePath = `${formData.id}/${Date.now()}_${sanitizedFileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('contract-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: docData, error: dbError } = await supabase
+        .from('contract_documents')
+        .insert({
+          contract_id: formData.id,
+          file_name: file.name,
+          file_path: filePath,
+          file_type: type,
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      if (docData) {
+          setDocuments(prev => [docData, ...prev]);
+      }
+
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      alert("Erro ao anexar arquivo: " + error.message);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDownload = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('contract-documents')
+        .download(path);
+        
+      if (error) throw error;
+      
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      const fileName = path.split('_').slice(1).join('_') || 'documento.pdf';
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error("Download error:", error);
+      alert("Erro ao baixar arquivo: " + error.message);
+    }
+  };
+
+  const handleDeleteDocument = async (id: string, path: string) => {
+    if (!confirm("Tem certeza que deseja excluir este documento?")) return;
+
+    try {
+      const { error: storageError } = await supabase.storage
+        .from('contract-documents')
+        .remove([path]);
+
+      if (storageError) {
+          console.warn("Aviso: Erro ao remover do storage (pode já ter sido deletado)", storageError);
+      }
+
+      const { error: dbError } = await supabase
+        .from('contract_documents')
+        .delete()
+        .eq('id', id);
+
+      if (dbError) throw dbError;
+
+      setDocuments(prev => prev.filter(d => d.id !== id));
+
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      alert("Erro ao excluir documento: " + error.message);
+    }
+  };
 
   const partnerSelectOptions = partners.sort((a,b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }));
   const analystSelectOptions = analysts ? analysts.sort((a,b) => a.name.localeCompare(b.name)).map(a => ({ label: a.name, value: a.id })) : [];
