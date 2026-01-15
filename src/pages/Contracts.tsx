@@ -3,7 +3,7 @@ import {
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase, 
   CheckCircle2, Clock, Scale, Tag, Loader2, 
   LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
-  FileSignature, ChevronDown
+  FileSignature, ChevronDown, X
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -319,6 +319,15 @@ export function Contracts() {
     }
   });
 
+  // Funções para resetar filtros
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPartnerFilter('');
+  };
+
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '';
+
   // Opções para os filtros
   const statusOptions = [
     { label: 'Todos Status', value: 'all' },
@@ -412,7 +421,6 @@ export function Contracts() {
           />
         </div>
         
-        {/* CORREÇÃO: Alterado de overflow-x-auto para flex-wrap para permitir que os dropdowns apareçam */}
         <div className="flex gap-2 flex-wrap items-center">
           <FilterSelect 
             icon={Filter}
@@ -429,6 +437,16 @@ export function Contracts() {
             options={partnerOptions}
             placeholder="Sócios"
           />
+
+          {hasActiveFilters && (
+            <button 
+              onClick={clearFilters}
+              className="flex items-center px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
+              title="Limpar todos os filtros"
+            >
+              <X className="w-4 h-4 mr-2" /> Limpar
+            </button>
+          )}
 
           <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button 
