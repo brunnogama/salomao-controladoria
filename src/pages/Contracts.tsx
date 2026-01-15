@@ -105,7 +105,7 @@ export function Contracts() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
   const [loading, setLoading] = useState(true);
-  
+   
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -113,7 +113,7 @@ export function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [partnerFilter, setPartnerFilter] = useState('');
-  
+   
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -123,7 +123,7 @@ export function Contracts() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
-  
+   
   const emptyContract: Contract = {
     cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: true,
     status: 'analysis', physical_signature: false
@@ -412,7 +412,8 @@ export function Contracts() {
           />
         </div>
         
-        <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 items-center">
+        {/* CORREÇÃO: Alterado de overflow-x-auto para flex-wrap para permitir que os dropdowns apareçam */}
+        <div className="flex gap-2 flex-wrap items-center">
           <FilterSelect 
             icon={Filter}
             value={statusFilter}
