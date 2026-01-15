@@ -1,30 +1,22 @@
 import React from 'react';
-import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck } from 'lucide-react';
-import { Contract, ContractProcess, TimelineEvent } from '../../types';
+import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown } from 'lucide-react';
+import { Contract, ContractProcess } from '../../types';
 
-// Função para pegar a data de negócio correta baseada no status
-const getEffectiveDate = (status: string, contract: Contract): Date | null => {
-  let businessDateString = null;
-  switch (status) {
-    case 'analysis': businessDateString = contract.prospect_date; break;
-    case 'proposal': businessDateString = contract.proposal_date; break;
-    case 'active': businessDateString = contract.contract_date; break;
-    case 'rejected': businessDateString = contract.rejection_date; break;
-    case 'probono': businessDateString = contract.probono_date || contract.contract_date; break;
-  }
+// Interface interna para os eventos construídos a partir das datas do formulário
+interface InternalTimelineEvent {
+  label: string;
+  date: string; // YYYY-MM-DD
+  status: string;
+  color: string;
+}
+
+const getDurationBetween = (startDateStr: string, endDateStr: string): string => {
+  if (!startDateStr || !endDateStr) return '-';
   
-  if (businessDateString) {
-    // Adiciona T12:00:00 para evitar problemas de timezone ao converter string YYYY-MM-DD
-    return new Date(businessDateString + 'T12:00:00');
-  }
-  return null;
-};
-
-// Cálculo de duração entre datas
-const getDurationBetween = (startDate: Date | null, endDate: Date | null): string => {
-  if (!startDate || !endDate) return '-';
-
-  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  const start = new Date(startDateStr + 'T12:00:00');
+  const end = new Date(endDateStr + 'T12:00:00');
+  
+  const diffTime = Math.abs(end.getTime() - start.getTime());
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
   
   if (diffDays === 0) return 'Mesmo dia';
@@ -36,18 +28,6 @@ const getDurationBetween = (startDate: Date | null, endDate: Date | null): strin
   return `${diffDays} dias`;
 };
 
-// Duração total baseada no primeiro e último evento da timeline (usando datas de negócio)
-const getTotalDuration = (timelineData: TimelineEvent[], contract: Contract) => {
-  if (timelineData.length === 0) return '0 dias';
-  const latestEvent = timelineData[0]; // Mais recente
-  const oldestEvent = timelineData[timelineData.length - 1]; // Mais antigo
-  
-  const endDate = getEffectiveDate(latestEvent.new_status, contract);
-  const startDate = getEffectiveDate(oldestEvent.new_status, contract);
-  
-  return getDurationBetween(startDate, endDate);
-};
-
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -55,11 +35,45 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   processes: ContractProcess[];
-  timelineData: TimelineEvent[];
 }
 
-export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes, timelineData }: Props) {
+export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes }: Props) {
   if (!isOpen || !contract) return null;
+
+  // 1. CONSTRUÇÃO DA TIMELINE BASEADA NAS DATAS INTERNAS
+  const buildInternalTimeline = (): InternalTimelineEvent[] => {
+    const events: InternalTimelineEvent[] = [];
+
+    // Adiciona eventos apenas se a data interna estiver preenchida no formulário
+    if (contract.prospect_date) {
+      events.push({ label: 'Sob Análise (Prospect)', date: contract.prospect_date, status: 'analysis', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' });
+    }
+    if (contract.proposal_date) {
+      events.push({ label: 'Proposta Enviada', date: contract.proposal_date, status: 'proposal', color: 'bg-blue-100 text-blue-800 border-blue-200' });
+    }
+    if (contract.contract_date) {
+      events.push({ label: 'Contrato Fechado (Ativo)', date: contract.contract_date, status: 'active', color: 'bg-green-100 text-green-800 border-green-200' });
+    }
+    if (contract.rejection_date) {
+      events.push({ label: 'Rejeitado', date: contract.rejection_date, status: 'rejected', color: 'bg-red-100 text-red-800 border-red-200' });
+    }
+    if (contract.probono_date) {
+      events.push({ label: 'Probono', date: contract.probono_date, status: 'probono', color: 'bg-purple-100 text-purple-800 border-purple-200' });
+    }
+
+    // Ordena cronologicamente (Data mais antiga primeiro)
+    return events.sort((a, b) => a.date.localeCompare(b.date));
+  };
+
+  const timelineEvents = buildInternalTimeline();
+
+  // Cálculo da duração total (Primeiro evento -> Último evento)
+  const getTotalDuration = () => {
+    if (timelineEvents.length < 2) return '0 dias';
+    const first = timelineEvents[0];
+    const last = timelineEvents[timelineEvents.length - 1];
+    return getDurationBetween(first.date, last.date);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -67,6 +81,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
       case 'proposal': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'active': return 'bg-green-100 text-green-800 border-green-200';
       case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+      case 'probono': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -100,7 +115,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           </div>
           
-          {/* Ações: Editar e Excluir */}
+          {/* Ações */}
           <div className="flex gap-2">
             <button onClick={onEdit} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Editar">
               <Edit className="w-5 h-5" />
@@ -130,13 +145,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   <label className="text-xs text-gray-400 block">Analista</label>
                   <div className="flex items-center gap-2 mt-1 text-gray-800 font-medium">
                     <User className="w-4 h-4 text-purple-500" /> {contract.analyzed_by_name || '-'}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 block">Data Prospect</label>
-                  <div className="flex items-center gap-2 mt-1 text-gray-800">
-                    <Calendar className="w-4 h-4 text-gray-400" /> 
-                    {contract.prospect_date ? new Date(contract.prospect_date + 'T12:00:00').toLocaleDateString() : '-'}
                   </div>
                 </div>
                 <div>
@@ -191,53 +199,53 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           )}
 
-          {/* TIMELINE VISUALIZATION (DATAS INTERNAS) */}
-          {timelineData.length > 0 && (
+          {/* --- TIMELINE DE STATUS (DATAS INTERNAS) --- */}
+          {timelineEvents.length > 0 && (
             <div className="border-t border-gray-100 pt-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center">
-                  <HistoryIcon className="w-4 h-4 mr-2" /> Histórico (Datas de Negócio)
+                  <HistoryIcon className="w-4 h-4 mr-2" /> Timeline (Datas do Processo)
                 </h3>
                 <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200 flex items-center">
-                  <Hourglass className="w-3 h-3 mr-1" /> Total: {getTotalDuration(timelineData, contract)}
+                  <Hourglass className="w-3 h-3 mr-1" /> Duração Total: {getTotalDuration()}
                 </span>
               </div>
               
-              <div className="relative border-l-2 border-gray-100 ml-3 space-y-8 pb-4">
-                {timelineData.map((t, idx) => {
-                  // Pega a data de negócio associada ao status deste evento
-                  const currentEventDate = getEffectiveDate(t.new_status, contract);
+              <div className="relative border-l-2 border-gray-100 ml-3 space-y-0 pb-4">
+                {timelineEvents.map((event, idx) => {
+                  const isLast = idx === timelineEvents.length - 1;
+                  const nextEvent = !isLast ? timelineEvents[idx + 1] : null;
                   
-                  // Pega o próximo evento (que é o anterior cronologicamente na lista desc)
-                  const nextEvent = timelineData[idx + 1];
-                  const prevEventDate = nextEvent ? getEffectiveDate(nextEvent.new_status, contract) : null;
-                  
-                  // Calcula duração entre o evento anterior e este
-                  const duration = nextEvent 
-                    ? getDurationBetween(prevEventDate, currentEventDate) 
-                    : 'Início';
-                  
+                  // Calcula duração até o próximo evento (se existir)
+                  const durationToNext = nextEvent 
+                    ? getDurationBetween(event.date, nextEvent.date)
+                    : null;
+
                   return (
-                    <div key={t.id} className="relative pl-8 group">
-                      <span className="absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 bg-gray-300 border-white group-first:bg-salomao-blue group-first:border-blue-100"></span>
+                    <div key={idx} className="relative pl-8 pb-8 last:pb-0 group">
+                      {/* Bolinha da Timeline */}
+                      <span className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${event.status === contract.status ? 'bg-salomao-blue border-blue-200 scale-110' : 'bg-white border-gray-300'}`}></span>
                       
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between bg-white p-4 rounded-lg border border-gray-100 shadow-sm hover:border-blue-200 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-lg border border-gray-100 shadow-sm hover:border-blue-200 transition-colors">
                         <div>
-                          <h4 className="text-sm font-bold text-gray-600 group-first:text-salomao-blue">{getStatusLabel(t.new_status)}</h4>
-                          <p className="text-xs text-gray-400 mt-1 flex items-center">
-                            <CalendarCheck className="w-3 h-3 mr-1" /> 
-                            {currentEventDate ? currentEventDate.toLocaleDateString('pt-BR') : 'Data n/a'}
+                          <div className="flex items-center gap-2">
+                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${event.color}`}>
+                                {event.label}
+                             </span>
+                          </div>
+                          <p className="text-sm font-bold text-gray-700 mt-2 flex items-center">
+                            <CalendarCheck className="w-4 h-4 mr-2 text-gray-400" /> 
+                            {new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </p>
-                          <p className="text-[10px] text-gray-300 mt-1">Alterado por: {t.changed_by}</p>
                         </div>
-                        <div className="mt-2 sm:mt-0 flex flex-col items-end">
-                          <span className="text-[10px] uppercase font-bold text-gray-400 mb-1">
-                            {nextEvent ? 'Duração Fase Anterior' : 'Origem'}
-                          </span>
-                          <span className="bg-gray-50 px-2 py-1 rounded border border-gray-200 text-xs font-mono text-gray-600">
-                            {duration}
-                          </span>
-                        </div>
+
+                        {/* Se houver próximo evento, mostra a duração entre eles */}
+                        {durationToNext && (
+                           <div className="mt-3 sm:mt-0 flex items-center text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                              <ArrowDown className="w-3 h-3 mr-1" />
+                              {durationToNext} até a próxima fase
+                           </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -245,6 +253,12 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
               </div>
             </div>
           )}
+          {timelineEvents.length === 0 && (
+             <div className="text-center py-8 border-t border-gray-100 text-gray-400 text-sm">
+                 Nenhuma data interna (Prospect, Proposta, etc.) preenchida neste contrato.
+             </div>
+          )}
+
         </div>
       </div>
     </div>
