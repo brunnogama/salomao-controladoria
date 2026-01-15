@@ -10,7 +10,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
-import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal'; // IMPORTADO
+import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
@@ -529,7 +529,6 @@ export function Contracts() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         processes={processes}
-        timelineData={timelineData}
       />
 
       {/* Modal de Edição */}
