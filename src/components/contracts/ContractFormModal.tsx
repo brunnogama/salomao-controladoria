@@ -150,11 +150,17 @@ export function ContractFormModal(props: Props) {
   const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
   const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
-  const [positionOptions, setPositionOptions] = useState<string[]>([]); // Novo estado para Posição
+  const [positionOptions, setPositionOptions] = useState<string[]>([]);
 
   // GERENCIAMENTO DE TABELAS AUXILIARES
-  const [managementModal, setManagementModal] = useState<{ table: string, title: string, ufFilter?: string } | null>(null);
+  const [managementModal, setManagementModal] = useState<{ 
+    table: string, 
+    title: string, 
+    ufFilter?: string,
+    onSelect?: (val: string) => void // Callback para seleção automática
+  } | null>(null);
   const [managementItems, setManagementItems] = useState<{id: string, name: string}[]>([]);
+  const [managerSearchTerm, setManagerSearchTerm] = useState(''); // Estado para busca no gerenciador
   const [isManagerLoading, setIsManagerLoading] = useState(false);
 
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
@@ -199,7 +205,7 @@ export function ContractFormModal(props: Props) {
     fetchAndSet('process_subjects', setSubjectOptions);
     fetchAndSet('magistrates', setMagistrateOptions);
     fetchAndSet('opponents', setOpponentOptions);
-    fetchAndSet('process_positions', setPositionOptions); // Busca de posições adicionada
+    fetchAndSet('process_positions', setPositionOptions);
 
     fetchComarcas(currentProcess.uf);
   };
@@ -216,11 +222,12 @@ export function ContractFormModal(props: Props) {
   }, [currentProcess.uf]);
 
   // --- LÓGICA DO GERENCIADOR DE AUXILIARES ---
-  const handleOpenManager = async (table: string, title: string) => {
+  const handleOpenManager = async (table: string, title: string, onSelect?: (val: string) => void) => {
     if (table === 'comarcas' && !currentProcess.uf) return alert("Selecione um Estado (UF) primeiro.");
     
     setIsManagerLoading(true);
-    setManagementModal({ table, title, ufFilter: table === 'comarcas' ? currentProcess.uf : undefined });
+    setManagerSearchTerm(''); // Limpar busca ao abrir
+    setManagementModal({ table, title, ufFilter: table === 'comarcas' ? currentProcess.uf : undefined, onSelect });
     
     let query = supabase.from(table).select('id, name').order('name');
     if (table === 'comarcas' && currentProcess.uf) {
@@ -252,7 +259,15 @@ export function ContractFormModal(props: Props) {
             // Insert
             const { data, error } = await supabase.from(managementModal.table).insert(payload).select('id, name').single();
             if (error) throw error;
-            if (data) setManagementItems(prev => [...prev, data].sort((a,b) => a.name.localeCompare(b.name)));
+            if (data) {
+                setManagementItems(prev => [...prev, data].sort((a,b) => a.name.localeCompare(b.name)));
+                
+                // Auto-seleção do novo item
+                if (managementModal.onSelect) {
+                    managementModal.onSelect(cleanName);
+                    setManagementModal(null); // Fecha o modal após adicionar e selecionar
+                }
+            }
         }
         await fetchAuxiliaryTables(); // Refresh dropdowns
     } catch (err: any) {
@@ -825,23 +840,23 @@ export function ContractFormModal(props: Props) {
                     </div>
                     {!isStandardCNJ && (<div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Tipo</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" value={otherProcessType} onChange={(e) => setOtherProcessType(e.target.value)} /></div>)}
                     <div className="md:col-span-2 lg:col-span-2">
-                        <CustomSelect label="Tribunal *" value={currentProcess.court || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} options={courtOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('courts', 'Gerenciar Tribunais')} actionLabel="Gerenciar Tribunais" actionIcon={Settings} placeholder="Selecione" />
+                        <CustomSelect label="Tribunal *" value={currentProcess.court || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} options={courtOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('courts', 'Gerenciar Tribunais', (val) => setCurrentProcess(prev => ({...prev, court: val})))} actionLabel="Gerenciar Tribunais" actionIcon={Settings} placeholder="Selecione" />
                     </div>
                     <div className="md:col-span-2 lg:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={UFS.map(uf => ({ label: uf.nome, value: uf.sigla }))} placeholder="UF" className="custom-select-small" /></div>
-                    <div className={isStandardCNJ ? "md:col-span-3 lg:col-span-3" : "md:col-span-2 lg:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions.map(p => ({ label: p, value: p }))} onAction={() => handleOpenManager('process_positions', 'Gerenciar Posições')} actionLabel="Gerenciar Posições" actionIcon={Settings} className="custom-select-small" /></div>
+                    <div className={isStandardCNJ ? "md:col-span-3 lg:col-span-3" : "md:col-span-2 lg:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions.map(p => ({ label: p, value: p }))} onAction={() => handleOpenManager('process_positions', 'Gerenciar Posições', (val) => setCurrentProcess(prev => ({...prev, position: val})))} actionLabel="Gerenciar Posições" actionIcon={Settings} className="custom-select-small" /></div>
                   </div>
 
                   {/* Linha 2 */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-12 lg:col-span-5">
-                        <CustomSelect label="Contrário (Parte Oposta) *" value={currentProcess.opponent || formData.company_name || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} options={opponentOptions.map(o => ({ label: o, value: o }))} onAction={() => handleOpenManager('opponents', 'Gerenciar Oponentes')} actionLabel="Gerenciar Oponentes" actionIcon={Settings} placeholder="Selecione" />
+                        <CustomSelect label="Contrário (Parte Oposta) *" value={currentProcess.opponent || formData.company_name || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} options={opponentOptions.map(o => ({ label: o, value: o }))} onAction={() => handleOpenManager('opponents', 'Gerenciar Oponentes', (val) => setCurrentProcess(prev => ({...prev, opponent: val})))} actionLabel="Gerenciar Oponentes" actionIcon={Settings} placeholder="Selecione" />
                     </div>
                     <div className="md:col-span-12 lg:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
                         <div className="flex flex-col sm:flex-row gap-2 items-end">
                             <div className="w-full sm:w-40 shrink-0"><CustomSelect value={newMagistrateTitle} onChange={(val: string) => setNewMagistrateTitle(val)} options={[{ label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }]} /></div>
                             <div className="flex-1 w-full min-w-0 flex gap-2">
-                                <div className="flex-1"><CustomSelect value={newMagistrateName} onChange={(val: string) => setNewMagistrateName(val)} options={magistrateOptions.map(m => ({ label: m, value: m }))} placeholder="Selecione magistrado" onAction={() => handleOpenManager('magistrates', 'Gerenciar Magistrados')} actionLabel="Gerenciar Lista de Magistrados" actionIcon={Settings} /></div>
+                                <div className="flex-1"><CustomSelect value={newMagistrateName} onChange={(val: string) => setNewMagistrateName(val)} options={magistrateOptions.map(m => ({ label: m, value: m }))} placeholder="Selecione magistrado" onAction={() => handleOpenManager('magistrates', 'Gerenciar Magistrados', (val) => setNewMagistrateName(val))} actionLabel="Gerenciar Lista de Magistrados" actionIcon={Settings} /></div>
                             </div>
                             <button onClick={addMagistrate} className="bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 transition-colors shrink-0 shadow-sm border border-blue-800" type="button" title="Incluir na lista"><Plus className="w-5 h-5" /></button>
                         </div>
@@ -853,7 +868,7 @@ export function ContractFormModal(props: Props) {
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-3"><CustomSelect label="Numeral" value={(currentProcess as any).numeral || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, numeral: val} as any)} options={numeralOptions} placeholder="Nº" /></div>
                     <div className="md:col-span-5"><CustomSelect label="Vara" value={currentProcess.vara || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} options={varaOptions.map(v => ({ label: v, value: v }))} onAction={handleAddVara} actionLabel="Adicionar Vara (Local)" actionIcon={Plus} placeholder="Selecione" /></div>
-                    <div className="md:col-span-4"><CustomSelect label="Comarca" value={currentProcess.comarca || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} options={comarcaOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('comarcas', `Gerenciar Comarcas (${currentProcess.uf || 'UF'})`)} actionLabel="Gerenciar Comarcas" actionIcon={Settings} placeholder={currentProcess.uf ? "Selecione" : "Selecione UF"} disabled={!currentProcess.uf} /></div>
+                    <div className="md:col-span-4"><CustomSelect label="Comarca" value={currentProcess.comarca || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} options={comarcaOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('comarcas', `Gerenciar Comarcas (${currentProcess.uf || 'UF'})`, (val) => setCurrentProcess(prev => ({...prev, comarca: val})))} actionLabel="Gerenciar Comarcas" actionIcon={Settings} placeholder={currentProcess.uf ? "Selecione" : "Selecione UF"} disabled={!currentProcess.uf} /></div>
                   </div>
 
                   {/* Linha 4 */}
@@ -865,11 +880,11 @@ export function ContractFormModal(props: Props) {
 
                   {/* Linha 5 */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><CustomSelect label="Classe" value={currentProcess.process_class || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} options={classOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('process_classes', 'Gerenciar Classes')} actionLabel="Gerenciar Classes" actionIcon={Settings} placeholder="Selecione" /></div>
+                    <div><CustomSelect label="Classe" value={currentProcess.process_class || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} options={classOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('process_classes', 'Gerenciar Classes', (val) => setCurrentProcess(prev => ({...prev, process_class: val})))} actionLabel="Gerenciar Classes" actionIcon={Settings} placeholder="Selecione" /></div>
                     <div>
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
                         <div className="flex gap-2 items-center">
-                             <div className="flex-1 min-w-0"><CustomSelect value={newSubject} onChange={(val: string) => setNewSubject(val)} options={subjectOptions.map(s => ({ label: s, value: s }))} placeholder="Selecione ou digite novo" onAction={() => handleOpenManager('process_subjects', 'Gerenciar Assuntos')} actionLabel="Gerenciar Assuntos" actionIcon={Settings} /></div>
+                             <div className="flex-1 min-w-0"><CustomSelect value={newSubject} onChange={(val: string) => setNewSubject(val)} options={subjectOptions.map(s => ({ label: s, value: s }))} placeholder="Selecione ou digite novo" onAction={() => handleOpenManager('process_subjects', 'Gerenciar Assuntos', (val) => setNewSubject(val))} actionLabel="Gerenciar Assuntos" actionIcon={Settings} /></div>
                             <button onClick={addSubjectToProcess} className="bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 transition-colors shrink-0 shadow-sm border border-blue-800" title="Incluir na lista"><Plus className="w-5 h-5" /></button>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">{currentProcess.subject && currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '').map((subj, idx) => (<span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">{subj}<button onClick={() => removeSubject(subj)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button></span>))}</div>
@@ -961,7 +976,19 @@ export function ContractFormModal(props: Props) {
               <button onClick={() => setManagementModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             
-            <div className="p-4 bg-gray-50 border-b border-gray-200 shrink-0">
+            <div className="p-4 bg-gray-50 border-b border-gray-200 shrink-0 space-y-3">
+                {/* Campo de Busca no Gerenciador */}
+                <div className="relative">
+                    <input 
+                        type="text" 
+                        className="w-full border border-gray-300 rounded-lg p-2 pl-9 text-sm focus:border-salomao-blue outline-none"
+                        placeholder="Buscar item cadastrado..."
+                        value={managerSearchTerm}
+                        onChange={(e) => setManagerSearchTerm(e.target.value)}
+                    />
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
                 <div className="flex gap-2">
                     <input 
                         type="text" 
@@ -983,7 +1010,9 @@ export function ContractFormModal(props: Props) {
                 {isManagerLoading ? (
                     <div className="flex justify-center p-4"><Loader2 className="animate-spin text-gray-400" /></div>
                 ) : (
-                    managementItems.map(item => (
+                    managementItems
+                    .filter(item => item.name.toLowerCase().includes(managerSearchTerm.toLowerCase()))
+                    .map(item => (
                         <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100 group hover:border-blue-200 transition-colors">
                             <input 
                                 type="text"
