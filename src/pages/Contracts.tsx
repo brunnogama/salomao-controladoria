@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase, 
   CheckCircle2, Clock, Scale, Tag, Loader2, 
   LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
-  FileSignature
+  FileSignature, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -49,6 +49,89 @@ const calculateTotalSuccess = (c: Contract) => {
         c.intermediate_fees.forEach(fee => total += parseCurrency(fee));
     }
     return total;
+};
+
+// Componente Local de Filtro Padronizado (Mesma UI do SearchableSelect)
+const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: any, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [wrapperRef]);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+        inputRef.current.focus();
+    } else if (!isOpen) {
+        setSearchTerm('');
+    }
+  }, [isOpen]);
+
+  const filteredOptions = options.filter((opt) => 
+    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const displayValue = options.find((opt) => opt.value === value)?.label || placeholder;
+
+  return (
+    <div className="relative min-w-[200px]" ref={wrapperRef}>
+      <div 
+        className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {Icon && <Icon className="w-4 h-4 text-gray-500 mr-2 shrink-0" />}
+        <span className="text-sm text-gray-700 flex-1 truncate select-none">{displayValue}</span>
+        <ChevronDown className="w-3 h-3 text-gray-500 ml-2 shrink-0" />
+      </div>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-hidden flex flex-col animate-in fade-in zoom-in-95">
+          <div className="p-2 border-b border-gray-100 bg-white sticky top-0">
+            <div className="flex items-center bg-gray-50 rounded-md px-2 border border-gray-200">
+              <Search className="w-3 h-3 text-gray-400 mr-2" />
+              <input 
+                ref={inputRef}
+                type="text" 
+                className="w-full bg-transparent p-1.5 text-xs outline-none text-gray-700"
+                placeholder="Filtrar..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+          
+          <div className="overflow-y-auto flex-1">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => (
+                <div 
+                  key={opt.value} 
+                  className={`px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer ${value === opt.value ? 'bg-blue-50 font-medium' : ''}`}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                >
+                  {opt.label}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-xs text-gray-400 text-center">Sem resultados</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export function Contracts() {
@@ -271,6 +354,21 @@ export function Contracts() {
     }
   });
 
+  // Opções para os filtros
+  const statusOptions = [
+    { label: 'Todos Status', value: 'all' },
+    { label: 'Sob Análise', value: 'analysis' },
+    { label: 'Proposta Enviada', value: 'proposal' },
+    { label: 'Contrato Fechado', value: 'active' },
+    { label: 'Rejeitada', value: 'rejected' },
+    { label: 'Probono', value: 'probono' }
+  ];
+
+  const partnerOptions = [
+    { label: 'Todos Sócios', value: '' },
+    ...partners.map(p => ({ label: p.name, value: p.id }))
+  ];
+
   return (
     <div className="p-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-8">
@@ -350,35 +448,21 @@ export function Contracts() {
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 items-center">
-          <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[150px]">
-            <Filter className="w-4 h-4 text-gray-500 mr-2" />
-            <select 
-              className="bg-transparent outline-none text-sm w-full cursor-pointer text-gray-700"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">Todos Status</option>
-              <option value="analysis">Sob Análise</option>
-              <option value="proposal">Proposta Enviada</option>
-              <option value="active">Contrato Fechado</option>
-              <option value="rejected">Rejeitada</option>
-              <option value="probono">Probono</option>
-            </select>
-          </div>
+          <FilterSelect 
+            icon={Filter}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusOptions}
+            placeholder="Status"
+          />
 
-          <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 min-w-[150px]">
-            <User className="w-4 h-4 text-gray-500 mr-2" />
-            <select 
-              className="bg-transparent outline-none text-sm w-full cursor-pointer text-gray-700"
-              value={partnerFilter}
-              onChange={(e) => setPartnerFilter(e.target.value)}
-            >
-              <option value="">Todos Sócios</option>
-              {partners.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
+          <FilterSelect 
+            icon={User}
+            value={partnerFilter}
+            onChange={setPartnerFilter}
+            options={partnerOptions}
+            placeholder="Sócios"
+          />
 
           <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
             <button 
