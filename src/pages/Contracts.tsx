@@ -71,8 +71,8 @@ export function Contracts() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   // Modais
-  const [isModalOpen, setIsModalOpen] = useState(false); // Form Modal
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Details Modal (View)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
   
@@ -97,8 +97,8 @@ export function Contracts() {
     setLoading(true);
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
       supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
-      supabase.from('partners').select('*').eq('active', true),
-      supabase.from('analysts').select('*').eq('active', true)
+      supabase.from('partners').select('*').eq('active', true).order('name'),
+      supabase.from('analysts').select('*').eq('active', true).order('name')
     ]);
 
     if (contractsRes.data) {
@@ -138,27 +138,21 @@ export function Contracts() {
     setIsModalOpen(true);
   };
 
-  // Função para abrir o Modal de Visualização (Timeline)
   const handleView = async (contract: Contract) => {
     setFormData(contract);
-    
-    // Buscar dados complementares para visualização
     const [procRes, timeRes] = await Promise.all([
         supabase.from('contract_processes').select('*').eq('contract_id', contract.id),
         supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false })
     ]);
-
     if (procRes.data) setProcesses(procRes.data);
     if (timeRes.data) setTimelineData(timeRes.data);
-    
     setIsDetailsModalOpen(true);
   };
 
-  // Função para abrir o Modal de Edição (Formulário) - chamado pelo botão "Editar" dentro do Details
   const handleEdit = () => {
-    setIsDetailsModalOpen(false); // Fecha visualização
+    setIsDetailsModalOpen(false);
     setIsEditing(true);
-    setIsModalOpen(true); // Abre edição
+    setIsModalOpen(true);
   };
 
   const handleDelete = async () => {
@@ -521,7 +515,6 @@ export function Contracts() {
         </>
       )}
 
-      {/* Modal de Visualização com Timeline */}
       <ContractDetailsModal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
@@ -531,7 +524,6 @@ export function Contracts() {
         processes={processes}
       />
 
-      {/* Modal de Edição */}
       <ContractFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
