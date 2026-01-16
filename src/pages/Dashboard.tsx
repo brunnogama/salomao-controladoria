@@ -152,7 +152,8 @@ export function Dashboard() {
   };
 
   const processarDados = (contratos: Contract[]) => {
-    const hoje = new Date();
+    // Definindo data fixa de início: Junho de 2025
+    const dataInicioFixo = new Date(2025, 5, 1); // Mês 5 = Junho (0-indexed)
     
     let mSemana = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
@@ -176,12 +177,13 @@ export function Dashboard() {
     const mapaMeses: Record<string, number> = {};
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
     
+    // Gera as chaves para os 12 meses a partir de Junho de 2025
     for (let i = 0; i < 12; i++) {
-      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const d = new Date(dataInicioFixo.getFullYear(), dataInicioFixo.getMonth() + i, 1);
       const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
       financeiroMap[key] = { pl: 0, fixo: 0, exito: 0, data: d };
     }
-    const dataLimite12Meses = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1);
+    const dataLimite12Meses = dataInicioFixo;
 
     contratos.forEach((c) => {
       const dataCriacao = new Date(c.created_at || new Date());
@@ -298,11 +300,10 @@ export function Dashboard() {
     const txFech = fQualificados > 0 ? ((fFechados / fQualificados) * 100).toFixed(1) : '0';
     setFunil({ totalEntrada: fTotal, qualificadosProposta: fQualificados, fechados: fFechados, perdaAnalise: fPerdaAnalise, perdaNegociacao: fPerdaNegociacao, taxaConversaoProposta: txProp, taxaConversaoFechamento: txFech });
 
-    // --- CORREÇÃO DA ORDENAÇÃO E TENDÊNCIA ---
-    // Gerar chaves para os últimos 12 meses cronologicamente (Do mais antigo para o atual)
+    // --- ORDENAÇÃO E TENDÊNCIA A PARTIR DE JUNHO 2025 ---
     const ultimos12MesesKeys = [];
-    for (let i = 11; i >= 0; i--) {
-        const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(dataInicioFixo.getFullYear(), dataInicioFixo.getMonth() + i, 1);
         const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
         ultimos12MesesKeys.push(key);
     }
@@ -317,7 +318,6 @@ export function Dashboard() {
     const maxQtd = Math.max(...mesesGrafico.map((m) => m.qtd), 1);
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
     
-    // Define o estado com o array já ordenado corretamente (Antigo -> Novo)
     setEvolucaoMensal(mesesGrafico);
     
     setMetrics({ semana: mSemana, mes: mMes, geral: mGeral });
