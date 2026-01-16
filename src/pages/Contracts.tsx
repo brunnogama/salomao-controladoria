@@ -1,3 +1,4 @@
+// src/pages/Contracts.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase, 
@@ -7,7 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
-import { useNavigate, useLocation } from 'react-router-dom'; // ALTERADO: useLocation no lugar de useSearchParams
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
@@ -15,6 +16,7 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
+// Cores dos Status
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -51,7 +53,7 @@ const calculateTotalSuccess = (c: Contract) => {
     return total;
 };
 
-// Componente Local de Filtro Padronizado
+// Componente Local de Filtro
 const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: React.ElementType, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -101,7 +103,7 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 
 export function Contracts() {
   const navigate = useNavigate();
-  const location = useLocation(); // ALTERADO: Usando location para pegar a URL
+  const location = useLocation();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -110,12 +112,13 @@ export function Contracts() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Filtros e Ordenação
+  // Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [partnerFilter, setPartnerFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
     
+  // Ordenação e Visualização
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -138,24 +141,27 @@ export function Contracts() {
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Carregar dados iniciais
   useEffect(() => {
     fetchData();
     fetchNotifications();
   }, []);
 
-  // Efeito ROBUSTO para ler parâmetros da URL ao carregar (Substitui useSearchParams)
+  // Ler filtros da URL (evitando crash)
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const statusParam = params.get('status');
-    const periodParam = params.get('period');
+    try {
+      const params = new URLSearchParams(location.search);
+      const statusParam = params.get('status');
+      const periodParam = params.get('period');
 
-    if (statusParam) {
-        setStatusFilter(statusParam);
-    }
-    if (periodParam && (periodParam === 'week' || periodParam === 'month')) {
-        setDateFilter(periodParam);
-        setSortBy('date');
-        setSortOrder('desc');
+      if (statusParam) setStatusFilter(statusParam);
+      if (periodParam && (periodParam === 'week' || periodParam === 'month')) {
+          setDateFilter(periodParam);
+          setSortBy('date');
+          setSortOrder('desc');
+      }
+    } catch (e) {
+      console.error("Erro ao ler URL:", e);
     }
   }, [location.search]);
 
@@ -191,10 +197,89 @@ export function Contracts() {
     if (data) setNotifications(data);
   };
 
-  const handleNotificationClick = (taskId: string) => {
-    navigate('/kanban', { state: { openTaskId: taskId } });
+  // Funções Auxiliares de Data (CORRIGIDAS PARA EVITAR CRASH)
+  const isDateInCurrentWeek = (dateString?: string) => {
+    if (!dateString) return false;
+    
+    // Verifica se já tem T (formato ISO) ou é só data
+    const dateToParse = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
+    const date = new Date(dateToParse);
+    
+    // Se data for inválida, retorna false
+    if (isNaN(date.getTime())) return false;
+
+    const today = new Date();
+    const currentDay = today.getDay(); 
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    return date >= startOfWeek && date <= endOfWeek;
   };
 
+  const isDateInCurrentMonth = (dateString?: string) => {
+    if (!dateString) return false;
+    const dateToParse = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
+    const date = new Date(dateToParse);
+    
+    if (isNaN(date.getTime())) return false;
+
+    const today = new Date();
+    return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+  };
+
+  const getRelevantDate = (c: Contract) => {
+    switch (c.status) {
+        case 'analysis': return c.prospect_date || c.created_at;
+        case 'proposal': return c.proposal_date || c.created_at;
+        case 'active': return c.contract_date || c.created_at;
+        case 'rejected': return c.rejection_date || c.created_at;
+        case 'probono': return c.probono_date || c.contract_date || c.created_at;
+        default: return c.created_at;
+    }
+  };
+
+  // Lógica de Filtragem Segura
+  const filteredContracts = contracts.filter((c: Contract) => {
+    const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          c.hon_number?.includes(searchTerm) ||
+                          c.cnpj?.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+    const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
+    
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+        const relevantDate = getRelevantDate(c);
+        if (dateFilter === 'week') {
+            matchesDate = isDateInCurrentWeek(relevantDate);
+        } else if (dateFilter === 'month') {
+            matchesDate = isDateInCurrentMonth(relevantDate);
+        }
+    }
+
+    return matchesSearch && matchesStatus && matchesPartner && matchesDate;
+  }).sort((a: Contract, b: Contract) => {
+    if (sortBy === 'name') {
+        const nameA = a.client_name || '';
+        const nameB = b.client_name || '';
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    } else {
+        const dStrA = getRelevantDate(a);
+        const dStrB = getRelevantDate(b);
+        // Tratamento seguro para ordenação
+        const dateA = dStrA ? new Date(dStrA.includes('T') ? dStrA : dStrA + 'T12:00:00').getTime() : 0;
+        const dateB = dStrB ? new Date(dStrB.includes('T') ? dStrB : dStrB + 'T12:00:00').getTime() : 0;
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    }
+  });
+
+  // Handlers
+  const handleNotificationClick = (taskId: string) => navigate('/kanban', { state: { openTaskId: taskId } });
+  
   const handleNew = () => {
     setFormData(emptyContract);
     setProcesses([]);
@@ -307,76 +392,12 @@ export function Contracts() {
     XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
-  const getRelevantDate = (c: Contract) => {
-    switch (c.status) {
-        case 'analysis': return c.prospect_date || c.created_at;
-        case 'proposal': return c.proposal_date || c.created_at;
-        case 'active': return c.contract_date || c.created_at;
-        case 'rejected': return c.rejection_date || c.created_at;
-        case 'probono': return c.probono_date || c.contract_date || c.created_at;
-        default: return c.created_at;
-    }
-  };
-
-  // Helpers de Data
-  const isDateInCurrentWeek = (dateString?: string) => {
-    if (!dateString) return false;
-    const date = new Date(dateString + 'T12:00:00');
-    const today = new Date();
-    const currentDay = today.getDay(); 
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - currentDay);
-    startOfWeek.setHours(0, 0, 0, 0);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-    return date >= startOfWeek && date <= endOfWeek;
-  };
-
-  const isDateInCurrentMonth = (dateString?: string) => {
-    if (!dateString) return false;
-    const date = new Date(dateString + 'T12:00:00');
-    const today = new Date();
-    return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
-  };
-
-  const filteredContracts = contracts.filter((c: Contract) => {
-    const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.hon_number?.includes(searchTerm) ||
-                          c.cnpj?.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-    const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
-    
-    // Lógica de Filtro de Data
-    let matchesDate = true;
-    if (dateFilter !== 'all') {
-        const relevantDate = getRelevantDate(c);
-        if (dateFilter === 'week') {
-            matchesDate = isDateInCurrentWeek(relevantDate);
-        } else if (dateFilter === 'month') {
-            matchesDate = isDateInCurrentMonth(relevantDate);
-        }
-    }
-
-    return matchesSearch && matchesStatus && matchesPartner && matchesDate;
-  }).sort((a: Contract, b: Contract) => {
-    if (sortBy === 'name') {
-        const nameA = a.client_name || '';
-        const nameB = b.client_name || '';
-        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-    } else {
-        const dateA = new Date(getRelevantDate(a) || 0).getTime();
-        const dateB = new Date(getRelevantDate(b) || 0).getTime();
-        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-    }
-  });
-
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setPartnerFilter('');
     setDateFilter('all');
-    navigate('/contracts'); // Limpa URL
+    navigate('/contracts');
   };
 
   const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '' || dateFilter !== 'all';
