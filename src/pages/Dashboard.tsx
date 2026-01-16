@@ -1,5 +1,7 @@
+// src/components/Dashboard.tsx
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom'; // Importação adicionada
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
@@ -43,6 +45,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate(); // Hook de navegação
 
   const [metrics, setMetrics] = useState({
     semana: {
@@ -104,6 +107,16 @@ export function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Função para navegar com filtros
+  const handleFilter = (status: string | null, period: 'week' | 'month' | 'all' | null = null, subFilter: string | null = null) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (period) params.append('period', period);
+    if (subFilter) params.append('subFilter', subFilter);
+    
+    navigate(`/contracts?${params.toString()}`);
   };
 
   const handleExportAndEmail = async () => {
@@ -257,12 +270,12 @@ export function Dashboard() {
         dProposta.setDate(1); dProposta.setHours(0,0,0,0);
 
         if (dProposta >= dataLimite12Meses) {
-             const key = dProposta.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-             if (propostasMap[key]) {
-                 propostasMap[key].pl += pl;
-                 propostasMap[key].fixo += mensal;
-                 propostasMap[key].exito += exito;
-             }
+              const key = dProposta.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+              if (propostasMap[key]) {
+                  propostasMap[key].pl += pl;
+                  propostasMap[key].fixo += mensal;
+                  propostasMap[key].exito += exito;
+              }
         }
       }
 
@@ -478,11 +491,34 @@ export function Dashboard() {
          <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão.</p></div></div>
             <div className='grid grid-cols-1 md:grid-cols-5 gap-4 items-center'>
-            <div className='md:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative'><p className='text-xs font-bold text-gray-500 uppercase'>1. Prospects</p><p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div></div>
-            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div></div>
-            <div className='md:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative'><p className='text-xs font-bold text-blue-600 uppercase'>2. Propostas</p><p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div></div>
-            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div></div>
-            <div className='md:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center'><p className='text-xs font-bold text-green-600 uppercase'>3. Fechados</p><p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p></div>
+            <div 
+              onClick={() => handleFilter('analysis')}
+              className='md:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative cursor-pointer hover:shadow-md transition-all hover:bg-gray-100'>
+                <p className='text-xs font-bold text-gray-500 uppercase'>1. Prospects</p>
+                <p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p>
+                <div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div>
+            </div>
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
+                <div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div>
+                <div onClick={() => handleFilter('rejected', null, 'analise')} className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2 cursor-pointer hover:bg-red-100'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div>
+            </div>
+            <div 
+              onClick={() => handleFilter('proposal')}
+              className='md:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative cursor-pointer hover:shadow-md transition-all hover:bg-blue-100'>
+                <p className='text-xs font-bold text-blue-600 uppercase'>2. Propostas</p>
+                <p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p>
+                <div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div>
+            </div>
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
+                <div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div>
+                <div onClick={() => handleFilter('rejected', null, 'negotiation')} className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2 cursor-pointer hover:bg-red-100'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div>
+            </div>
+            <div 
+              onClick={() => handleFilter('active')}
+              className='md:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center cursor-pointer hover:shadow-md transition-all hover:bg-green-100'>
+                <p className='text-xs font-bold text-green-600 uppercase'>3. Fechados</p>
+                <p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p>
+            </div>
             </div>
         </div>
 
@@ -490,24 +526,24 @@ export function Dashboard() {
         <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
             <div className='flex items-center gap-2 mb-4'><CalendarDays className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.semana.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
+                <div onClick={() => handleFilter(null, 'week')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
+                <div onClick={() => handleFilter('analysis', 'week')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
+                <div onClick={() => handleFilter('proposal', 'week')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer hover:shadow-md transition-all'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div></div>
+                <div onClick={() => handleFilter('active', 'week')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer hover:shadow-md transition-all'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div></div>
+                <div onClick={() => handleFilter('rejected', 'week')} className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
+                <div onClick={() => handleFilter('probono', 'week')} className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.semana.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
             </div>
             
             {/* Gráfico Semana */}
             <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100">
                 <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2">Comparativo Financeiro (Semana)</p>
                 <div className="flex items-end gap-4 h-24">
-                    <div className="flex-1 flex flex-col justify-end items-center group">
+                    <div onClick={() => handleFilter('proposal', 'week')} className="flex-1 flex flex-col justify-end items-center group cursor-pointer">
                         {totalPropSemana > 0 && <span className="text-[10px] font-bold text-blue-600 mb-1">{formatMoney(totalPropSemana)}</span>}
                         <div className="w-full max-w-[60px] bg-blue-400 rounded-t hover:bg-blue-500 transition-all" style={{ height: `${totalPropSemana > 0 ? (totalPropSemana / maxSemana) * 100 : 2}%` }}></div>
                         <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Propostas</span>
                     </div>
-                    <div className="flex-1 flex flex-col justify-end items-center group">
+                    <div onClick={() => handleFilter('active', 'week')} className="flex-1 flex flex-col justify-end items-center group cursor-pointer">
                         {totalFechSemana > 0 && <span className="text-[10px] font-bold text-green-600 mb-1">{formatMoney(totalFechSemana)}</span>}
                         <div className="w-full max-w-[60px] bg-green-400 rounded-t hover:bg-green-500 transition-all" style={{ height: `${totalFechSemana > 0 ? (totalFechSemana / maxSemana) * 100 : 2}%` }}></div>
                         <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Fechados</span>
@@ -520,24 +556,24 @@ export function Dashboard() {
         <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
             <div className='flex items-center gap-2 mb-4'><CalendarRange className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo do Mês</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos do Mês</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
+                <div onClick={() => handleFilter(null, 'month')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos do Mês</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
+                <div onClick={() => handleFilter('analysis', 'month')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
+                <div onClick={() => handleFilter('proposal', 'month')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer hover:shadow-md transition-all'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div></div>
+                <div onClick={() => handleFilter('active', 'month')} className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 cursor-pointer hover:shadow-md transition-all'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div></div>
+                <div onClick={() => handleFilter('rejected', 'month')} className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
+                <div onClick={() => handleFilter('probono', 'month')} className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
             </div>
 
             {/* Gráfico Mês */}
             <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100">
                 <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2">Comparativo Financeiro (Mês)</p>
                 <div className="flex items-end gap-4 h-24">
-                    <div className="flex-1 flex flex-col justify-end items-center group">
+                    <div onClick={() => handleFilter('proposal', 'month')} className="flex-1 flex flex-col justify-end items-center group cursor-pointer">
                         {totalPropMes > 0 && <span className="text-[10px] font-bold text-blue-600 mb-1">{formatMoney(totalPropMes)}</span>}
                         <div className="w-full max-w-[60px] bg-blue-400 rounded-t hover:bg-blue-500 transition-all" style={{ height: `${totalPropMes > 0 ? (totalPropMes / maxMes) * 100 : 2}%` }}></div>
                         <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Propostas</span>
                     </div>
-                    <div className="flex-1 flex flex-col justify-end items-center group">
+                    <div onClick={() => handleFilter('active', 'month')} className="flex-1 flex flex-col justify-end items-center group cursor-pointer">
                         {totalFechMes > 0 && <span className="text-[10px] font-bold text-green-600 mb-1">{formatMoney(totalFechMes)}</span>}
                         <div className="w-full max-w-[60px] bg-green-400 rounded-t hover:bg-green-500 transition-all" style={{ height: `${totalFechMes > 0 ? (totalFechMes / maxMes) * 100 : 2}%` }}></div>
                         <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Fechados</span>
@@ -550,8 +586,8 @@ export function Dashboard() {
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-6'>
             <h3 className='font-bold text-gray-700 border-b pb-2 flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={20} /> Fotografia Financeira Total</h3>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
-            <div><p className='text-xs text-gray-500 font-medium uppercase mb-2'>Valores em Negociação (Ativo)</p><div className='space-y-2'><FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} /><FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span></div></div></div>
-            <div className='md:border-l md:pl-8 border-gray-100'><p className='text-xs text-gray-500 font-medium uppercase mb-2'>Carteira Ativa (Receita)</p><div className='space-y-2'><FinItem label='Pró-labore Total (Fechado)' value={metrics.geral.totalFechadoPL} colorClass='text-green-700' /><FinItem label='Êxito Total (Fechado)' value={metrics.geral.totalFechadoExito} colorClass='text-green-700' /><FinItem label='Média Mensal do Total' value={metrics.geral.receitaRecorrenteAtiva} colorClass='text-green-700' /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span></div></div></div>
+            <div onClick={() => handleFilter('proposal')} className='cursor-pointer hover:opacity-80 transition-opacity'><p className='text-xs text-gray-500 font-medium uppercase mb-2'>Valores em Negociação (Ativo)</p><div className='space-y-2'><FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} /><FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span></div></div></div>
+            <div onClick={() => handleFilter('active')} className='md:border-l md:pl-8 border-gray-100 cursor-pointer hover:opacity-80 transition-opacity'><p className='text-xs text-gray-500 font-medium uppercase mb-2'>Carteira Ativa (Receita)</p><div className='space-y-2'><FinItem label='Pró-labore Total (Fechado)' value={metrics.geral.totalFechadoPL} colorClass='text-green-700' /><FinItem label='Êxito Total (Fechado)' value={metrics.geral.totalFechadoExito} colorClass='text-green-700' /><FinItem label='Média Mensal do Total' value={metrics.geral.receitaRecorrenteAtiva} colorClass='text-green-700' /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span></div></div></div>
             </div>
         </div>
 
@@ -563,7 +599,7 @@ export function Dashboard() {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* LADO ESQUERDO - PROPOSTAS */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-between">
+                <div onClick={() => handleFilter('proposal')} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all">
                     <div>
                         <div className='flex justify-between items-center mb-4'>
                             <p className="text-xs font-bold text-blue-600 uppercase">Evolução de Propostas (Valores)</p>
@@ -610,7 +646,7 @@ export function Dashboard() {
                 </div>
 
                 {/* LADO DIREITO - FECHADOS */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-between">
+                <div onClick={() => handleFilter('active')} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all">
                     <div>
                         <div className='flex justify-between items-center mb-4'>
                             <p className="text-xs font-bold text-green-600 uppercase">Evolução de Fechamentos (Valores)</p>
@@ -666,12 +702,12 @@ export function Dashboard() {
             <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Fotografia da Carteira Atual</h2><p className='text-xs text-gray-500'>Quantidade atual por status.</p></div></div>
             </div>
             <div className='grid grid-cols-2 gap-4'>
-                <div className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div>
-                <div className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div>
-                <div className='bg-green-50 p-4 rounded-lg border border-green-100 text-center'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div>
-                <div className='bg-red-50 p-4 rounded-lg border border-red-100 text-center'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div>
-                <div className='bg-purple-50 p-4 rounded-lg border border-purple-100 text-center'><HeartHandshake className='mx-auto text-purple-600 mb-2' size={20} /><p className='text-2xl font-bold text-purple-800'>{metrics.geral.probono}</p><p className='text-xs text-purple-700 font-bold uppercase mt-1'>Probono</p></div>
-                <div className='bg-gray-50 p-4 rounded-lg border border-gray-200 text-center'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
+                <div onClick={() => handleFilter('analysis')} className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center cursor-pointer hover:shadow-md transition-all'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div>
+                <div onClick={() => handleFilter('proposal')} className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center cursor-pointer hover:shadow-md transition-all'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div>
+                <div onClick={() => handleFilter('active')} className='bg-green-50 p-4 rounded-lg border border-green-100 text-center cursor-pointer hover:shadow-md transition-all'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div>
+                <div onClick={() => handleFilter('rejected')} className='bg-red-50 p-4 rounded-lg border border-red-100 text-center cursor-pointer hover:shadow-md transition-all'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div>
+                <div onClick={() => handleFilter('probono')} className='bg-purple-50 p-4 rounded-lg border border-purple-100 text-center cursor-pointer hover:shadow-md transition-all'><HeartHandshake className='mx-auto text-purple-600 mb-2' size={20} /><p className='text-2xl font-bold text-purple-800'>{metrics.geral.probono}</p><p className='text-xs text-purple-700 font-bold uppercase mt-1'>Probono</p></div>
+                <div onClick={() => handleFilter(null)} className='bg-gray-50 p-4 rounded-lg border border-gray-200 text-center cursor-pointer hover:shadow-md transition-all'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
             </div>
             </div>
             <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between'>
@@ -679,7 +715,7 @@ export function Dashboard() {
                     <h3 className='font-bold text-gray-800 mb-1 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3>
                     <p className="text-xs text-gray-400 font-normal mb-4 ml-7">A partir de Junho de 2025</p>
                     <div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>
-                        {evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}
+                        {evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group cursor-pointer' onClick={() => handleFilter(null, 'all')}><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}
                     </div>
                 </div>
                 
@@ -722,7 +758,7 @@ export function Dashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Por Motivo */}
-                <div>
+                <div onClick={() => handleFilter('rejected')} className="cursor-pointer">
                     <h4 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide border-l-4 border-red-400 pl-2">Por Motivo</h4>
                     <div className="space-y-4">
                         {rejectionData.reasons.length === 0 ? <p className="text-sm text-gray-400">Nenhum dado.</p> : rejectionData.reasons.map((item, idx) => (
@@ -739,7 +775,7 @@ export function Dashboard() {
                     </div>
                 </div>
                 {/* Quem Rejeitou */}
-                <div>
+                <div onClick={() => handleFilter('rejected')} className="cursor-pointer">
                     <h4 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide border-l-4 border-gray-400 pl-2">Quem Rejeitou</h4>
                     <div className="space-y-4">
                         {rejectionData.sources.length === 0 ? <p className="text-sm text-gray-400">Nenhum dado.</p> : rejectionData.sources.map((item, idx) => (
@@ -759,7 +795,7 @@ export function Dashboard() {
         </div>
 
         {/* SIGNATURES */}
-        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'><div className='flex items-center gap-2 mb-6 border-b pb-4'><FileSignature className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Status de Assinatura de Contratos</h2><p className='text-xs text-gray-500'>Acompanhamento de assinaturas físicas dos contratos fechados.</p></div></div><div className='grid grid-cols-1 md:grid-cols-2 gap-6'><div className='bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl border-2 border-emerald-200'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-emerald-700 font-bold uppercase tracking-wider mb-2'>Contratos Assinados</p><p className='text-5xl font-black text-emerald-900'>{metrics.geral.assinados}</p></div><div className='p-4 bg-emerald-200 rounded-full'><CheckCircle2 size={32} className='text-emerald-700' /></div></div><div className='text-xs text-emerald-700 font-medium'>Contratos com assinatura física confirmada</div></div><div className='bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border-2 border-orange-200'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-orange-700 font-bold uppercase tracking-wider mb-2'>Pendentes de Assinatura</p><p className='text-5xl font-black text-orange-900'>{metrics.geral.naoAssinados}</p></div><div className='p-4 bg-orange-200 rounded-full'><AlertCircle size={32} className='text-orange-700' /></div></div><div className='text-xs text-orange-700 font-medium'>Contratos fechados aguardando assinatura física</div></div></div></div>
+        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'><div className='flex items-center gap-2 mb-6 border-b pb-4'><FileSignature className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Status de Assinatura de Contratos</h2><p className='text-xs text-gray-500'>Acompanhamento de assinaturas físicas dos contratos fechados.</p></div></div><div className='grid grid-cols-1 md:grid-cols-2 gap-6'><div onClick={() => handleFilter('active', null, 'signed')} className='bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl border-2 border-emerald-200 cursor-pointer hover:shadow-md transition-all'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-emerald-700 font-bold uppercase tracking-wider mb-2'>Contratos Assinados</p><p className='text-5xl font-black text-emerald-900'>{metrics.geral.assinados}</p></div><div className='p-4 bg-emerald-200 rounded-full'><CheckCircle2 size={32} className='text-emerald-700' /></div></div><div className='text-xs text-emerald-700 font-medium'>Contratos com assinatura física confirmada</div></div><div onClick={() => handleFilter('active', null, 'pending')} className='bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border-2 border-orange-200 cursor-pointer hover:shadow-md transition-all'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-orange-700 font-bold uppercase tracking-wider mb-2'>Pendentes de Assinatura</p><p className='text-5xl font-black text-orange-900'>{metrics.geral.naoAssinados}</p></div><div className='p-4 bg-orange-200 rounded-full'><AlertCircle size={32} className='text-orange-700' /></div></div><div className='text-xs text-orange-700 font-medium'>Contratos fechados aguardando assinatura física</div></div></div></div>
       </div>
     </div>
   );

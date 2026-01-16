@@ -1,3 +1,4 @@
+// src/pages/Contracts.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase, 
@@ -7,7 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom'; // Adicionado useSearchParams
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
@@ -51,7 +52,7 @@ const calculateTotalSuccess = (c: Contract) => {
     return total;
 };
 
-// Componente Local de Filtro Padronizado (Sem busca interna, apenas UI de select)
+// Componente Local de Filtro Padronizado
 const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: React.ElementType, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -69,7 +70,7 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
   const displayValue = options.find((opt) => opt.value === value)?.label || placeholder;
 
   return (
-    <div className="relative min-w-[200px]" ref={wrapperRef}>
+    <div className="relative min-w-[180px]" ref={wrapperRef}>
       <div 
         className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors select-none"
         onClick={() => setIsOpen(!isOpen)}
@@ -101,6 +102,7 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 
 export function Contracts() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // Hook para ler URL
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -113,6 +115,7 @@ export function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [partnerFilter, setPartnerFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('all'); // Novo estado para filtro de data (week/month)
     
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
@@ -140,6 +143,21 @@ export function Contracts() {
     fetchData();
     fetchNotifications();
   }, []);
+
+  // Efeito para ler parâmetros da URL ao carregar
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    const periodParam = searchParams.get('period');
+
+    if (statusParam) {
+        setStatusFilter(statusParam);
+    }
+    if (periodParam && (periodParam === 'week' || periodParam === 'month')) {
+        setDateFilter(periodParam);
+        setSortBy('date'); // Se filtrou por período, faz sentido ordenar por data
+        setSortOrder('desc');
+    }
+  }, [searchParams]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -300,13 +318,47 @@ export function Contracts() {
     }
   };
 
+  // Helpers de Data
+  const isDateInCurrentWeek = (dateString?: string) => {
+    if (!dateString) return false;
+    const date = new Date(dateString + 'T12:00:00');
+    const today = new Date();
+    const currentDay = today.getDay(); 
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    return date >= startOfWeek && date <= endOfWeek;
+  };
+
+  const isDateInCurrentMonth = (dateString?: string) => {
+    if (!dateString) return false;
+    const date = new Date(dateString + 'T12:00:00');
+    const today = new Date();
+    return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+  };
+
   const filteredContracts = contracts.filter((c: Contract) => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.hon_number?.includes(searchTerm) ||
                           c.cnpj?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
-    return matchesSearch && matchesStatus && matchesPartner;
+    
+    // Lógica de Filtro de Data
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+        const relevantDate = getRelevantDate(c);
+        if (dateFilter === 'week') {
+            matchesDate = isDateInCurrentWeek(relevantDate);
+        } else if (dateFilter === 'month') {
+            matchesDate = isDateInCurrentMonth(relevantDate);
+        }
+    }
+
+    return matchesSearch && matchesStatus && matchesPartner && matchesDate;
   }).sort((a: Contract, b: Contract) => {
     if (sortBy === 'name') {
         const nameA = a.client_name || '';
@@ -319,16 +371,16 @@ export function Contracts() {
     }
   });
 
-  // Funções para resetar filtros
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setPartnerFilter('');
+    setDateFilter('all'); // Limpa filtro de data também
+    navigate('/contracts'); // Limpa URL
   };
 
-  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '';
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '' || dateFilter !== 'all';
 
-  // Opções para os filtros
   const statusOptions = [
     { label: 'Todos Status', value: 'all' },
     { label: 'Sob Análise', value: 'analysis' },
@@ -336,6 +388,12 @@ export function Contracts() {
     { label: 'Contrato Fechado', value: 'active' },
     { label: 'Rejeitada', value: 'rejected' },
     { label: 'Probono', value: 'probono' }
+  ];
+
+  const dateOptions = [
+    { label: 'Todo o Período', value: 'all' },
+    { label: 'Esta Semana', value: 'week' },
+    { label: 'Este Mês', value: 'month' },
   ];
 
   const partnerOptions = [
@@ -428,6 +486,14 @@ export function Contracts() {
             onChange={setStatusFilter}
             options={statusOptions}
             placeholder="Status"
+          />
+
+          <FilterSelect 
+            icon={Calendar}
+            value={dateFilter}
+            onChange={setDateFilter}
+            options={dateOptions}
+            placeholder="Período"
           />
 
           <FilterSelect 
