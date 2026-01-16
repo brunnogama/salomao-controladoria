@@ -54,7 +54,7 @@ export function Dashboard() {
       totalUnico: 0, analysis: 0, rejected: 0, probono: 0
     },
     geral: {
-      totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0,
+      totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
       valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0,
       totalFechadoPL: 0, totalFechadoExito: 0, assinados: 0, naoAssinados: 0,
     },
@@ -162,7 +162,7 @@ export function Dashboard() {
       totalUnico: 0, analysis: 0, rejected: 0, probono: 0
     };
     let mGeral = {
-      totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0,
+      totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
       valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0,
       totalFechadoPL: 0, totalFechadoExito: 0, assinados: 0, naoAssinados: 0,
     };
@@ -209,6 +209,7 @@ export function Dashboard() {
       mGeral.totalCasos++;
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
+      if (c.status === 'probono') mGeral.probono++;
       
       if (c.status === 'proposal') {
         mGeral.propostasAtivas++;
@@ -311,6 +312,15 @@ export function Dashboard() {
   const totalNegociacao = metrics.geral.valorEmNegociacaoPL + metrics.geral.valorEmNegociacaoExito;
   const totalCarteira = metrics.geral.totalFechadoPL + metrics.geral.totalFechadoExito + metrics.geral.receitaRecorrenteAtiva;
 
+  // Calculos para Gráficos
+  const totalPropSemana = metrics.semana.propPL + metrics.semana.propExito + metrics.semana.propMensal;
+  const totalFechSemana = metrics.semana.fechPL + metrics.semana.fechExito + metrics.semana.fechMensal;
+  const maxSemana = Math.max(totalPropSemana, totalFechSemana, 1);
+
+  const totalPropMes = metrics.mes.propPL + metrics.mes.propExito + metrics.mes.propMensal;
+  const totalFechMes = metrics.mes.fechPL + metrics.mes.fechExito + metrics.mes.fechMensal;
+  const maxMes = Math.max(totalPropMes, totalFechMes, 1);
+
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
   return (
@@ -337,8 +347,7 @@ export function Dashboard() {
       </div>
 
       <div ref={dashboardRef} className="space-y-8 bg-[#F8FAFC] p-2">
-        {/* ... (Resto do componente inalterado) ... */}
-         {/* FUNIL */}
+        {/* FUNIL */}
          <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão.</p></div></div>
             <div className='grid grid-cols-1 md:grid-cols-5 gap-4 items-center'>
@@ -354,12 +363,29 @@ export function Dashboard() {
         <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
             <div className='flex items-center gap-2 mb-4'><CalendarDays className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div><div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades</div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.semana.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div><div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.semana.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
+            </div>
+            
+            {/* Gráfico Semana */}
+            <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2">Comparativo Financeiro (Semana)</p>
+                <div className="flex items-end gap-4 h-24">
+                    <div className="flex-1 flex flex-col justify-end items-center group">
+                        {totalPropSemana > 0 && <span className="text-[10px] font-bold text-blue-600 mb-1">{formatMoney(totalPropSemana)}</span>}
+                        <div className="w-full max-w-[60px] bg-blue-400 rounded-t hover:bg-blue-500 transition-all" style={{ height: `${totalPropSemana > 0 ? (totalPropSemana / maxSemana) * 100 : 2}%` }}></div>
+                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Propostas</span>
+                    </div>
+                    <div className="flex-1 flex flex-col justify-end items-center group">
+                        {totalFechSemana > 0 && <span className="text-[10px] font-bold text-green-600 mb-1">{formatMoney(totalFechSemana)}</span>}
+                        <div className="w-full max-w-[60px] bg-green-400 rounded-t hover:bg-green-500 transition-all" style={{ height: `${totalFechSemana > 0 ? (totalFechSemana / maxSemana) * 100 : 2}%` }}></div>
+                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Fechados</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -367,12 +393,29 @@ export function Dashboard() {
         <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
             <div className='flex items-center gap-2 mb-4'><CalendarRange className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo do Mês</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos do Mês</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div><div className='h-10 w-10 rounded-full bg-yellow-50 flex items-center justify-center text-salomao-gold self-end mt-2'><FileText className="w-5 h-5" /></div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div><div className='h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 self-end mt-2'><XCircle className="w-5 h-5" /></div></div>
-            <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div><div className='h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 self-end mt-2'><HeartHandshake className="w-5 h-5" /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos do Mês</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div><div className='h-10 w-10 rounded-full bg-yellow-50 flex items-center justify-center text-salomao-gold self-end mt-2'><FileText className="w-5 h-5" /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div><div className='h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 self-end mt-2'><XCircle className="w-5 h-5" /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div><div className='h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 self-end mt-2'><HeartHandshake className="w-5 h-5" /></div></div>
+            </div>
+
+            {/* Gráfico Mês */}
+            <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2">Comparativo Financeiro (Mês)</p>
+                <div className="flex items-end gap-4 h-24">
+                    <div className="flex-1 flex flex-col justify-end items-center group">
+                        {totalPropMes > 0 && <span className="text-[10px] font-bold text-blue-600 mb-1">{formatMoney(totalPropMes)}</span>}
+                        <div className="w-full max-w-[60px] bg-blue-400 rounded-t hover:bg-blue-500 transition-all" style={{ height: `${totalPropMes > 0 ? (totalPropMes / maxMes) * 100 : 2}%` }}></div>
+                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Propostas</span>
+                    </div>
+                    <div className="flex-1 flex flex-col justify-end items-center group">
+                        {totalFechMes > 0 && <span className="text-[10px] font-bold text-green-600 mb-1">{formatMoney(totalFechMes)}</span>}
+                        <div className="w-full max-w-[60px] bg-green-400 rounded-t hover:bg-green-500 transition-all" style={{ height: `${totalFechMes > 0 ? (totalFechMes / maxMes) * 100 : 2}%` }}></div>
+                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Fechados</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -412,7 +455,14 @@ export function Dashboard() {
             <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
             <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Fotografia da Carteira Atual</h2><p className='text-xs text-gray-500'>Quantidade atual por status.</p></div></div>
             </div>
-            <div className='grid grid-cols-2 gap-4'><div className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div><div className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div><div className='bg-green-50 p-4 rounded-lg border border-green-100 text-center'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div><div className='bg-red-50 p-4 rounded-lg border border-red-100 text-center'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div></div>
+            <div className='grid grid-cols-2 gap-4'>
+                <div className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div>
+                <div className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div>
+                <div className='bg-green-50 p-4 rounded-lg border border-green-100 text-center'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div>
+                <div className='bg-red-50 p-4 rounded-lg border border-red-100 text-center'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div>
+                <div className='bg-purple-50 p-4 rounded-lg border border-purple-100 text-center'><HeartHandshake className='mx-auto text-purple-600 mb-2' size={20} /><p className='text-2xl font-bold text-purple-800'>{metrics.geral.probono}</p><p className='text-xs text-purple-700 font-bold uppercase mt-1'>Probono</p></div>
+                <div className='bg-gray-50 p-4 rounded-lg border border-gray-200 text-center'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
+            </div>
             </div>
             <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100'><h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3><div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>{evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}</div></div>
         </div>
