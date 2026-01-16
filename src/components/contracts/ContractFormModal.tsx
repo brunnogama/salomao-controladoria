@@ -9,6 +9,11 @@ import { CustomSelect } from '../ui/CustomSelect';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
+// Dados Padrão Restaurados
+const DEFAULT_COURTS = ['STF', 'STJ', 'TST', 'TRF1', 'TRF2', 'TRF3', 'TRF4', 'TRF5', 'TJSP', 'TJRJ', 'TJMG', 'TJRS', 'TJPR', 'TJSC', 'TJBA', 'TJDFT', 'TRT1', 'TRT2', 'TRT15'];
+const DEFAULT_CLASSES = ['Procedimento Comum', 'Execução de Título Extrajudicial', 'Monitória', 'Mandado de Segurança', 'Ação Trabalhista - Rito Ordinário', 'Ação Trabalhista - Rito Sumaríssimo', 'Recurso Ordinário', 'Agravo de Instrumento', 'Apelação'];
+const DEFAULT_SUBJECTS = ['Dano Moral', 'Dano Material', 'Inadimplemento', 'Rescisão Indireta', 'Verbas Rescisórias', 'Acidente de Trabalho', 'Doença Ocupacional', 'Horas Extras', 'Assédio Moral'];
+
 // Função auxiliar aprimorada para garantir formatação R$ ao carregar do banco
 const formatForInput = (val: string | number | undefined) => {
   if (val === undefined || val === null) return '';
@@ -147,13 +152,13 @@ export function ContractFormModal(props: Props) {
   // Novo estado para adicionar assuntos
   const [newSubject, setNewSubject] = useState('');
 
-  // Estados para menus suspensos (Tabelas do Supabase)
+  // Estados para menus suspensos (Tabelas do Supabase) - INICIALIZADOS COM DEFAULTS
   const [justiceOptions, setJusticeOptions] = useState<string[]>(['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar']);
   const [varaOptions, setVaraOptions] = useState<string[]>(['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais']);
-  const [courtOptions, setCourtOptions] = useState<string[]>([]);
+  const [courtOptions, setCourtOptions] = useState<string[]>(DEFAULT_COURTS);
   const [comarcaOptions, setComarcaOptions] = useState<string[]>([]); 
-  const [classOptions, setClassOptions] = useState<string[]>([]);
-  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
+  const [classOptions, setClassOptions] = useState<string[]>(DEFAULT_CLASSES);
+  const [subjectOptions, setSubjectOptions] = useState<string[]>(DEFAULT_SUBJECTS);
   const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
 
@@ -185,17 +190,17 @@ export function ContractFormModal(props: Props) {
 
   // Função central para carregar dados do Supabase
   const fetchAuxiliaryTables = async () => {
-    // Tribunais
+    // Tribunais (Mesclando com Defaults)
     const { data: courts } = await supabase.from('courts').select('name').order('name');
-    if (courts) setCourtOptions(courts.map(c => c.name));
+    if (courts) setCourtOptions(prev => Array.from(new Set([...DEFAULT_COURTS, ...courts.map(c => c.name)])).sort());
 
-    // Classes
+    // Classes (Mesclando com Defaults)
     const { data: classes } = await supabase.from('process_classes').select('name').order('name');
-    if (classes) setClassOptions(classes.map(c => c.name));
+    if (classes) setClassOptions(prev => Array.from(new Set([...DEFAULT_CLASSES, ...classes.map(c => c.name)])).sort());
 
-    // Assuntos
+    // Assuntos (Mesclando com Defaults)
     const { data: subjects } = await supabase.from('process_subjects').select('name').order('name');
-    if (subjects) setSubjectOptions(subjects.map(s => s.name));
+    if (subjects) setSubjectOptions(prev => Array.from(new Set([...DEFAULT_SUBJECTS, ...subjects.map(s => s.name)])).sort());
 
     // Magistrados
     const { data: mags } = await supabase.from('magistrates').select('name').order('name');
@@ -885,7 +890,8 @@ export function ContractFormModal(props: Props) {
             </div>
           </section>
 
-          <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
+          {/* ADICIONADO Z-30 AQUI PARA CORRIGIR O MENU FICANDO POR BAIXO */}
+          <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30">
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
             {formData.has_legal_process && (
               <div className="space-y-4">
