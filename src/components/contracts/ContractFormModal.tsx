@@ -234,7 +234,7 @@ export function ContractFormModal(props: Props) {
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [showUnsavedProcessWarning, setShowUnsavedProcessWarning] = useState(false);
    
-  // Estado local para adicionar magistrados
+  // Estado local para adicionar magistrados (DEFAULT VAZIO)
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
    
@@ -951,9 +951,9 @@ export function ContractFormModal(props: Props) {
                         <SearchableSelect label="Contrário (Parte Oposta) *" value={currentProcess.opponent || formData.company_name || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} options={opponentOptions.map(o => ({ label: o, value: o }))} onAction={() => handleOpenManager('opponents', 'Gerenciar Oponentes', (val) => setCurrentProcess(prev => ({...prev, opponent: val})))} actionLabel="Gerenciar Oponentes" actionIcon={Settings} placeholder="Selecione" />
                     </div>
                     <div className="md:col-span-12 lg:col-span-7">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado</label>
                         <div className="flex flex-col sm:flex-row gap-2 items-end">
-                            <div className="w-full sm:w-40 shrink-0"><CustomSelect value={newMagistrateTitle} onChange={(val: string) => setNewMagistrateTitle(val)} options={[{ label: 'Magistrado', value: '' }, { label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }]} /></div>
+                            <div className="w-full sm:w-40 shrink-0"><CustomSelect value={newMagistrateTitle} onChange={(val: string) => setNewMagistrateTitle(val)} options={[{ label: 'Selecione', value: '' }, { label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }]} /></div>
                             <div className="flex-1 w-full min-w-0 flex gap-2">
                                 <div className="flex-1"><SearchableSelect value={newMagistrateName} onChange={(val: string) => setNewMagistrateName(val)} options={magistrateOptions.map(m => ({ label: m, value: m }))} placeholder="Selecione magistrado" onAction={() => handleOpenManager('magistrates', 'Gerenciar Magistrados', (val) => setNewMagistrateName(val))} actionLabel="Gerenciar Lista de Magistrados" actionIcon={Settings} /></div>
                             </div>
