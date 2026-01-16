@@ -144,7 +144,7 @@ export function ContractFormModal(props: Props) {
   // Novo estado para o tipo de processo "Outro/Antigo"
   const [otherProcessType, setOtherProcessType] = useState('');
   
-  // Novo estado para adicionar assuntos (input auxiliar)
+  // Novo estado para adicionar assuntos
   const [newSubject, setNewSubject] = useState('');
 
   // Estados para menus suspensos (Tabelas do Supabase)
@@ -643,7 +643,9 @@ export function ContractFormModal(props: Props) {
   const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
-    const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
+    // CORREÇÃO AQUI: Garantindo que seja string
+    const cnpjLimpo = (formData.cnpj || '').replace(/\D/g, '');
+    
     if (cnpjLimpo.length !== 14) {
       alert('CNPJ inválido. Digite 14 dígitos.');
       return;
