@@ -25,7 +25,8 @@ import {
   LayoutDashboard,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Ban // Importado ícone para rejeição
 } from 'lucide-react';
 import { Contract } from '../types';
 
@@ -72,6 +73,12 @@ export function Dashboard() {
   const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
   const [financeiro12Meses, setFinanceiro12Meses] = useState<any[]>([]);
   const [mediasFinanceiras, setMediasFinanceiras] = useState({ pl: 0, exito: 0 });
+  
+  // Novos estados para gráficos de rejeição
+  const [rejectionData, setRejectionData] = useState<{
+    reasons: { label: string, value: number, percent: number }[],
+    sources: { label: string, value: number, percent: number }[]
+  }>({ reasons: [], sources: [] });
 
   useEffect(() => {
     fetchDashboardData();
@@ -178,6 +185,11 @@ export function Dashboard() {
     const mapaMeses: Record<string, number> = {};
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
     
+    // Contadores para Rejeição
+    const reasonCounts: Record<string, number> = {};
+    const sourceCounts: Record<string, number> = {};
+    let totalRejected = 0;
+
     // Gera as chaves dinamicamente a partir de Junho de 2025 até o mês ATUAL (hoje)
     let iteradorMeses = new Date(dataInicioFixo);
     while (iteradorMeses <= hoje) {
@@ -193,6 +205,15 @@ export function Dashboard() {
       const pl = safeParseMoney(c.pro_labore);
       const exito = safeParseMoney(c.final_success_fee);
       const mensal = safeParseMoney(c.fixed_monthly_fee);
+
+      // Coleta dados de rejeição 
+      if (c.status === 'rejected') {
+          totalRejected++;
+          const reason = (c as any).rejection_reason || 'Não informado';
+          const source = (c as any).rejection_source || 'Não informado';
+          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+      }
 
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
@@ -324,8 +345,23 @@ export function Dashboard() {
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
     
     setEvolucaoMensal(mesesGrafico);
-    
     setMetrics({ semana: mSemana, mes: mMes, geral: mGeral });
+
+    // --- FORMATAÇÃO DOS DADOS DE REJEIÇÃO ---
+    const formatRejection = (counts: Record<string, number>) => {
+        return Object.entries(counts)
+            .map(([label, value]) => ({ 
+                label, 
+                value, 
+                percent: totalRejected > 0 ? (value / totalRejected) * 100 : 0 
+            }))
+            .sort((a, b) => b.value - a.value); // Ordena do maior para o menor
+    };
+
+    setRejectionData({
+        reasons: formatRejection(reasonCounts),
+        sources: formatRejection(sourceCounts)
+    });
   };
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -498,7 +534,8 @@ export function Dashboard() {
             </div>
             <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between'>
                 <div>
-                    <h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3>
+                    <h3 className='font-bold text-gray-800 mb-1 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3>
+                    <p className="text-xs text-gray-400 font-normal mb-4 ml-7">A partir de Junho de 2025</p>
                     <div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>
                         {evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}
                     </div>
@@ -527,6 +564,53 @@ export function Dashboard() {
                             <span className="text-lg">{diffEntrada > 0 ? `+${diffEntrada}` : diffEntrada}</span>
                             <span className="text-[10px] font-normal text-gray-400 uppercase">vs mês anterior</span>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* ANALISE DE REJEIÇÕES - NOVO BLOCO */}
+        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
+            <div className='flex items-center gap-2 mb-6 border-b pb-4'>
+                <Ban className='text-red-600' size={24} />
+                <div>
+                    <h2 className='text-xl font-bold text-gray-800'>Análise de Rejeições</h2>
+                    <p className='text-xs text-gray-500'>Motivos e origens dos casos declinados.</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Por Motivo */}
+                <div>
+                    <h4 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide border-l-4 border-red-400 pl-2">Por Motivo</h4>
+                    <div className="space-y-4">
+                        {rejectionData.reasons.length === 0 ? <p className="text-sm text-gray-400">Nenhum dado.</p> : rejectionData.reasons.map((item, idx) => (
+                            <div key={idx} className="group">
+                                <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-medium text-gray-700">{item.label}</span>
+                                    <span className="text-gray-500">{item.value} ({item.percent.toFixed(1)}%)</span>
+                                </div>
+                                <div className="w-full bg-gray-100 rounded-full h-2.5">
+                                    <div className="bg-red-400 h-2.5 rounded-full group-hover:bg-red-500 transition-colors" style={{ width: `${item.percent}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                {/* Quem Rejeitou */}
+                <div>
+                    <h4 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide border-l-4 border-gray-400 pl-2">Quem Rejeitou</h4>
+                    <div className="space-y-4">
+                        {rejectionData.sources.length === 0 ? <p className="text-sm text-gray-400">Nenhum dado.</p> : rejectionData.sources.map((item, idx) => (
+                            <div key={idx} className="group">
+                                <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-medium text-gray-700">{item.label}</span>
+                                    <span className="text-gray-500">{item.value} ({item.percent.toFixed(1)}%)</span>
+                                </div>
+                                <div className="w-full bg-gray-100 rounded-full h-2.5">
+                                    <div className="bg-gray-400 h-2.5 rounded-full group-hover:bg-gray-500 transition-colors" style={{ width: `${item.percent}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
