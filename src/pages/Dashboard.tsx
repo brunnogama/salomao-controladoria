@@ -152,6 +152,7 @@ export function Dashboard() {
   };
 
   const processarDados = (contratos: Contract[]) => {
+    const hoje = new Date();
     // Definindo data fixa de início: Junho de 2025
     const dataInicioFixo = new Date(2025, 5, 1); // Mês 5 = Junho (0-indexed)
     
@@ -177,11 +178,13 @@ export function Dashboard() {
     const mapaMeses: Record<string, number> = {};
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
     
-    // Gera as chaves para os 12 meses a partir de Junho de 2025
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(dataInicioFixo.getFullYear(), dataInicioFixo.getMonth() + i, 1);
-      const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-      financeiroMap[key] = { pl: 0, fixo: 0, exito: 0, data: d };
+    // Gera as chaves dinamicamente a partir de Junho de 2025 até o mês ATUAL (hoje)
+    let iteradorMeses = new Date(dataInicioFixo);
+    while (iteradorMeses <= hoje) {
+      const key = iteradorMeses.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      financeiroMap[key] = { pl: 0, fixo: 0, exito: 0, data: new Date(iteradorMeses) };
+      // Avança um mês
+      iteradorMeses.setMonth(iteradorMeses.getMonth() + 1);
     }
     const dataLimite12Meses = dataInicioFixo;
 
@@ -291,7 +294,9 @@ export function Dashboard() {
     const finArray = Object.entries(financeiroMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); 
     const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
-    setMediasFinanceiras({ pl: totalPL12 / 12, exito: totalExito12 / 12 });
+    // Evita divisão por zero se ainda não houver meses computados
+    const monthsCount = finArray.length || 1;
+    setMediasFinanceiras({ pl: totalPL12 / monthsCount, exito: totalExito12 / monthsCount });
 
     const maxValFin = Math.max(...finArray.map(i => Math.max(i.pl, i.fixo, i.exito)), 1);
     setFinanceiro12Meses(finArray.map(i => ({ ...i, hPl: (i.pl / maxValFin) * 100, hFixo: (i.fixo / maxValFin) * 100, hExito: (i.exito / maxValFin) * 100 })));
@@ -300,20 +305,20 @@ export function Dashboard() {
     const txFech = fQualificados > 0 ? ((fFechados / fQualificados) * 100).toFixed(1) : '0';
     setFunil({ totalEntrada: fTotal, qualificadosProposta: fQualificados, fechados: fFechados, perdaAnalise: fPerdaAnalise, perdaNegociacao: fPerdaNegociacao, taxaConversaoProposta: txProp, taxaConversaoFechamento: txFech });
 
-    // --- ORDENAÇÃO E TENDÊNCIA A PARTIR DE JUNHO 2025 ---
-    const ultimos12MesesKeys = [];
-    for (let i = 0; i < 12; i++) {
-        const d = new Date(dataInicioFixo.getFullYear(), dataInicioFixo.getMonth() + i, 1);
-        const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-        ultimos12MesesKeys.push(key);
+    // --- ORDENAÇÃO DINÂMICA: JUNHO 2025 ATÉ O MÊS ATUAL ---
+    const mesesGrafico = [];
+    let iteradorGrafico = new Date(dataInicioFixo);
+    
+    // Loop até a data atual (inclusive o mês corrente)
+    while (iteradorGrafico <= hoje) {
+        const key = iteradorGrafico.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        mesesGrafico.push({
+            mes: key,
+            qtd: mapaMeses[key] || 0,
+            altura: 0
+        });
+        iteradorGrafico.setMonth(iteradorGrafico.getMonth() + 1);
     }
-
-    // Mapear os dados garantindo a ordem cronológica
-    const mesesGrafico = ultimos12MesesKeys.map(key => ({
-        mes: key,
-        qtd: mapaMeses[key] || 0,
-        altura: 0
-    }));
 
     const maxQtd = Math.max(...mesesGrafico.map((m) => m.qtd), 1);
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
