@@ -1054,8 +1054,8 @@ export function ContractFormModal(props: Props) {
                 <div>
                     <CustomSelect
                         label="Rejeitado por"
-                        value={formData.rejection_source || ''}
-                        onChange={(val: string) => setFormData({...formData, rejection_source: val})}
+                        value={(formData as any).rejection_source || ''}
+                        onChange={(val: string) => setFormData({...formData, rejection_source: val} as any)}
                         options={[
                             { label: 'Cliente', value: 'Cliente' },
                             { label: 'Escritório', value: 'Escritório' }
@@ -1065,8 +1065,8 @@ export function ContractFormModal(props: Props) {
                 <div>
                     <CustomSelect
                         label="Motivo Rejeição"
-                        value={formData.rejection_reason || ''}
-                        onChange={(val: string) => setFormData({...formData, rejection_reason: val})}
+                        value={(formData as any).rejection_reason || ''}
+                        onChange={(val: string) => setFormData({...formData, rejection_reason: val} as any)}
                         options={[
                             { label: 'Caso ruim', value: 'Caso ruim' },
                             { label: 'Cliente não retornou', value: 'Cliente não retornou' },
