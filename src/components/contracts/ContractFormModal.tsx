@@ -1041,7 +1041,7 @@ export function ContractFormModal(props: Props) {
                 </div>
                 <div>
                     <SearchableSelect 
-                        label="Rejeitado Por" 
+                        label="Analisado Por" 
                         value={formData.analyst_id || ''} 
                         onChange={(val: string) => setFormData({...formData, analyst_id: val})} 
                         options={analystSelectOptions} 
@@ -1049,6 +1049,30 @@ export function ContractFormModal(props: Props) {
                         actionIcon={Settings} 
                         actionLabel="Gerenciar Analistas" 
                         className="border-red-200" 
+                    />
+                </div>
+                <div>
+                    <CustomSelect
+                        label="Rejeitado por"
+                        value={formData.rejection_source || ''}
+                        onChange={(val: string) => setFormData({...formData, rejection_source: val})}
+                        options={[
+                            { label: 'Cliente', value: 'Cliente' },
+                            { label: 'Escritório', value: 'Escritório' }
+                        ]}
+                    />
+                </div>
+                <div>
+                    <CustomSelect
+                        label="Motivo Rejeição"
+                        value={formData.rejection_reason || ''}
+                        onChange={(val: string) => setFormData({...formData, rejection_reason: val})}
+                        options={[
+                            { label: 'Caso ruim', value: 'Caso ruim' },
+                            { label: 'Cliente não retornou', value: 'Cliente não retornou' },
+                            { label: 'Cliente declinou', value: 'Cliente declinou' },
+                            { label: 'Conflito', value: 'Conflito' }
+                        ]}
                     />
                 </div>
               </div>
