@@ -1278,9 +1278,8 @@ export function ContractFormModal(props: Props) {
                  {/* CAMPO REFERÊNCIA MOVIDO PARA CÁ */}
                 <div className="mt-6 mb-2">
                     <label className="text-xs font-medium block mb-1">Referência</label>
-                    <input 
-                        type="text" 
-                        className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
+                    <textarea 
+                        className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none h-24 resize-none" 
                         value={(formData as any).reference || ''} 
                         onChange={e => setFormData({...formData, reference: e.target.value} as any)} 
                         placeholder="Ex: Proposta 123/2025" 
