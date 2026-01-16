@@ -587,6 +587,7 @@ export function ContractFormModal(props: Props) {
             rejection_source: (formData as any).rejection_source,
             rejection_reason: (formData as any).rejection_reason,
             probono_source: (formData as any).probono_source, // Adicionado campo Probono
+            reference_text: (formData as any).reference_text, // Adicionado campo Referência
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
@@ -1198,6 +1199,18 @@ export function ContractFormModal(props: Props) {
                    <div><FinancialInputWithInstallments label="Êxito Final (R$)" value={formatForInput(formData.final_success_fee)} onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})} installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})} /></div>
                 </div>
               </div>
+            )}
+
+            {(formData.status === 'proposal' || formData.status === 'active') && (
+                <div className="mt-6 mb-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center mb-2">Referência</label>
+                    <textarea 
+                        className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white resize-none" 
+                        value={(formData as any).reference_text || ''} 
+                        onChange={(e) => setFormData({...formData, reference_text: e.target.value} as any)}
+                        placeholder="Cole o texto de referência aqui..."
+                    />
+                </div>
             )}
             
              {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
