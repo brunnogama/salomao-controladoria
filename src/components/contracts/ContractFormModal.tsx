@@ -539,7 +539,7 @@ export function ContractFormModal(props: Props) {
             analyst: undefined,
             analysts: undefined, 
             client: undefined,    
-            partner: undefined,   
+            partner: undefined,    
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -920,7 +920,7 @@ export function ContractFormModal(props: Props) {
             </div>
           </section>
 
-          <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm">
+          <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-40">
             <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
             {formData.has_legal_process && (
               <div className="space-y-4">
