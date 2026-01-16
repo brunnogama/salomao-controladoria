@@ -75,7 +75,7 @@ const SearchableSelect = ({ label, value, onChange, options, onAction, actionLab
               />
             </div>
           </div>
-          
+           
           <div className="overflow-y-auto flex-1">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt: any, idx: number) => {
@@ -221,7 +221,7 @@ export function ContractFormModal(props: Props) {
     newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
     timelineData, getStatusLabel
   } = props;
-  
+   
   const [localLoading, setLocalLoading] = useState(false);
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -233,11 +233,11 @@ export function ContractFormModal(props: Props) {
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor'].sort());
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [showUnsavedProcessWarning, setShowUnsavedProcessWarning] = useState(false);
-  
+   
   // Estado local para adicionar magistrados
-  const [newMagistrateTitle, setNewMagistrateTitle] = useState('Juiz');
+  const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
-  
+   
   const [isStandardCNJ, setIsStandardCNJ] = useState(true);
   const [otherProcessType, setOtherProcessType] = useState('');
   const [newSubject, setNewSubject] = useState('');
@@ -324,10 +324,10 @@ export function ContractFormModal(props: Props) {
   // --- LÓGICA DO GERENCIADOR DE AUXILIARES ---
   const handleOpenManager = async (table: string, title: string, onSelect?: (val: string) => void) => {
     if (table === 'comarcas' && !currentProcess.uf) return alert("Selecione um Estado (UF) primeiro.");
-    
+     
     setIsManagerLoading(true);
     setManagementModal({ table, title, ufFilter: table === 'comarcas' ? currentProcess.uf : undefined, onSelect });
-    
+     
     let query = supabase.from(table).select('id, name').order('name');
     if (table === 'comarcas' && currentProcess.uf) {
         query = query.eq('uf', currentProcess.uf);
@@ -360,7 +360,7 @@ export function ContractFormModal(props: Props) {
             if (error) throw error;
             if (data) {
                 setManagementItems(prev => [...prev, data].sort((a,b) => a.name.localeCompare(b.name)));
-                
+                 
                 // Auto-seleção do novo item
                 if (managementModal.onSelect) {
                     managementModal.onSelect(cleanName);
@@ -426,7 +426,7 @@ export function ContractFormModal(props: Props) {
     if (!newSubject.trim()) return;
     const cleanSubject = toTitleCase(newSubject.trim());
     const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
-    
+     
     if (!currentSubjects.includes(cleanSubject)) {
         const updatedSubjects = [...currentSubjects, cleanSubject];
         setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
@@ -459,7 +459,7 @@ export function ContractFormModal(props: Props) {
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
-    
+     
     const installmentsToInsert: any[] = [];
     const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string) => {
       const totalValue = parseCurrency(totalValueStr);
@@ -621,7 +621,7 @@ export function ContractFormModal(props: Props) {
 
       if (clientData.cnpj) {
         const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
-        
+         
         if (existingClient) {
           await supabase.from('clients').update(clientData).eq('id', existingClient.id);
           return existingClient.id;
@@ -651,7 +651,7 @@ export function ContractFormModal(props: Props) {
 
   const hasUnsavedProcessData = () => {
     if (!formData.has_legal_process) return false;
-    
+     
     return !!(
       currentProcess.process_number ||
       currentProcess.court ||
@@ -671,7 +671,7 @@ export function ContractFormModal(props: Props) {
 
   const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
-    
+     
     const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) {
       alert('CNPJ inválido. Digite 14 dígitos.');
@@ -681,7 +681,7 @@ export function ContractFormModal(props: Props) {
     setLocalLoading(true);
     try {
       let data;
-      
+       
       // Tentativa 1: BrasilAPI
       try {
          const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
@@ -711,7 +711,7 @@ export function ContractFormModal(props: Props) {
            throw new Error(err2.message || 'CNPJ não encontrado.');
          }
       }
-      
+       
       setFormData(prev => ({
         ...prev,
         client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''),
@@ -747,7 +747,7 @@ export function ContractFormModal(props: Props) {
 
   const handleCNJSearch = async () => {
     if (!currentProcess.process_number) return;
-    
+     
     const numeroLimpo = currentProcess.process_number.replace(/\D/g, '');
     if (numeroLimpo.length !== 20) {
       alert('Número de processo inválido. Deve ter 20 dígitos.');
@@ -760,16 +760,16 @@ export function ContractFormModal(props: Props) {
       if (!decoded) {
         throw new Error('Não foi possível decodificar o número do processo');
       }
-      
+       
       const uf = decoded.tribunal === 'STF' ? 'DF' : decoded.uf;
-      
+       
       // Tenta adicionar o tribunal à lista local e ao banco se não existir
       if (!courtOptions.includes(decoded.tribunal)) {
           // Tenta inserir no Supabase (silenciosamente se falhar/já existir)
           await supabase.from('courts').insert({ name: decoded.tribunal }).select();
           setCourtOptions([...courtOptions, decoded.tribunal].sort());
       }
-      
+       
       setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal, uf: uf })); // Atualiza UF do processo também
     } catch (error: any) {
       alert(`❌ Erro ao decodificar CNJ: ${error.message}`);
@@ -784,7 +784,7 @@ export function ContractFormModal(props: Props) {
       window.open(`https://www.jusbrasil.com.br/processos/numero/${numero}`, '_blank');
     }
   };
-  
+   
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -839,7 +839,7 @@ export function ContractFormModal(props: Props) {
         .download(path);
         
       if (error) throw error;
-      
+       
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
@@ -884,7 +884,7 @@ export function ContractFormModal(props: Props) {
 
   const partnerSelectOptions = partners.sort((a,b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }));
   const analystSelectOptions = analysts ? analysts.sort((a,b) => a.name.localeCompare(b.name)).map(a => ({ label: a.name, value: a.id })) : [];
-  
+   
   if (!isOpen) return null;
 
   return (
@@ -953,7 +953,7 @@ export function ContractFormModal(props: Props) {
                     <div className="md:col-span-12 lg:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
                         <div className="flex flex-col sm:flex-row gap-2 items-end">
-                            <div className="w-full sm:w-40 shrink-0"><CustomSelect value={newMagistrateTitle} onChange={(val: string) => setNewMagistrateTitle(val)} options={[{ label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }]} /></div>
+                            <div className="w-full sm:w-40 shrink-0"><CustomSelect value={newMagistrateTitle} onChange={(val: string) => setNewMagistrateTitle(val)} options={[{ label: 'Magistrado', value: '' }, { label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }]} /></div>
                             <div className="flex-1 w-full min-w-0 flex gap-2">
                                 <div className="flex-1"><SearchableSelect value={newMagistrateName} onChange={(val: string) => setNewMagistrateName(val)} options={magistrateOptions.map(m => ({ label: m, value: m }))} placeholder="Selecione magistrado" onAction={() => handleOpenManager('magistrates', 'Gerenciar Magistrados', (val) => setNewMagistrateName(val))} actionLabel="Gerenciar Lista de Magistrados" actionIcon={Settings} /></div>
                             </div>
@@ -1023,7 +1023,7 @@ export function ContractFormModal(props: Props) {
                 <div><SearchableSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
               </div>
             )}
-            
+             
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
@@ -1037,7 +1037,7 @@ export function ContractFormModal(props: Props) {
                 </div>
               </div>
             )}
-            
+             
              {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
               <div className="mb-8 mt-6">
                 <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
@@ -1073,7 +1073,7 @@ export function ContractFormModal(props: Props) {
               <h3 className="font-bold text-gray-800">{managementModal.title}</h3>
               <button onClick={() => setManagementModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
-            
+             
             <div className="p-4 bg-gray-50 border-b border-gray-200 shrink-0">
                 <div className="flex gap-2">
                     <input 
@@ -1120,7 +1120,7 @@ export function ContractFormModal(props: Props) {
       {/* Modais de Área e Visualização de Processo mantidos mas suprimidos para brevidade se não alterados, 
           mas como o pedido exige código completo, mantemos a estrutura original dos outros modais aqui se existissem. 
           O showAreaManager pode usar a mesma lógica nova ou manter a antiga. Vou manter a antiga para Area pois é array local. */}
-      
+       
       {showAreaManager && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
@@ -1142,7 +1142,7 @@ export function ContractFormModal(props: Props) {
           </div>
         </div>
       )}
-      
+       
       {viewProcess && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
             <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
