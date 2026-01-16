@@ -1166,6 +1166,12 @@ export function ContractFormModal(props: Props) {
                      <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
+
+                   {/* CAMPO REFERÊNCIA ADICIONADO AQUI */}
+                   <div>
+                      <label className="text-xs font-medium block mb-1">Referência</label>
+                      <input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.reference || ''} onChange={e => setFormData({...formData, reference: e.target.value})} placeholder="Ex: Proposta 123/2025" />
+                   </div>
                    
                    {/* Pró-Labore Simplificado */}
                    <div>
@@ -1191,7 +1197,9 @@ export function ContractFormModal(props: Props) {
                        ))}
                      </div>
                    </div>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                    {/* Êxito Final Simplificado */}
                    <div>
                      <FinancialInputWithInstallments 
@@ -1201,9 +1209,7 @@ export function ContractFormModal(props: Props) {
                        installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
                      />
                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
                   <div>
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
                     <div className="flex rounded-lg shadow-sm">
