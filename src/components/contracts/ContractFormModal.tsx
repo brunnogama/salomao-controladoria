@@ -1029,7 +1029,7 @@ export function ContractFormModal(props: Props) {
             
             {/* Bloco Adicionado para Status Rejeitado */}
             {formData.status === 'rejected' && (
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-5 mb-6 p-4 bg-red-50 rounded-xl border border-red-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-red-50 rounded-xl border border-red-100">
                 <div>
                   <label className="text-xs font-medium block mb-1 text-red-800">Data Rejeição <span className="text-red-500">*</span></label>
                   <input 
@@ -1038,6 +1038,18 @@ export function ContractFormModal(props: Props) {
                     value={formData.rejection_date || ''} 
                     onChange={e => setFormData({...formData, rejection_date: e.target.value})} 
                   />
+                </div>
+                <div>
+                    <SearchableSelect 
+                        label="Rejeitado Por" 
+                        value={formData.analyst_id || ''} 
+                        onChange={(val: string) => setFormData({...formData, analyst_id: val})} 
+                        options={analystSelectOptions} 
+                        onAction={onOpenAnalystManager} 
+                        actionIcon={Settings} 
+                        actionLabel="Gerenciar Analistas" 
+                        className="border-red-200" 
+                    />
                 </div>
               </div>
             )}
