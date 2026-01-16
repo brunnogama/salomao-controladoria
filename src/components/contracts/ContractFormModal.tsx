@@ -251,6 +251,7 @@ export function ContractFormModal(props: Props) {
   const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
+  const [probonoSourceOptions, setProbonoSourceOptions] = useState<string[]>([]);
 
   // GERENCIAMENTO DE TABELAS AUXILIARES
   const [managementModal, setManagementModal] = useState<{ 
@@ -353,6 +354,7 @@ export function ContractFormModal(props: Props) {
     fetchAndSet('magistrates', setMagistrateOptions);
     fetchAndSet('opponents', setOpponentOptions);
     fetchAndSet('process_positions', setPositionOptions);
+    fetchAndSet('probono_sources', setProbonoSourceOptions);
 
     fetchComarcas(currentProcess.uf);
   };
@@ -1170,17 +1172,15 @@ export function ContractFormModal(props: Props) {
                   />
                 </div>
                 <div>
-                  <CustomSelect
+                  <SearchableSelect
                     label="Enviado por"
                     value={(formData as any).probono_source || ''}
                     onChange={(val: string) => setFormData({...formData, probono_source: val} as any)}
-                    options={[
-                        { label: 'Sócio', value: 'Sócio' },
-                        { label: 'Parceiro', value: 'Parceiro' },
-                        { label: 'Cliente', value: 'Cliente' },
-                        { label: 'Espontâneo', value: 'Espontâneo' },
-                        { label: 'Outro', value: 'Outro' }
-                    ]}
+                    options={probonoSourceOptions.map(s => ({ label: s, value: s }))}
+                    onAction={() => handleOpenManager('probono_sources', 'Gerenciar Fontes Probono', (val) => setFormData({...formData, probono_source: val} as any))}
+                    actionLabel="Gerenciar Fontes"
+                    actionIcon={Settings}
+                    placeholder="Selecione"
                   />
                 </div>
               </div>
