@@ -1,4 +1,3 @@
-// src/pages/Contracts.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase, 
@@ -8,7 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
-import { useNavigate, useSearchParams } from 'react-router-dom'; // Adicionado useSearchParams
+import { useNavigate, useLocation } from 'react-router-dom'; // ALTERADO: useLocation no lugar de useSearchParams
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
@@ -102,7 +101,7 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 
 export function Contracts() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // Hook para ler URL
+  const location = useLocation(); // ALTERADO: Usando location para pegar a URL
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -115,7 +114,7 @@ export function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [partnerFilter, setPartnerFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('all'); // Novo estado para filtro de data (week/month)
+  const [dateFilter, setDateFilter] = useState('all');
     
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
@@ -144,20 +143,21 @@ export function Contracts() {
     fetchNotifications();
   }, []);
 
-  // Efeito para ler parâmetros da URL ao carregar
+  // Efeito ROBUSTO para ler parâmetros da URL ao carregar (Substitui useSearchParams)
   useEffect(() => {
-    const statusParam = searchParams.get('status');
-    const periodParam = searchParams.get('period');
+    const params = new URLSearchParams(location.search);
+    const statusParam = params.get('status');
+    const periodParam = params.get('period');
 
     if (statusParam) {
         setStatusFilter(statusParam);
     }
     if (periodParam && (periodParam === 'week' || periodParam === 'month')) {
         setDateFilter(periodParam);
-        setSortBy('date'); // Se filtrou por período, faz sentido ordenar por data
+        setSortBy('date');
         setSortOrder('desc');
     }
-  }, [searchParams]);
+  }, [location.search]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -375,7 +375,7 @@ export function Contracts() {
     setSearchTerm('');
     setStatusFilter('all');
     setPartnerFilter('');
-    setDateFilter('all'); // Limpa filtro de data também
+    setDateFilter('all');
     navigate('/contracts'); // Limpa URL
   };
 
