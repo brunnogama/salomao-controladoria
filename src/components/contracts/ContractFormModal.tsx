@@ -4,8 +4,8 @@ import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryI
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
-import { addDays, addMonths } from 'date-fns';
-import { CustomSelect } from '../ui/CustomSelect'; // Mantido para status e selects simples
+import { addDays, addMonths, differenceInDays } from 'date-fns';
+import { CustomSelect } from '../ui/CustomSelect';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
@@ -183,20 +183,14 @@ const getEffectiveDate = (status: string, fallbackDate: string, formData: Contra
   if (businessDateString) return new Date(businessDateString + 'T12:00:00');
   return new Date(fallbackDate);
 };
+
 const getDurationBetween = (startDate: Date, endDate: Date) => {
   const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
   if (diffDays === 0) return 'Mesmo dia';
-  return diffDays + ' dias';
+  return diffDays + (diffDays === 1 ? ' dia' : ' dias');
 };
-const getTotalDuration = (timelineData: TimelineEvent[], formData: Contract) => {
-  if (timelineData.length === 0) return '0 dias';
-  const latestEvent = timelineData[0];
-  const oldestEvent = timelineData[timelineData.length - 1];
-  const endDate = getEffectiveDate(latestEvent.new_status, latestEvent.changed_at, formData);
-  const startDate = getEffectiveDate(oldestEvent.new_status, oldestEvent.changed_at, formData);
-  return getDurationBetween(startDate, endDate);
-};
+
 const getThemeBackground = (status: string) => {
   switch (status) {
     case 'analysis': return 'bg-yellow-50';
@@ -219,7 +213,7 @@ export function ContractFormModal(props: Props) {
     partners, onOpenPartnerManager, analysts, onOpenAnalystManager,
     processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
     newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
-    timelineData, getStatusLabel
+    timelineData, getStatusLabel, getStatusColor
   } = props;
     
   const [localLoading, setLocalLoading] = useState(false);
@@ -528,9 +522,12 @@ export function ContractFormModal(props: Props) {
             throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
         }
         
+        // Uso 'as any' aqui para evitar erro de TS, mas os campos DEVEM existir no banco
         const contractPayload: any = {
             ...formData,
             client_id: clientId,
+            rejection_source: (formData as any).rejection_source,
+            rejection_reason: (formData as any).rejection_reason,
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
@@ -1110,7 +1107,57 @@ export function ContractFormModal(props: Props) {
           </section>
 
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
-          {/* Timeline mantida */}
+          
+          {timelineData && timelineData.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-100">
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-4 flex items-center">
+                    <HistoryIcon className="w-4 h-4 mr-2" /> Histórico do Caso
+                </h3>
+                <div className="relative border-l-2 border-gray-200 ml-2 space-y-6">
+                    {timelineData.map((event, index) => {
+                        const nextEvent = timelineData[index + 1]; 
+                        let duration = '';
+                        if (nextEvent) {
+                            const end = new Date(event.changed_at);
+                            const start = new Date(nextEvent.changed_at);
+                            duration = getDurationBetween(start, end);
+                        } else {
+                            duration = 'Início';
+                        }
+
+                        // Tenta exibir a Data de Referência (ex: Data Assinatura) se disponível para o status
+                        const effectiveDate = getEffectiveDate(event.new_status, '', formData);
+                        const hasEffectiveDate = effectiveDate && !isNaN(effectiveDate.getTime());
+
+                        return (
+                            <div key={event.id} className="ml-6 relative">
+                                <span className={`absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-white ${getStatusColor(event.new_status)}`}></span>
+                                
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-800">{getStatusLabel(event.new_status)}</p>
+                                        <div className="text-xs text-gray-500 flex flex-col">
+                                            <span>Registro: {new Date(event.changed_at).toLocaleDateString()} às {new Date(event.changed_at).toLocaleTimeString()}</span>
+                                            {hasEffectiveDate && (
+                                                <span className="text-salomao-blue font-medium mt-0.5">
+                                                    Ref: {effectiveDate.toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {event.changed_by && <p className="text-[10px] text-gray-400 mt-0.5">Por: {event.changed_by}</p>}
+                                    </div>
+                                    <div className="text-right shrink-0 ml-4">
+                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600 whitespace-nowrap">
+                                            <Hourglass className="w-3 h-3 mr-1" /> {duration}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+          )}
         </div>
 
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
