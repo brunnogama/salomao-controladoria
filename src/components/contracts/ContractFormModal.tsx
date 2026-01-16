@@ -505,6 +505,56 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  // --- FUNÇÕES NOVAS PARA EXTRAS DE PRO-LABORE E EXITO FINAL ---
+  const addProLaboreExtra = () => {
+    const value = parseCurrency(formData.pro_labore);
+    if (value <= 0) return;
+    
+    // Armazena objeto com valor e parcelas
+    const newItem = { 
+        value: formData.pro_labore, 
+        installments: formData.pro_labore_installments || '1x' 
+    };
+    
+    setFormData((prev: any) => ({
+      ...prev,
+      pro_labore_extras: [...(prev.pro_labore_extras || []), newItem],
+      pro_labore: '', // Limpa o input principal
+      pro_labore_installments: '1x'
+    }));
+  };
+
+  const removeProLaboreExtra = (idx: number) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      pro_labore_extras: prev.pro_labore_extras?.filter((_: any, i: number) => i !== idx)
+    }));
+  };
+
+  const addFinalFeeExtra = () => {
+    const value = parseCurrency(formData.final_success_fee);
+    if (value <= 0) return;
+    
+    const newItem = { 
+        value: formData.final_success_fee, 
+        installments: formData.final_success_fee_installments || '1x' 
+    };
+
+    setFormData((prev: any) => ({
+      ...prev,
+      final_success_extras: [...(prev.final_success_extras || []), newItem],
+      final_success_fee: '', // Limpa o input principal
+      final_success_fee_installments: '1x'
+    }));
+  };
+
+  const removeFinalFeeExtra = (idx: number) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      final_success_extras: prev.final_success_extras?.filter((_: any, i: number) => i !== idx)
+    }));
+  };
+
   const generateFinancialInstallments = async (contractId: string) => {
     if (formData.status !== 'active') return;
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
@@ -520,8 +570,26 @@ export function ContractFormModal(props: Props) {
       }
     };
 
+    // Gera para o valor principal (que ficou no input)
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
+    
+    // Gera para os extras de Pro-Labore (cada item da lista)
+    if ((formData as any).pro_labore_extras && Array.isArray((formData as any).pro_labore_extras)) {
+        (formData as any).pro_labore_extras.forEach((item: any) => {
+            addInstallments(item.value, item.installments, 'pro_labore');
+        });
+    }
+
+    // Gera para o valor principal de Êxito Final
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
+
+    // Gera para os extras de Êxito Final
+    if ((formData as any).final_success_extras && Array.isArray((formData as any).final_success_extras)) {
+        (formData as any).final_success_extras.forEach((item: any) => {
+            addInstallments(item.value, item.installments, 'final_success_fee');
+        });
+    }
+
     addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
@@ -535,14 +603,27 @@ export function ContractFormModal(props: Props) {
   };
 
   const forceUpdateFinancials = async (contractId: string) => {
-    const cleanPL = parseCurrency(formData.pro_labore || "");
-    const cleanSuccess = parseCurrency(formData.final_success_fee || "");
+    // Calcula o TOTAL (Input Principal + Soma dos Extras) para salvar na coluna do banco
+    let totalProLabore = parseCurrency(formData.pro_labore || "");
+    if ((formData as any).pro_labore_extras) {
+        (formData as any).pro_labore_extras.forEach((item: any) => {
+            totalProLabore += parseCurrency(item.value);
+        });
+    }
+
+    let totalSuccess = parseCurrency(formData.final_success_fee || "");
+    if ((formData as any).final_success_extras) {
+        (formData as any).final_success_extras.forEach((item: any) => {
+            totalSuccess += parseCurrency(item.value);
+        });
+    }
+
     const cleanFixed = parseCurrency(formData.fixed_monthly_fee || "");
     const cleanOther = parseCurrency(formData.other_fees || "");
 
     await supabase.from('contracts').update({
-      pro_labore: cleanPL,
-      final_success_fee: cleanSuccess,
+      pro_labore: totalProLabore,
+      final_success_fee: totalSuccess,
       fixed_monthly_fee: cleanFixed,
       other_fees: cleanOther
     }).eq('id', contractId);
@@ -580,6 +661,17 @@ export function ContractFormModal(props: Props) {
             throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
         }
         
+        // CALCULA TOTAIS PARA SALVAR NA TABELA PRINCIPAL
+        let totalProLaboreToSave = parseCurrency(formData.pro_labore || "");
+        if ((formData as any).pro_labore_extras) {
+            (formData as any).pro_labore_extras.forEach((item: any) => totalProLaboreToSave += parseCurrency(item.value));
+        }
+
+        let totalFinalFeeToSave = parseCurrency(formData.final_success_fee || "");
+        if ((formData as any).final_success_extras) {
+            (formData as any).final_success_extras.forEach((item: any) => totalFinalFeeToSave += parseCurrency(item.value));
+        }
+
         // Uso 'as any' aqui para evitar erro de TS, mas os campos DEVEM existir no banco
         const contractPayload: any = {
             ...formData,
@@ -588,8 +680,8 @@ export function ContractFormModal(props: Props) {
             rejection_reason: (formData as any).rejection_reason,
             probono_source: (formData as any).probono_source, // Adicionado campo Probono
             reference_text: (formData as any).reference_text, // Adicionado campo Referência
-            pro_labore: parseCurrency(formData.pro_labore),
-            final_success_fee: parseCurrency(formData.final_success_fee),
+            pro_labore: totalProLaboreToSave, // Salva o TOTAL
+            final_success_fee: totalFinalFeeToSave, // Salva o TOTAL
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
@@ -604,8 +696,8 @@ export function ContractFormModal(props: Props) {
             partners: undefined,
             id: undefined,
             
-            pro_labore_extras: undefined,
-            final_success_extras: undefined,
+            pro_labore_extras: undefined, // Não salva o array cru no banco
+            final_success_extras: undefined, // Não salva o array cru no banco
             fixed_monthly_extras: undefined,
             other_fees_extras: undefined,
             percent_extras: undefined
@@ -625,7 +717,8 @@ export function ContractFormModal(props: Props) {
         }
 
         if (savedId) {
-            await forceUpdateFinancials(savedId);
+            // forceUpdateFinancials já faz o update dos totais, mas handleSaveWithIntegrations já preparou o payload com totais.
+            // O importante é gerar as parcelas detalhadas antes de perder o estado local dos arrays.
             await generateFinancialInstallments(savedId);
             
             // Salvar processos
@@ -1191,12 +1284,52 @@ export function ContractFormModal(props: Props) {
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                    <div><label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} /></div>
-                   <div><FinancialInputWithInstallments label="Pró-Labore (R$)" value={formatForInput(formData.pro_labore)} onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})} installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})} /></div>
+                   
+                   {/* PRÓ-LABORE COM EXTRAS */}
+                   <div>
+                       <FinancialInputWithInstallments 
+                           label="Pró-Labore (R$)" 
+                           value={formatForInput(formData.pro_labore)} 
+                           onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})} 
+                           installments={formData.pro_labore_installments} 
+                           onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})} 
+                           onAdd={addProLaboreExtra}
+                       />
+                       <div className="flex flex-wrap gap-2 mt-2">
+                           {(formData as any).pro_labore_extras?.map((item: any, idx: number) => (
+                               <span key={idx} className="bg-white border border-green-100 px-3 py-1 rounded-full text-xs text-green-800 flex items-center shadow-sm">
+                                   {item.value} ({item.installments})
+                                   <button onClick={() => removeProLaboreExtra(idx)} className="ml-2 text-green-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                               </span>
+                           ))}
+                       </div>
+                   </div>
+
+                   {/* ÊXITO INTERMEDIÁRIO (JÁ EXISTENTE) */}
                    <div>
                      <FinancialInputWithInstallments label="Êxito Intermediário" value={newIntermediateFee} onChangeValue={setNewIntermediateFee} installments={interimInstallments} onChangeInstallments={setInterimInstallments} onAdd={() => { addIntermediateFee(); setInterimInstallments('1x'); }} />
                      <div className="flex flex-wrap gap-2 mt-2">{formData.intermediate_fees?.map((fee, idx) => (<span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">{fee}<button onClick={() => removeIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button></span>))}</div>
                    </div>
-                   <div><FinancialInputWithInstallments label="Êxito Final (R$)" value={formatForInput(formData.final_success_fee)} onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})} installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})} /></div>
+
+                   {/* ÊXITO FINAL COM EXTRAS */}
+                   <div>
+                       <FinancialInputWithInstallments 
+                           label="Êxito Final (R$)" 
+                           value={formatForInput(formData.final_success_fee)} 
+                           onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})} 
+                           installments={formData.final_success_fee_installments} 
+                           onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})} 
+                           onAdd={addFinalFeeExtra}
+                       />
+                       <div className="flex flex-wrap gap-2 mt-2">
+                           {(formData as any).final_success_extras?.map((item: any, idx: number) => (
+                               <span key={idx} className="bg-white border border-green-100 px-3 py-1 rounded-full text-xs text-green-800 flex items-center shadow-sm">
+                                   {item.value} ({item.installments})
+                                   <button onClick={() => removeFinalFeeExtra(idx)} className="ml-2 text-green-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                               </span>
+                           ))}
+                       </div>
+                   </div>
                 </div>
               </div>
             )}
