@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, Link as LinkIcon, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Gavel, Eye, Pencil } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, Link as LinkIcon, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Gavel, Eye, Pencil, ExternalLink, AlertTriangle } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -228,6 +228,10 @@ export function ContractFormModal(props: Props) {
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [showUnsavedProcessWarning, setShowUnsavedProcessWarning] = useState(false);
     
+  // States para verificar duplicidade
+  const [existingClientCases, setExistingClientCases] = useState<any[]>([]);
+  const [existingOpponentCases, setExistingOpponentCases] = useState<any[]>([]);
+
   // Estado local para adicionar magistrados (DEFAULT VAZIO)
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
@@ -277,8 +281,56 @@ export function ContractFormModal(props: Props) {
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
       setNewSubject('');
       setShowUnsavedProcessWarning(false);
+      setExistingClientCases([]);
+      setExistingOpponentCases([]);
     }
   }, [isOpen, formData.id]);
+
+  // Verificar duplicidade de Cliente
+  useEffect(() => {
+    const checkClientDuplicates = async () => {
+      if (!formData.client_name || formData.client_name.length < 3) {
+        setExistingClientCases([]);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('contracts')
+        .select('id, client_name, hon_number')
+        .neq('id', formData.id || '00000000-0000-0000-0000-000000000000') 
+        .or(`client_name.ilike.%${formData.client_name.trim()}%,cnpj.eq.${formData.cnpj || '000'}`)
+        .limit(3);
+
+      if (data) setExistingClientCases(data);
+    };
+
+    const timer = setTimeout(checkClientDuplicates, 800);
+    return () => clearTimeout(timer);
+  }, [formData.client_name, formData.cnpj, formData.id]);
+
+  // Verificar duplicidade de Parte Contrária
+  useEffect(() => {
+    const checkOpponentDuplicates = async () => {
+      if (!currentProcess.opponent || currentProcess.opponent.length < 3) {
+        setExistingOpponentCases([]);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('contract_processes')
+        .select('contract:contracts(id, client_name, hon_number)')
+        .ilike('opponent', `%${currentProcess.opponent.trim()}%`)
+        .limit(3);
+
+      // Filtrar para não mostrar o contrato atual
+      const filtered = data ? data.filter((d: any) => d.contract?.id !== formData.id) : [];
+      setExistingOpponentCases(filtered);
+    };
+
+    const timer = setTimeout(checkOpponentDuplicates, 800);
+    return () => clearTimeout(timer);
+  }, [currentProcess.opponent, formData.id]);
+
 
   // Função reinserida para corrigir o erro de build
   const fetchDocuments = async () => {
@@ -912,7 +964,21 @@ export function ContractFormModal(props: Props) {
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
-              <div className="md:col-span-9"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => setFormData({ ...formData, client_name: toTitleCase(e.target.value) })} /></div>
+              <div className="md:col-span-9">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label>
+                <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => setFormData({ ...formData, client_name: toTitleCase(e.target.value) })} />
+                
+                {existingClientCases.length > 0 && (
+                  <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-800 flex flex-col gap-1">
+                    <div className="font-bold flex items-center"><AlertTriangle className="w-3 h-3 mr-1"/> Há um caso em que {formData.client_name} figura como parte:</div>
+                    {existingClientCases.map((c) => (
+                      <a key={c.id} href={`#`} className="flex items-center text-blue-600 hover:underline" onClick={(e) => {e.preventDefault(); alert('Em breve link direto para caso ' + c.id)}}>
+                        <ExternalLink className="w-3 h-3 mr-1"/> {c.client_name} (HON: {c.hon_number || 'S/N'})
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div><SearchableSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={legalAreas.map(a => ({ label: a, value: a }))} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
@@ -949,6 +1015,17 @@ export function ContractFormModal(props: Props) {
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-12 lg:col-span-5">
                         <SearchableSelect label="Contrário (Parte Oposta) *" value={currentProcess.opponent || formData.company_name || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} options={opponentOptions.map(o => ({ label: o, value: o }))} onAction={() => handleOpenManager('opponents', 'Gerenciar Oponentes', (val) => setCurrentProcess(prev => ({...prev, opponent: val})))} actionLabel="Gerenciar Oponentes" actionIcon={Settings} placeholder="Selecione" />
+                        
+                        {existingOpponentCases.length > 0 && (
+                          <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-blue-800 flex flex-col gap-1">
+                            <div className="font-bold flex items-center"><AlertTriangle className="w-3 h-3 mr-1"/> Há um caso em que {currentProcess.opponent} figura como parte:</div>
+                            {existingOpponentCases.map((proc, i) => (
+                              <a key={i} href={`#`} className="flex items-center text-blue-600 hover:underline" onClick={(e) => {e.preventDefault(); alert('Em breve link direto para caso ' + proc.contract?.id)}}>
+                                <ExternalLink className="w-3 h-3 mr-1"/> {proc.contract?.client_name} (HON: {proc.contract?.hon_number || 'S/N'})
+                              </a>
+                            ))}
+                          </div>
+                        )}
                     </div>
                     <div className="md:col-span-12 lg:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado</label>

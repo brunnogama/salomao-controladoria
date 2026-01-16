@@ -1,27 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, Link as LinkIcon, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Gavel, Eye, Pencil, ExternalLink, AlertTriangle } from 'lucide-react';
-import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
-import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
-import { decodeCNJ } from '../../utils/cnjDecoder';
-import { addDays, addMonths, differenceInDays } from 'date-fns';
-import { CustomSelect } from '../ui/CustomSelect';
+import { 
+  Plus, Search, Filter, Calendar, DollarSign, User, Briefcase, 
+  CheckCircle2, Clock, Scale, Tag, Loader2, 
+  LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
+  FileSignature, ChevronDown, X
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import * as XLSX from 'xlsx';
+import { useNavigate } from 'react-router-dom';
+import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
+import { ContractFormModal } from '../components/contracts/ContractFormModal';
+import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
+import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
+import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
+import { parseCurrency } from '../utils/masks';
 
-const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
-
-const formatForInput = (val: string | number | undefined) => {
-  if (val === undefined || val === null) return '';
-  if (typeof val === 'number') return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  if (typeof val === 'string' && !val.includes('R$') && !isNaN(parseFloat(val)) && val.trim() !== '') {
-      return parseFloat(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'active': return 'bg-green-100 text-green-800 border-green-200';
+    case 'analysis': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'proposal': return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+    case 'probono': return 'bg-purple-100 text-purple-800 border-purple-200';
+    default: return 'bg-gray-100 text-gray-800 border-gray-200';
   }
-  return val;
 };
 
-// Componente SearchableSelect Local
-const SearchableSelect = ({ label, value, onChange, options, onAction, actionLabel, actionIcon: Icon, placeholder, disabled, className }: any) => {
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'active': return 'Contrato Fechado';
+    case 'analysis': return 'Sob Análise';
+    case 'proposal': return 'Proposta Enviada';
+    case 'rejected': return 'Rejeitada';
+    case 'probono': return 'Probono';
+    default: return status;
+  }
+};
+
+const formatMoney = (val: number | string | undefined) => {
+  if (!val) return 'R$ 0,00';
+  const num = typeof val === 'string' ? parseCurrency(val) : val;
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+const calculateTotalSuccess = (c: Contract) => {
+    let total = parseCurrency(c.final_success_fee);
+    if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
+        c.intermediate_fees.forEach((fee: string) => total += parseCurrency(fee));
+    }
+    return total;
+};
+
+// Componente Local de Filtro Padronizado (Sem busca interna, apenas UI de select)
+const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: React.ElementType, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,1332 +66,563 @@ const SearchableSelect = ({ label, value, onChange, options, onAction, actionLab
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
 
-  const filteredOptions = options.filter((opt: any) => {
-    const labelText = typeof opt === 'string' ? opt : (opt.label || opt.nome || '');
-    return labelText.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  const displayValue = () => {
-    if (!value) return placeholder || "Selecione";
-    const found = options.find((opt: any) => (opt.value === value || opt.sigla === value || opt === value));
-    if (found) return typeof found === 'string' ? found : (found.label || found.nome);
-    return value;
-  };
+  const displayValue = options.find((opt) => opt.value === value)?.label || placeholder;
 
   return (
-    <div className={`relative ${className}`} ref={wrapperRef}>
-      {label && <label className="text-xs font-medium block mb-1 text-gray-600">{label}</label>}
+    <div className="relative min-w-[200px]" ref={wrapperRef}>
       <div 
-        className={`w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus-within:border-salomao-blue outline-none flex justify-between items-center cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors select-none"
+        onClick={() => setIsOpen(!isOpen)}
       >
-        <span className={`truncate ${!value ? "text-gray-400" : "text-gray-800"}`}>
-          {displayValue()}
-        </span>
-        <ChevronDown className="w-4 h-4 text-gray-500 shrink-0 ml-2" />
+        {Icon && <Icon className="w-4 h-4 text-gray-500 mr-2 shrink-0" />}
+        <span className="text-sm text-gray-700 flex-1 truncate">{displayValue}</span>
+        <ChevronDown className={`w-3 h-3 text-gray-500 ml-2 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-60 overflow-hidden flex flex-col">
-          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
-            <div className="flex items-center bg-gray-50 rounded-md px-2 border border-gray-200">
-              <Search className="w-3 h-3 text-gray-400 mr-2" />
-              <input 
-                type="text" 
-                className="w-full bg-transparent p-1.5 text-xs outline-none text-gray-700"
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          </div>
-            
-          <div className="overflow-y-auto flex-1">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt: any, idx: number) => {
-                const optValue = typeof opt === 'string' ? opt : (opt.value || opt.sigla);
-                const optLabel = typeof opt === 'string' ? opt : (opt.label || opt.nome);
-                return (
-                  <div 
-                    key={idx} 
-                    className={`px-3 py-2 hover:bg-blue-50 text-sm cursor-pointer text-gray-700 ${value === optValue ? 'bg-blue-50 font-medium' : ''}`}
-                    onClick={() => {
-                      onChange(optValue);
-                      setIsOpen(false);
-                      setSearchTerm('');
-                    }}
-                  >
-                    {optLabel}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="px-3 py-2 text-xs text-gray-400 text-center">Nenhum resultado</div>
-            )}
-          </div>
-
-          {onAction && (
+        <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto flex flex-col animate-in fade-in zoom-in-95">
+          {options.map((opt) => (
             <div 
-              className="p-2 border-t border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 flex items-center justify-center text-salomao-blue text-xs font-bold transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAction();
+              key={opt.value} 
+              className={`px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer ${value === opt.value ? 'bg-blue-50 font-medium' : ''}`}
+              onClick={() => {
+                onChange(opt.value);
                 setIsOpen(false);
               }}
             >
-              {Icon && <Icon className="w-3 h-3 mr-1" />}
-              {actionLabel || "Gerenciar"}
+              {opt.label}
             </div>
-          )}
+          ))}
         </div>
       )}
     </div>
   );
 };
 
-const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => {
-    return (
-        <div className="relative h-full w-full">
-            <select
-                className="w-full h-full appearance-none bg-transparent pl-3 pr-8 text-xs font-medium text-gray-700 outline-none cursor-pointer focus:bg-gray-50 transition-colors"
-                value={value || '1x'}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                {options.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
-        </div>
-    );
-};
-
-const FinancialInputWithInstallments = ({ 
-  label, value, onChangeValue, installments, onChangeInstallments, onAdd 
-}: { 
-  label: string, value: string | undefined, onChangeValue: (val: string) => void, installments: string | undefined, onChangeInstallments: (val: string) => void, onAdd?: () => void 
-}) => {
-  const installmentOptions = Array.from({ length: 24 }, (_, i) => `${i + 1}x`);
-  return (
-    <div>
-      <label className="text-xs font-medium block mb-1 text-gray-600">{label}</label>
-      <div className="flex rounded-lg shadow-sm">
-        <input 
-          type="text" 
-          className={`flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0 ${!onAdd ? 'rounded-r-none border-r-0' : ''}`}
-          value={value || ''} 
-          onChange={(e) => onChangeValue(maskMoney(e.target.value))}
-          placeholder="R$ 0,00"
-        />
-        <div className={`w-20 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}>
-            <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
-        </div>
-        {onAdd && (
-          <button 
-            onClick={onAdd}
-            className="bg-salomao-blue text-white px-2 rounded-r-lg hover:bg-blue-900 transition-colors flex items-center justify-center border-l border-blue-800 shrink-0"
-            type="button"
-            title="Adicionar valor"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const getEffectiveDate = (status: string, fallbackDate: string, formData: Contract) => {
-  let businessDateString = null;
-  switch (status) {
-    case 'analysis': businessDateString = formData.prospect_date; break;
-    case 'proposal': businessDateString = formData.proposal_date; break;
-    case 'active': businessDateString = formData.contract_date; break;
-    case 'rejected': businessDateString = formData.rejection_date; break;
-    case 'probono': businessDateString = formData.probono_date || formData.contract_date; break;
-  }
-  if (businessDateString) return new Date(businessDateString + 'T12:00:00');
-  return new Date(fallbackDate);
-};
-
-const getDurationBetween = (startDate: Date, endDate: Date) => {
-  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-  if (diffDays === 0) return 'Mesmo dia';
-  return diffDays + (diffDays === 1 ? ' dia' : ' dias');
-};
-
-const getThemeBackground = (status: string) => {
-  switch (status) {
-    case 'analysis': return 'bg-yellow-50';
-    case 'proposal': return 'bg-blue-50';
-    case 'active': return 'bg-green-50';
-    case 'rejected': return 'bg-red-50';
-    default: return 'bg-gray-50';
-  }
-};
-
-interface Props {
-  isOpen: boolean; onClose: () => void; formData: Contract; setFormData: React.Dispatch<React.SetStateAction<Contract>>; onSave: () => void; loading: boolean; isEditing: boolean;
-  partners: Partner[]; onOpenPartnerManager: () => void; analysts: Analyst[]; onOpenAnalystManager: () => void;
-  onCNPJSearch: () => void; processes: ContractProcess[]; currentProcess: ContractProcess; setCurrentProcess: React.Dispatch<React.SetStateAction<ContractProcess>>; editingProcessIndex: number | null; handleProcessAction: () => void; editProcess: (idx: number) => void; removeProcess: (idx: number) => void; newIntermediateFee: string; setNewIntermediateFee: (v: string) => void; addIntermediateFee: () => void; removeIntermediateFee: (idx: number) => void; timelineData: TimelineEvent[]; getStatusColor: (s: string) => string; getStatusLabel: (s: string) => string;
-}
-
-export function ContractFormModal(props: Props) {
-  const { 
-    isOpen, onClose, formData, setFormData, onSave, loading: parentLoading, isEditing,
-    partners, onOpenPartnerManager, analysts, onOpenAnalystManager,
-    processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
-    newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
-    timelineData, getStatusLabel, getStatusColor
-  } = props;
+export function Contracts() {
+  const navigate = useNavigate();
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [analysts, setAnalysts] = useState<Analyst[]>([]);
+  const [loading, setLoading] = useState(true);
     
-  const [localLoading, setLocalLoading] = useState(false);
-  const [documents, setDocuments] = useState<ContractDocument[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [searchingCNJ, setSearchingCNJ] = useState(false);
-  const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
-  const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES'].sort());
-  const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-  const [interimInstallments, setInterimInstallments] = useState('1x');
-  const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor'].sort());
-  const [showAreaManager, setShowAreaManager] = useState(false);
-  const [showUnsavedProcessWarning, setShowUnsavedProcessWarning] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Filtros e Ordenação
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [partnerFilter, setPartnerFilter] = useState('');
     
-  // States para verificar duplicidade
-  const [existingClientCases, setExistingClientCases] = useState<any[]>([]);
-  const [existingOpponentCases, setExistingOpponentCases] = useState<any[]>([]);
+  const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
-  // Estado local para adicionar magistrados (DEFAULT VAZIO)
-  const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
-  const [newMagistrateName, setNewMagistrateName] = useState('');
+  // Modais
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
     
-  const [isStandardCNJ, setIsStandardCNJ] = useState(true);
-  const [otherProcessType, setOtherProcessType] = useState('');
-  const [newSubject, setNewSubject] = useState('');
-
-  // Estados para menus suspensos
-  const [justiceOptions, setJusticeOptions] = useState<string[]>(['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar'].sort());
-  const [varaOptions, setVaraOptions] = useState<string[]>(['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais'].sort());
-  const [courtOptions, setCourtOptions] = useState<string[]>([]);
-  const [comarcaOptions, setComarcaOptions] = useState<string[]>([]); 
-  const [classOptions, setClassOptions] = useState<string[]>([]);
-  const [subjectOptions, setSubjectOptions] = useState<string[]>([]);
-  const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
-  const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
-  const [positionOptions, setPositionOptions] = useState<string[]>([]);
-
-  // GERENCIAMENTO DE TABELAS AUXILIARES
-  const [managementModal, setManagementModal] = useState<{ 
-    table: string, 
-    title: string, 
-    ufFilter?: string,
-    onSelect?: (val: string) => void // Callback para seleção automática
-  } | null>(null);
-  const [managementItems, setManagementItems] = useState<{id: string, name: string}[]>([]);
-  const [isManagerLoading, setIsManagerLoading] = useState(false);
-
-  const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
-  const [viewProcess, setViewProcess] = useState<ContractProcess | null>(null);
-  const [viewProcessIndex, setViewProcessIndex] = useState<number | null>(null);
-
-  const isLoading = parentLoading || localLoading;
+  const emptyContract: Contract = {
+    cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: true,
+    status: 'analysis', physical_signature: false
+  };
+  const [formData, setFormData] = useState<Contract>(emptyContract);
+  const [currentProcess, setCurrentProcess] = useState<ContractProcess>({ process_number: '' });
+  const [processes, setProcesses] = useState<ContractProcess[]>([]);
+  const [editingProcessIndex, setEditingProcessIndex] = useState<number | null>(null);
+  const [newIntermediateFee, setNewIntermediateFee] = useState('');
+  const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchStatuses();
-      fetchAuxiliaryTables();
-      if (formData.id) fetchDocuments();
-    } else {
-      setDocuments([]);
-      setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-      setInterimInstallments('1x');
-      setIsStandardCNJ(true);
-      setOtherProcessType('');
-      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
-      setNewSubject('');
-      setShowUnsavedProcessWarning(false);
-      setExistingClientCases([]);
-      setExistingOpponentCases([]);
-    }
-  }, [isOpen, formData.id]);
+    fetchData();
+    fetchNotifications();
+  }, []);
 
-  // Verificar duplicidade de Cliente
-  useEffect(() => {
-    const checkClientDuplicates = async () => {
-      if (!formData.client_name || formData.client_name.length < 3) {
-        setExistingClientCases([]);
-        return;
+  const fetchData = async () => {
+    setLoading(true);
+    const [contractsRes, partnersRes, analystsRes] = await Promise.all([
+      supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
+      supabase.from('partners').select('*').eq('active', true).order('name'),
+      supabase.from('analysts').select('*').eq('active', true).order('name')
+    ]);
+
+    if (contractsRes.data) {
+        const formatted: Contract[] = contractsRes.data.map((c: any) => ({
+            ...c,
+            partner_name: c.partner?.name,
+            analyzed_by_name: c.analyst?.name,
+            process_count: c.processes?.length || 0
+        }));
+        setContracts(formatted);
+    }
+    if (partnersRes.data) setPartners(partnersRes.data);
+    if (analystsRes.data) setAnalysts(analystsRes.data);
+    setLoading(false);
+  };
+
+  const fetchNotifications = async () => {
+    const { data } = await supabase
+      .from('kanban_tasks')
+      .select('id, title, due_date')
+      .eq('status', 'signature')
+      .order('due_date', { ascending: true });
+     
+    if (data) setNotifications(data);
+  };
+
+  const handleNotificationClick = (taskId: string) => {
+    navigate('/kanban', { state: { openTaskId: taskId } });
+  };
+
+  const handleNew = () => {
+    setFormData(emptyContract);
+    setProcesses([]);
+    setCurrentProcess({ process_number: '' });
+    setTimelineData([]);
+    setIsEditing(false);
+    setIsModalOpen(true);
+  };
+
+  const handleView = async (contract: Contract) => {
+    setFormData(contract);
+    const [procRes, timeRes] = await Promise.all([
+        supabase.from('contract_processes').select('*').eq('contract_id', contract.id),
+        supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false })
+    ]);
+    if (procRes.data) setProcesses(procRes.data);
+    if (timeRes.data) setTimelineData(timeRes.data);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleEdit = () => {
+    setIsDetailsModalOpen(false);
+    setIsEditing(true);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!formData.id) return;
+    if (confirm('Tem certeza que deseja excluir este contrato?')) {
+      const { error } = await supabase.from('contracts').delete().eq('id', formData.id);
+      if (!error) {
+        setIsDetailsModalOpen(false);
+        fetchData();
       }
-
-      const { data } = await supabase
-        .from('contracts')
-        .select('id, client_name, hon_number')
-        .neq('id', formData.id || '00000000-0000-0000-0000-000000000000') // Não comparar com o próprio ID se estiver editando
-        .or(`client_name.ilike.%${formData.client_name.trim()}%,cnpj.eq.${formData.cnpj || '000'}`)
-        .limit(3);
-
-      if (data) setExistingClientCases(data);
-    };
-
-    const timer = setTimeout(checkClientDuplicates, 800);
-    return () => clearTimeout(timer);
-  }, [formData.client_name, formData.cnpj, formData.id]);
-
-  // Verificar duplicidade de Parte Contrária
-  useEffect(() => {
-    const checkOpponentDuplicates = async () => {
-      if (!currentProcess.opponent || currentProcess.opponent.length < 3) {
-        setExistingOpponentCases([]);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('contract_processes')
-        .select('contract:contracts(id, client_name, hon_number)')
-        .ilike('opponent', `%${currentProcess.opponent.trim()}%`)
-        .limit(3);
-
-      // Filtrar para não mostrar o contrato atual
-      const filtered = data ? data.filter((d: any) => d.contract?.id !== formData.id) : [];
-      setExistingOpponentCases(filtered);
-    };
-
-    const timer = setTimeout(checkOpponentDuplicates, 800);
-    return () => clearTimeout(timer);
-  }, [currentProcess.opponent, formData.id]);
-
-
-  // Função reinserida para corrigir o erro de build
-  const fetchDocuments = async () => {
-    const { data } = await supabase.from('contract_documents').select('*').eq('contract_id', formData.id).order('uploaded_at', { ascending: false });
-    if (data) setDocuments(data);
-  };
-
-  const sortStringArray = (arr: string[]) => arr.sort((a, b) => a.localeCompare(b));
-
-  const fetchAuxiliaryTables = async () => {
-    const fetchAndSet = async (table: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
-        const { data } = await supabase.from(table).select('name').order('name');
-        if (data) setter(data.map(i => i.name));
-    };
-
-    fetchAndSet('courts', setCourtOptions);
-    fetchAndSet('process_classes', setClassOptions);
-    fetchAndSet('process_subjects', setSubjectOptions);
-    fetchAndSet('magistrates', setMagistrateOptions);
-    fetchAndSet('opponents', setOpponentOptions);
-    fetchAndSet('process_positions', setPositionOptions);
-
-    fetchComarcas(currentProcess.uf);
-  };
-
-  const fetchComarcas = async (uf?: string) => {
-    let query = supabase.from('comarcas').select('name').order('name');
-    if (uf) query = query.eq('uf', uf);
-    const { data } = await query;
-    if (data) setComarcaOptions(data.map(c => c.name));
-  };
-
-  useEffect(() => {
-    fetchComarcas(currentProcess.uf);
-  }, [currentProcess.uf]);
-
-  // --- LÓGICA DO GERENCIADOR DE AUXILIARES ---
-  const handleOpenManager = async (table: string, title: string, onSelect?: (val: string) => void) => {
-    if (table === 'comarcas' && !currentProcess.uf) return alert("Selecione um Estado (UF) primeiro.");
-      
-    setIsManagerLoading(true);
-    setManagementModal({ table, title, ufFilter: table === 'comarcas' ? currentProcess.uf : undefined, onSelect });
-      
-    let query = supabase.from(table).select('id, name').order('name');
-    if (table === 'comarcas' && currentProcess.uf) {
-        query = query.eq('uf', currentProcess.uf);
-    }
-
-    const { data } = await query;
-    if (data) setManagementItems(data);
-    setIsManagerLoading(false);
-  };
-
-  const handleManagerSaveItem = async (name: string, id?: string) => {
-    if (!managementModal) return;
-    const cleanName = toTitleCase(name.trim());
-    if (!cleanName) return;
-
-    try {
-        const payload: any = { name: cleanName };
-        if (managementModal.table === 'comarcas' && managementModal.ufFilter) {
-            payload.uf = managementModal.ufFilter;
-        }
-
-        if (id) {
-            // Update
-            const { error } = await supabase.from(managementModal.table).update({ name: cleanName }).eq('id', id);
-            if (error) throw error;
-            setManagementItems(prev => prev.map(item => item.id === id ? { ...item, name: cleanName } : item));
-        } else {
-            // Insert
-            const { data, error } = await supabase.from(managementModal.table).insert(payload).select('id, name').single();
-            if (error) throw error;
-            if (data) {
-                setManagementItems(prev => [...prev, data].sort((a,b) => a.name.localeCompare(b.name)));
-                  
-                // Auto-seleção do novo item
-                if (managementModal.onSelect) {
-                    managementModal.onSelect(cleanName);
-                    setManagementModal(null); // Fecha o modal após adicionar e selecionar
-                }
-            }
-        }
-        await fetchAuxiliaryTables(); // Refresh dropdowns
-    } catch (err: any) {
-        alert("Erro ao salvar: " + err.message);
     }
   };
 
-  const handleManagerDeleteItem = async (id: string) => {
-    if (!managementModal || !confirm("Tem certeza que deseja excluir este item?")) return;
-    try {
-        const { error } = await supabase.from(managementModal.table).delete().eq('id', id);
-        if (error) throw error;
-        setManagementItems(prev => prev.filter(item => item.id !== id));
-        await fetchAuxiliaryTables();
-    } catch (err: any) {
-        alert("Erro ao excluir: " + err.message);
+  const handleDeleteFromList = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm('Tem certeza que deseja excluir este contrato?')) {
+      const { error } = await supabase.from('contracts').delete().eq('id', id);
+      if (!error) fetchData();
     }
   };
 
-  // --- FIM GERENCIADOR ---
-
-  const fetchStatuses = async () => {
-    const { data } = await supabase.from('contract_statuses').select('*');
-    if (data) {
-      const order = ['analysis', 'proposal', 'active', 'rejected', 'probono'];
-      const sortedData = data.sort((a, b) => {
-        const indexA = order.indexOf(a.value);
-        const indexB = order.indexOf(b.value);
-        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-        if (indexA !== -1) return -1;
-        if (indexB !== -1) return 1;
-        return a.label.localeCompare(b.label);
-      });
-      setStatusOptions(sortedData.map(s => ({ label: s.label, value: s.value })));
-    }
+  const handleSave = () => {
+    fetchData(); 
+    fetchNotifications(); 
   };
 
-  const addMagistrate = () => {
-    if (!newMagistrateName.trim()) return;
-    const newMagistrate: Magistrate = { title: newMagistrateTitle, name: newMagistrateName };
-    setCurrentProcess(prev => ({
-      ...prev,
-      magistrates: [...(prev.magistrates || []), newMagistrate]
-    }));
-    setNewMagistrateName('');
-  };
-
-  const removeMagistrate = (index: number) => {
-    setCurrentProcess(prev => {
-      const newList = [...(prev.magistrates || [])];
-      newList.splice(index, 1);
-      return { ...prev, magistrates: newList };
-    });
-  };
-
-  const addSubjectToProcess = () => {
-    if (!newSubject.trim()) return;
-    const cleanSubject = toTitleCase(newSubject.trim());
-    const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : [];
-      
-    if (!currentSubjects.includes(cleanSubject)) {
-        const updatedSubjects = [...currentSubjects, cleanSubject];
-        setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
-    }
-    setNewSubject('');
-  };
-
-  const removeSubject = (subjectToRemove: string) => {
-    if (!currentProcess.subject) return;
-    const currentSubjects = currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '');
-    const updatedSubjects = currentSubjects.filter(s => s !== subjectToRemove);
-    setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
-  };
-
-  // Funções de manipulação de arrays locais (sem banco)
-  const handleAddJustice = () => {
-    const newJustice = window.prompt("Digite o novo tipo de Justiça:");
-    if (newJustice && !justiceOptions.includes(newJustice)) {
-      setJusticeOptions([...justiceOptions, toTitleCase(newJustice)].sort());
-    }
-  };
-
-  const handleAddVara = () => {
-    const newVara = window.prompt("Digite o novo tipo de Vara:");
-    if (newVara && !varaOptions.includes(newVara)) {
-      setVaraOptions([...varaOptions, toTitleCase(newVara)].sort());
-    }
-  };
-
-  const generateFinancialInstallments = async (contractId: string) => {
-    if (formData.status !== 'active') return;
-    await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
-      
-    const installmentsToInsert: any[] = [];
-    const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string) => {
-      const totalValue = parseCurrency(totalValueStr);
-      if (totalValue <= 0) return;
-      const numInstallments = parseInt((installmentsStr || '1x').replace('x', '')) || 1;
-      const amountPerInstallment = totalValue / numInstallments;
-      for (let i = 1; i <= numInstallments; i++) {
-        installmentsToInsert.push({ contract_id: contractId, type: type, installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString() });
-      }
-    };
-
-    addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
-    addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
-    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
-    addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
-
-    if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
-      formData.intermediate_fees.forEach(fee => {
-        const val = parseCurrency(fee);
-        if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'intermediate_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
-      });
-    }
-    if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
-  };
-
-  const forceUpdateFinancials = async (contractId: string) => {
-    const cleanPL = parseCurrency(formData.pro_labore || "");
-    const cleanSuccess = parseCurrency(formData.final_success_fee || "");
-    const cleanFixed = parseCurrency(formData.fixed_monthly_fee || "");
-    const cleanOther = parseCurrency(formData.other_fees || "");
-
-    await supabase.from('contracts').update({
-      pro_labore: cleanPL,
-      final_success_fee: cleanSuccess,
-      fixed_monthly_fee: cleanFixed,
-      other_fees: cleanOther
-    }).eq('id', contractId);
-  };
-
-  const handleSaveWithIntegrations = async () => {
-    // Verificar se há dados de processo não salvos
-    if (hasUnsavedProcessData()) {
-      setShowUnsavedProcessWarning(true);
-      return;
-    }
-
-    if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
-    if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
-
-    if (formData.status === 'analysis' && !formData.prospect_date) return alert('A "Data Prospect" é obrigatória para contratos em Análise.');
-    if (formData.status === 'proposal' && !formData.proposal_date) return alert('A "Data Proposta" é obrigatória para Propostas Enviadas.');
-    // Nova validação para status Rejected
-    if (formData.status === 'rejected' && !formData.rejection_date) return alert('A "Data Rejeição" é obrigatória.');
-
-    if (formData.status === 'active') {
-      if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
-      if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
-      if (!formData.billing_location) return alert('O "Local Faturamento" é obrigatório para Contratos Fechados.');
-      if (formData.physical_signature === undefined) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
-    }
-
-    setLocalLoading(true);
-    try {
-        const clientId = await upsertClient();
-        if (!clientId) {
-            throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
-        }
-        
-        // Uso 'as any' aqui para evitar erro de TS, mas os campos DEVEM existir no banco
-        const contractPayload: any = {
-            ...formData,
-            client_id: clientId,
-            rejection_source: (formData as any).rejection_source,
-            rejection_reason: (formData as any).rejection_reason,
-            pro_labore: parseCurrency(formData.pro_labore),
-            final_success_fee: parseCurrency(formData.final_success_fee),
-            fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
-            other_fees: parseCurrency(formData.other_fees),
-            
-            partner_name: undefined,
-            analyzed_by_name: undefined,
-            process_count: undefined,
-            analyst: undefined,
-            analysts: undefined, 
-            client: undefined,    
-            partner: undefined,    
-            processes: undefined,
-            partners: undefined,
-            id: undefined,
-            
-            pro_labore_extras: undefined,
-            final_success_extras: undefined,
-            fixed_monthly_extras: undefined,
-            other_fees_extras: undefined,
-            percent_extras: undefined
-        };
-
-        Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
-
-        let savedId = formData.id;
-
-        if (formData.id) {
-            const { error } = await supabase.from('contracts').update(contractPayload).eq('id', formData.id);
-            if (error) throw error;
-        } else {
-            const { data, error } = await supabase.from('contracts').insert(contractPayload).select().single();
-            if (error) throw error;
-            savedId = data.id;
-        }
-
-        if (savedId) {
-            await forceUpdateFinancials(savedId);
-            await generateFinancialInstallments(savedId);
-            
-            // Salvar processos
-            if (processes.length > 0) {
-                await supabase.from('contract_processes').delete().eq('contract_id', savedId);
-                const processesToInsert = processes.map(p => ({ ...p, contract_id: savedId }));
-                await supabase.from('contract_processes').insert(processesToInsert);
-            }
-            
-            if (formData.status === 'active' && formData.physical_signature === false) {
-                const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').single();
-                if (!data) {
-                  const dueDate = addDays(new Date(), 5);
-                  await supabase.from('kanban_tasks').insert({ title: `Coletar Assinatura: ${formData.client_name}`, description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`, priority: 'Alta', status: 'signature', contract_id: savedId, due_date: dueDate.toISOString(), position: 0 });
-                }
-            }
-        }
-
-        onSave();
-        onClose();
-
-    } catch (error: any) {
-        console.error('Erro ao salvar contrato:', error);
-        if (error.code === '23505' || error.message?.includes('contracts_hon_number_key')) {
-            alert('⚠️ Duplicidade de Caso Detectada\n\nJá existe um contrato cadastrado com este Número HON.');
-        } else if (error.code === 'PGRST204') {
-             console.warn('Erro de estrutura de dados:', error.message);
-             const column = error.message.match(/'([^']+)'/)?.[1];
-             alert(`Erro Técnico: Tentativa de salvar campo inválido (${column}).`);
-        } else {
-            alert(`Não foi possível salvar as alterações.\n\n${error.message}`);
-        }
-    } finally {
-        setLocalLoading(false);
-    }
-  };
-
-  const upsertClient = async () => {
-      if (!formData.client_name) return null;
-
-      const clientData = {
-        name: formData.client_name,
-        cnpj: (formData.has_no_cnpj || !formData.cnpj) ? null : formData.cnpj,
-        is_person: clientExtraData.is_person || formData.has_no_cnpj || (formData.cnpj.length > 0 && formData.cnpj.length <= 14),
-        uf: formData.uf,
-        address: clientExtraData.address || undefined,
-        city: clientExtraData.city || undefined,
-        complement: clientExtraData.complement || undefined,
-        number: clientExtraData.number || undefined,
-        email: clientExtraData.email || undefined,
-        partner_id: formData.partner_id
-      };
-
-      if (clientData.cnpj) {
-        const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
-          
-        if (existingClient) {
-          await supabase.from('clients').update(clientData).eq('id', existingClient.id);
-          return existingClient.id;
-        } else {
-          const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
-          if (error) { 
-              console.error('Erro ao criar cliente com CNPJ:', error); 
-              return null; 
-          }
-          return newClient.id;
-        }
-      } else {
-        if (formData.client_id) {
-           const { error } = await supabase.from('clients').update(clientData).eq('id', formData.client_id);
-           if (error) console.error("Erro ao atualizar cliente sem CNPJ:", error);
-           return formData.client_id;
-        } else {
-           const { data: newClient, error } = await supabase.from('clients').insert(clientData).select().single();
-           if (error) { 
-               console.error('Erro ao criar cliente sem CNPJ:', error); 
-               return null; 
-           }
-           return newClient.id;
-        }
-      }
-  };
-
-  const hasUnsavedProcessData = () => {
-    if (!formData.has_legal_process) return false;
-      
-    return !!(
-      currentProcess.process_number ||
-      currentProcess.court ||
-      currentProcess.uf ||
-      currentProcess.opponent ||
-      currentProcess.position ||
-      currentProcess.vara ||
-      currentProcess.comarca ||
-      currentProcess.justice_type ||
-      currentProcess.distribution_date ||
-      currentProcess.cause_value ||
-      currentProcess.process_class ||
-      currentProcess.subject ||
-      (currentProcess.magistrates && currentProcess.magistrates.length > 0)
-    );
-  };
-
-  const handleCNPJSearch = async () => {
-    if (!formData.cnpj || formData.has_no_cnpj) return;
-      
-    const cnpjLimpo = formData.cnpj.replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) {
-      alert('CNPJ inválido. Digite 14 dígitos.');
-      return;
-    }
-
-    setLocalLoading(true);
-    try {
-      let data;
-        
-      // Tentativa 1: BrasilAPI
-      try {
-         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-         if (!response.ok) throw new Error('Not found on BrasilAPI');
-         data = await response.json();
-         
-      } catch (err) {
-         console.warn('BrasilAPI falhou (404 ou erro), tentando Fallback (Publica CNPJ)...');
-         
-         // Tentativa 2: Fallback Robusto (CNPJ.WS)
-         try {
-           const responseBackup = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjLimpo}`);
-           if (!responseBackup.ok) throw new Error('CNPJ não encontrado nas bases públicas.');
-           const dataWs = await responseBackup.json();
-           
-           data = {
-             razao_social: dataWs.razao_social,
-             nome_fantasia: dataWs.estabelecimento.nome_fantasia,
-             logradouro: dataWs.estabelecimento.logradouro,
-             numero: dataWs.estabelecimento.numero,
-             complemento: dataWs.estabelecimento.complemento,
-             municipio: dataWs.estabelecimento.cidade.nome,
-             uf: dataWs.estabelecimento.estado.sigla,
-             email: dataWs.estabelecimento.email
-           };
-         } catch (err2: any) {
-           throw new Error(err2.message || 'CNPJ não encontrado.');
-         }
-      }
-        
-      setFormData(prev => ({
-        ...prev,
-        client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''),
-        uf: data.uf || prev.uf
-      }));
-
-      setClientExtraData({
-        address: toTitleCase(data.logradouro || ''),
-        number: data.numero || '',
-        complement: toTitleCase(data.complemento || ''),
-        city: toTitleCase(data.municipio || ''),
-        email: data.email || '',
-        is_person: false
-      });
-
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id, name')
-        .eq('cnpj', cnpjLimpo)
-        .single();
-
-      if (existingClient) {
-        setFormData(prev => ({ ...prev, client_id: existingClient.id }));
-      }
-
-    } catch (error: any) {
-      console.error('Erro ao buscar CNPJ:', error);
-      alert(`❌ Não foi possível consultar o CNPJ.\n\n${error.message}\n\n💡 Você pode preencher manualmente.`);
-    } finally {
-      setLocalLoading(false);
-    }
-  };
-
-  const handleCNJSearch = async () => {
+  const handleProcessAction = () => {
     if (!currentProcess.process_number) return;
-      
-    const numeroLimpo = currentProcess.process_number.replace(/\D/g, '');
-    if (numeroLimpo.length !== 20) {
-      alert('Número de processo inválido. Deve ter 20 dígitos.');
-      return;
+    if (editingProcessIndex !== null) {
+      const updated = [...processes];
+      updated[editingProcessIndex] = currentProcess;
+      setProcesses(updated);
+      setEditingProcessIndex(null);
+    } else {
+      setProcesses([...processes, currentProcess]);
     }
+    setCurrentProcess({ process_number: '' });
+  };
 
-    setSearchingCNJ(true);
-    try {
-      const decoded = decodeCNJ(numeroLimpo);
-      if (!decoded) {
-        throw new Error('Não foi possível decodificar o número do processo');
-      }
-        
-      const uf = decoded.tribunal === 'STF' ? 'DF' : decoded.uf;
-        
-      // Tenta adicionar o tribunal à lista local e ao banco se não existir
-      if (!courtOptions.includes(decoded.tribunal)) {
-          // Tenta inserir no Supabase (silenciosamente se falhar/já existir)
-          await supabase.from('courts').insert({ name: decoded.tribunal }).select();
-          setCourtOptions([...courtOptions, decoded.tribunal].sort());
-      }
-        
-      setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal, uf: uf })); // Atualiza UF do processo também
-    } catch (error: any) {
-      alert(`❌ Erro ao decodificar CNJ: ${error.message}`);
-    } finally {
-      setSearchingCNJ(false);
+  const editProcess = (idx: number) => {
+    setCurrentProcess(processes[idx]);
+    setEditingProcessIndex(idx);
+  };
+
+  const removeProcess = (idx: number) => {
+    setProcesses(processes.filter((_, i) => i !== idx));
+  };
+
+  const addIntermediateFee = () => {
+    if (!newIntermediateFee) return;
+    setFormData((prev: Contract) => ({
+      ...prev,
+      intermediate_fees: [...(prev.intermediate_fees || []), newIntermediateFee]
+    }));
+    setNewIntermediateFee('');
+  };
+
+  const removeIntermediateFee = (idx: number) => {
+    setFormData((prev: Contract) => ({
+      ...prev,
+      intermediate_fees: prev.intermediate_fees?.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const exportToExcel = () => {
+    const data = filteredContracts.map(c => ({
+      'Status': getStatusLabel(c.status),
+      'Cliente': c.client_name,
+      'CNPJ/CPF': c.cnpj || '-',
+      'Processos': (c as any).processes?.map((p: any) => p.process_number).join(', ') || '-',
+      'Sócio': c.partner_name,
+      'Área': c.area,
+      'UF': c.uf,
+      'HON': c.hon_number || '-',
+      'Data Status': new Date(getRelevantDate(c) || '').toLocaleDateString(),
+      'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
+      'Pró-Labore': formatMoney(c.pro_labore),
+      'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
+      'Êxito Final': formatMoney(c.final_success_fee),
+      'Observações': c.observations || '-'
+    }));
+     
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contratos");
+    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
+  };
+
+  const getRelevantDate = (c: Contract) => {
+    switch (c.status) {
+        case 'analysis': return c.prospect_date || c.created_at;
+        case 'proposal': return c.proposal_date || c.created_at;
+        case 'active': return c.contract_date || c.created_at;
+        case 'rejected': return c.rejection_date || c.created_at;
+        case 'probono': return c.probono_date || c.contract_date || c.created_at;
+        default: return c.created_at;
     }
   };
 
-  const handleOpenJusbrasil = () => {
-    if (currentProcess.process_number) {
-      const numero = currentProcess.process_number.replace(/\D/g, '');
-      window.open(`https://www.jusbrasil.com.br/processos/numero/${numero}`, '_blank');
+  const filteredContracts = contracts.filter((c: Contract) => {
+    const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          c.hon_number?.includes(searchTerm) ||
+                          c.cnpj?.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+    const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
+    return matchesSearch && matchesStatus && matchesPartner;
+  }).sort((a: Contract, b: Contract) => {
+    if (sortBy === 'name') {
+        const nameA = a.client_name || '';
+        const nameB = b.client_name || '';
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    } else {
+        const dateA = new Date(getRelevantDate(a) || 0).getTime();
+        const dateB = new Date(getRelevantDate(b) || 0).getTime();
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     }
-  };
-    
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  });
 
-    if (!formData.id) {
-      alert("⚠️ Você precisa salvar o contrato pelo menos uma vez antes de anexar arquivos.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const sanitizedFileName = file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
-      const filePath = `${formData.id}/${Date.now()}_${sanitizedFileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('contract-documents')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: docData, error: dbError } = await supabase
-        .from('contract_documents')
-        .insert({
-          contract_id: formData.id,
-          file_name: file.name,
-          file_path: filePath,
-          file_type: type,
-        })
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      if (docData) {
-          setDocuments(prev => [docData, ...prev]);
-      }
-
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      alert("Erro ao anexar arquivo: " + error.message);
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
+  // Funções para resetar filtros
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPartnerFilter('');
   };
 
-  const handleDownload = async (path: string) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('contract-documents')
-        .download(path);
-        
-      if (error) throw error;
-        
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      const fileName = path.split('_').slice(1).join('_') || 'documento.pdf';
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error("Download error:", error);
-      alert("Erro ao baixar arquivo: " + error.message);
-    }
-  };
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '';
 
-  const handleDeleteDocument = async (id: string, path: string) => {
-    if (!confirm("Tem certeza que deseja excluir este documento?")) return;
+  // Opções para os filtros
+  const statusOptions = [
+    { label: 'Todos Status', value: 'all' },
+    { label: 'Sob Análise', value: 'analysis' },
+    { label: 'Proposta Enviada', value: 'proposal' },
+    { label: 'Contrato Fechado', value: 'active' },
+    { label: 'Rejeitada', value: 'rejected' },
+    { label: 'Probono', value: 'probono' }
+  ];
 
-    try {
-      const { error: storageError } = await supabase.storage
-        .from('contract-documents')
-        .remove([path]);
-
-      if (storageError) {
-          console.warn("Aviso: Erro ao remover do storage (pode já ter sido deletado)", storageError);
-      }
-
-      const { error: dbError } = await supabase
-        .from('contract_documents')
-        .delete()
-        .eq('id', id);
-
-      if (dbError) throw dbError;
-
-      setDocuments(prev => prev.filter(d => d.id !== id));
-
-    } catch (error: any) {
-      console.error("Delete error:", error);
-      alert("Erro ao excluir documento: " + error.message);
-    }
-  };
-
-  const partnerSelectOptions = partners.sort((a,b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }));
-  const analystSelectOptions = analysts ? analysts.sort((a,b) => a.name.localeCompare(b.name)).map(a => ({ label: a.name, value: a.id })) : [];
-    
-  if (!isOpen) return null;
+  const partnerOptions = [
+    { label: 'Todos Sócios', value: '' },
+    ...partners.map(p => ({ label: p.name, value: p.id }))
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
-      <div className={`w-full max-w-7xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
-        {/* Header */}
-        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-2xl">
-          <div><h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2></div>
-          <button onClick={onClose}><X className="w-6 h-6 text-gray-400" /></button>
+    <div className="p-8 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
+            <FileSignature className="w-8 h-8" /> Contratos
+          </h1>
+          <div className="flex items-center mt-1">
+            <p className="text-gray-500 mr-3">Gestão completa de casos e propostas.</p>
+            <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center">
+              <Briefcase className="w-3 h-3 mr-1" /> Total: {contracts.length}
+            </span>
+          </div>
         </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`p-2 rounded-full relative transition-all ${
+                notifications.length > 0 
+                  ? 'bg-red-50 text-red-500 hover:bg-red-100' 
+                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              <Bell className={`w-6 h-6 ${notifications.length > 0 ? 'animate-pulse' : ''}`} />
+              {notifications.length > 0 && (
+                <span className="absolute top-0 right-0 w-3 h-3 bg-red-600 border-2 border-white rounded-full"></span>
+              )}
+            </button>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
-            <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} />
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95">
+                <div className="p-3 border-b border-gray-50 bg-gray-50 flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-gray-700 uppercase">Tarefas de Assinatura</h4>
+                  <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold">{notifications.length}</span>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-gray-400">Nenhuma pendência.</div>
+                  ) : (
+                    notifications.map(notif => (
+                      <div 
+                        key={notif.id}
+                        onClick={() => handleNotificationClick(notif.id)}
+                        className="p-3 border-b border-gray-50 last:border-0 hover:bg-blue-50 cursor-pointer transition-colors"
+                      >
+                        <p className="text-sm font-medium text-gray-800 line-clamp-1">{notif.title}</p>
+                        <p className="text-xs text-gray-500 flex items-center mt-1">
+                          <Calendar className="w-3 h-3 mr-1" /> 
+                          Vence: {new Date(notif.due_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          <section className="space-y-5">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-              <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
-                <div className="flex gap-2 items-center">
-                  <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
-                  <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
-                </div>
-                <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
-              </div>
-              <div className="md:col-span-9">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label>
-                <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => setFormData({ ...formData, client_name: toTitleCase(e.target.value) })} />
-                
-                {existingClientCases.length > 0 && (
-                  <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-800 flex flex-col gap-1">
-                    <div className="font-bold flex items-center"><AlertTriangle className="w-3 h-3 mr-1"/> Há um caso em que {formData.client_name} figura como parte:</div>
-                    {existingClientCases.map((c) => (
-                      <a key={c.id} href={`#`} className="flex items-center text-blue-600 hover:underline" onClick={(e) => {e.preventDefault(); alert('Em breve link direto para caso ' + c.id)}}>
-                        <ExternalLink className="w-3 h-3 mr-1"/> {c.client_name} (HON: {c.hon_number || 'S/N'})
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div><SearchableSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={legalAreas.map(a => ({ label: a, value: a }))} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
-              <div><SearchableSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
-            </div>
-          </section>
+          <button onClick={handleNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
+            <Plus className="w-5 h-5 mr-2" /> Novo Caso
+          </button>
+        </div>
+      </div>
 
-          <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-40">
-            <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
-            {formData.has_legal_process && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                  {/* Linha 1 */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 items-end">
-                    <div className={isStandardCNJ ? "md:col-span-5" : "md:col-span-4"}>
-                        <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">Número do Processo * {currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}</label>
+      <div className="flex flex-col xl:flex-row gap-4 mb-6 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
+        <div className="flex-1 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <Search className="w-5 h-5 text-gray-400 mr-2" />
+          <input 
+            type="text" 
+            placeholder="Buscar por cliente, HON ou CNPJ..." 
+            className="flex-1 bg-transparent outline-none text-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex gap-2 flex-wrap items-center">
+          <FilterSelect 
+            icon={Filter}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusOptions}
+            placeholder="Status"
+          />
+
+          <FilterSelect 
+            icon={User}
+            value={partnerFilter}
+            onChange={setPartnerFilter}
+            options={partnerOptions}
+            placeholder="Sócios"
+          />
+
+          {hasActiveFilters && (
+            <button 
+              onClick={clearFilters}
+              className="flex items-center px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
+              title="Limpar todos os filtros"
+            >
+              <X className="w-4 h-4 mr-2" /> Limpar
+            </button>
+          )}
+
+          <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
+            <button 
+                onClick={() => { if(sortBy !== 'name') { setSortBy('name'); setSortOrder('asc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
+                className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Ordenar por Nome"
+            >
+                Nome
+                {sortBy === 'name' && (sortOrder === 'asc' ? <ArrowDownAZ className="w-3 h-3 ml-1" /> : <ArrowUpAZ className="w-3 h-3 ml-1" />)}
+            </button>
+            <button 
+                onClick={() => { if(sortBy !== 'date') { setSortBy('date'); setSortOrder('desc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
+                className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Ordenar por Data do Status Atual"
+            >
+                Data
+                {sortBy === 'date' && <ArrowUpDown className="w-3 h-3 ml-1" />}
+            </button>
+          </div>
+
+          <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
+            <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
+            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
+          </div>
+
+          <button onClick={exportToExcel} className="flex items-center px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium whitespace-nowrap">
+            <Download className="w-4 h-4 mr-2" /> XLS
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
+      ) : (
+        <>
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredContracts.map((contract) => {
+                const totalExito = calculateTotalSuccess(contract);
+                return (
+                  <div key={contract.id} onClick={() => handleView(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
+                    
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1 min-w-0 pr-8">
+                        <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mt-1 border ${getStatusColor(contract.status)}`}>
+                          {getStatusLabel(contract.status)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-gray-600">
+                      <div className="flex items-center">
+                        <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                        <span className="truncate">
+                          {(contract as any).processes && (contract as any).processes.length > 0 
+                            ? (contract as any).processes.map((p: any) => p.process_number).join(', ') 
+                            : 'Sem processos'}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <User className="w-3.5 h-3.5 mr-2 text-salomao-gold" />
+                        <span className="truncate">{contract.partner_name || 'Sem sócio'}</span>
+                      </div>
+                      {contract.status === 'active' && contract.hon_number && (
                         <div className="flex items-center">
-                            <CustomSelect value={isStandardCNJ ? 'cnj' : 'other'} onChange={(val: string) => { setIsStandardCNJ(val === 'cnj'); if (val === 'cnj') { setCurrentProcess({...currentProcess, process_number: maskCNJ(currentProcess.process_number || '')}); setOtherProcessType(''); } }} options={[{ label: 'CNJ', value: 'cnj' }, { label: 'Outro', value: 'other' }]} className="mr-2 w-24" />
-                            <div className="flex-1 relative">
-                                <input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8" placeholder={isStandardCNJ ? "0000000-00..." : "Nº Processo"} value={currentProcess.process_number} onChange={(e) => setCurrentProcess({ ...currentProcess, process_number: isStandardCNJ ? maskCNJ(e.target.value) : e.target.value })} />
-                                <button onClick={handleCNJSearch} disabled={!isStandardCNJ || searchingCNJ || !currentProcess.process_number} className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Identificar (Apenas CNJ)">{searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button>
-                            </div>
+                          <Tag className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                          <span className="font-mono bg-gray-100 px-1 rounded text-[10px]">{contract.hon_number}</span>
                         </div>
+                      )}
                     </div>
-                    {!isStandardCNJ && (<div className="md:col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold">Tipo</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm" value={otherProcessType} onChange={(e) => setOtherProcessType(e.target.value)} /></div>)}
-                    <div className="md:col-span-2 lg:col-span-2">
-                        <SearchableSelect label="Tribunal *" value={currentProcess.court || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} options={courtOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('courts', 'Gerenciar Tribunais', (val) => setCurrentProcess(prev => ({...prev, court: val})))} actionLabel="Gerenciar Tribunais" actionIcon={Settings} placeholder="Selecione" />
-                    </div>
-                    <div className="md:col-span-2 lg:col-span-2"><SearchableSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={UFS.map(uf => ({ label: uf.nome, value: uf.sigla }))} placeholder="UF" className="custom-select-small" /></div>
-                    <div className={isStandardCNJ ? "md:col-span-3 lg:col-span-3" : "md:col-span-2 lg:col-span-2"}><SearchableSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions.map(p => ({ label: p, value: p }))} onAction={() => handleOpenManager('process_positions', 'Gerenciar Posições', (val) => setCurrentProcess(prev => ({...prev, position: val})))} actionLabel="Gerenciar Posições" actionIcon={Settings} className="custom-select-small" /></div>
-                  </div>
 
-                  {/* Linha 2 */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-12 lg:col-span-5">
-                        <SearchableSelect label="Contrário (Parte Oposta) *" value={currentProcess.opponent || formData.company_name || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} options={opponentOptions.map(o => ({ label: o, value: o }))} onAction={() => handleOpenManager('opponents', 'Gerenciar Oponentes', (val) => setCurrentProcess(prev => ({...prev, opponent: val})))} actionLabel="Gerenciar Oponentes" actionIcon={Settings} placeholder="Selecione" />
-                        
-                        {existingOpponentCases.length > 0 && (
-                          <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-blue-800 flex flex-col gap-1">
-                            <div className="font-bold flex items-center"><AlertTriangle className="w-3 h-3 mr-1"/> Há um caso em que {currentProcess.opponent} figura como parte:</div>
-                            {existingOpponentCases.map((proc, i) => (
-                              <a key={i} href={`#`} className="flex items-center text-blue-600 hover:underline" onClick={(e) => {e.preventDefault(); alert('Em breve link direto para caso ' + proc.contract?.id)}}>
-                                <ExternalLink className="w-3 h-3 mr-1"/> {proc.contract?.client_name} (HON: {proc.contract?.hon_number || 'S/N'})
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                    </div>
-                    <div className="md:col-span-12 lg:col-span-7">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado</label>
-                        <div className="flex flex-col sm:flex-row gap-2 items-end">
-                            <div className="w-full sm:w-40 shrink-0"><CustomSelect value={newMagistrateTitle} onChange={(val: string) => setNewMagistrateTitle(val)} options={[{ label: 'Selecione', value: '' }, { label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }]} /></div>
-                            <div className="flex-1 w-full min-w-0 flex gap-2">
-                                <div className="flex-1"><SearchableSelect value={newMagistrateName} onChange={(val: string) => setNewMagistrateName(val)} options={magistrateOptions.map(m => ({ label: m, value: m }))} placeholder="Selecione magistrado" onAction={() => handleOpenManager('magistrates', 'Gerenciar Magistrados', (val) => setNewMagistrateName(val))} actionLabel="Gerenciar Lista de Magistrados" actionIcon={Settings} /></div>
-                            </div>
-                            <button onClick={addMagistrate} className="bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 transition-colors shrink-0 shadow-sm border border-blue-800" type="button" title="Incluir na lista"><Plus className="w-5 h-5" /></button>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-2">{currentProcess.magistrates?.map((m, idx) => (<span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200"><Gavel size={10} className="text-gray-400" /><b>{m.title}:</b> {m.name}<button onClick={() => removeMagistrate(idx)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button></span>))}</div>
-                    </div>
-                  </div>
-
-                  {/* Linha 3 */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-3"><CustomSelect label="Numeral" value={(currentProcess as any).numeral || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, numeral: val} as any)} options={numeralOptions} placeholder="Nº" /></div>
-                    <div className="md:col-span-5"><SearchableSelect label="Vara" value={currentProcess.vara || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} options={varaOptions.map(v => ({ label: v, value: v }))} onAction={handleAddVara} actionLabel="Adicionar Vara (Local)" actionIcon={Plus} placeholder="Selecione" /></div>
-                    <div className="md:col-span-4"><SearchableSelect label="Comarca" value={currentProcess.comarca || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} options={comarcaOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('comarcas', `Gerenciar Comarcas (${currentProcess.uf || 'UF'})`, (val) => setCurrentProcess(prev => ({...prev, comarca: val})))} actionLabel="Gerenciar Comarcas" actionIcon={Settings} placeholder={currentProcess.uf ? "Selecione" : "Selecione UF"} disabled={!currentProcess.uf} /></div>
-                  </div>
-
-                  {/* Linha 4 */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
-                    <div className="md:col-span-4"><SearchableSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceOptions.map(j => ({ label: j, value: j }))} onAction={handleAddJustice} actionLabel="Adicionar Justiça (Local)" /></div>
-                    <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
-                  </div>
-
-                  {/* Linha 5 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><SearchableSelect label="Classe" value={currentProcess.process_class || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} options={classOptions.map(c => ({ label: c, value: c }))} onAction={() => handleOpenManager('process_classes', 'Gerenciar Classes', (val) => setCurrentProcess(prev => ({...prev, process_class: val})))} actionLabel="Gerenciar Classes" actionIcon={Settings} placeholder="Selecione" /></div>
-                    <div>
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
-                        <div className="flex gap-2 items-center">
-                             <div className="flex-1 min-w-0"><SearchableSelect value={newSubject} onChange={(val: string) => setNewSubject(val)} options={subjectOptions.map(s => ({ label: s, value: s }))} placeholder="Selecione ou digite novo" onAction={() => handleOpenManager('process_subjects', 'Gerenciar Assuntos', (val) => setNewSubject(val))} actionLabel="Gerenciar Assuntos" actionIcon={Settings} /></div>
-                            <button onClick={addSubjectToProcess} className="bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 transition-colors shrink-0 shadow-sm border border-blue-800" title="Incluir na lista"><Plus className="w-5 h-5" /></button>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-2">{currentProcess.subject && currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '').map((subj, idx) => (<span key={idx} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs flex items-center gap-1 border border-gray-200">{subj}<button onClick={() => removeSubject(subj)} className="ml-1 text-red-400 hover:text-red-600"><X size={10} /></button></span>))}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end mt-4"><button onClick={handleProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md text-sm font-bold w-full md:w-auto">{editingProcessIndex !== null ? <><Check className="w-4 h-4 mr-2" /> Atualizar Processo</> : <><Plus className="w-4 h-4 mr-2" /> Adicionar Processo</>}</button></div>
-                </div>
-
-                {processes.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    {processes.map((p, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
-                        <div className="grid grid-cols-3 gap-4 flex-1 text-xs">
-                          <span onClick={() => { setViewProcess(p); setViewProcessIndex(idx); }} className="font-mono font-medium text-salomao-blue hover:underline cursor-pointer flex items-center" title="Clique para ver detalhes do processo"><Eye className="w-3 h-3 mr-1" />{p.process_number}</span>
-                          <span className="text-gray-600">{p.court} ({p.uf})</span>
-                          <span className="text-gray-500 truncate">{p.opponent}</span>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => editProcess(idx)} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => removeProcess(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                    <div className="mt-3 pt-2 border-t border-gray-50 flex justify-between items-end">
+                      <div className="text-[10px] text-gray-400">
+                        <div className="flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {new Date(getRelevantDate(contract) || '').toLocaleDateString()}
                         </div>
                       </div>
-                    ))}
+                      {contract.status === 'active' && (
+                        <div className="text-right">
+                          {contract.pro_labore && parseCurrency(contract.pro_labore) > 0 && (
+                            <div className="text-xs font-bold text-green-700">{formatMoney(contract.pro_labore)}</div>
+                          )}
+                          {totalExito > 0 && (
+                            <div className="text-[10px] text-gray-500">+ {formatMoney(totalExito)} êxito (Total)</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
-          </section>
-
-          {/* Seção Financeira e Uploads (Mantida igual, resumida para caber) */}
-          <section className="border-t border-black/5 pt-6">
-            <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-6 flex items-center"><Clock className="w-4 h-4 mr-2" />Detalhes da Fase: {getStatusLabel(formData.status)}</h3>
-            {(formData.status === 'analysis') && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                <div className="space-y-4"><div><label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label><input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} /></div></div>
-                <div><SearchableSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
-              </div>
-            )}
-            
-            {/* Bloco Adicionado para Status Rejeitado */}
-            {formData.status === 'rejected' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-red-50 rounded-xl border border-red-100">
-                <div>
-                  <label className="text-xs font-medium block mb-1 text-red-800">Data Rejeição <span className="text-red-500">*</span></label>
-                  <input 
-                    type="date" 
-                    className="w-full border border-red-200 p-2.5 rounded-lg text-sm bg-white focus:border-red-400 outline-none" 
-                    value={formData.rejection_date || ''} 
-                    onChange={e => setFormData({...formData, rejection_date: e.target.value})} 
-                  />
-                </div>
-                <div>
-                    <SearchableSelect 
-                        label="Analisado Por" 
-                        value={formData.analyst_id || ''} 
-                        onChange={(val: string) => setFormData({...formData, analyst_id: val})} 
-                        options={analystSelectOptions} 
-                        onAction={onOpenAnalystManager} 
-                        actionIcon={Settings} 
-                        actionLabel="Gerenciar Analistas" 
-                        className="border-red-200" 
-                    />
-                </div>
-                <div>
-                    <CustomSelect
-                        label="Rejeitado por"
-                        value={(formData as any).rejection_source || ''}
-                        onChange={(val: string) => setFormData({...formData, rejection_source: val} as any)}
-                        options={[
-                            { label: 'Cliente', value: 'Cliente' },
-                            { label: 'Escritório', value: 'Escritório' }
-                        ]}
-                    />
-                </div>
-                <div>
-                    <CustomSelect
-                        label="Motivo Rejeição"
-                        value={(formData as any).rejection_reason || ''}
-                        onChange={(val: string) => setFormData({...formData, rejection_reason: val} as any)}
-                        options={[
-                            { label: 'Caso ruim', value: 'Caso ruim' },
-                            { label: 'Cliente não retornou', value: 'Cliente não retornou' },
-                            { label: 'Cliente declinou', value: 'Cliente declinou' },
-                            { label: 'Conflito', value: 'Conflito' }
-                        ]}
-                    />
-                </div>
-              </div>
-            )}
-              
-            {(formData.status === 'proposal' || formData.status === 'active') && (
-              <div className="space-y-6 animate-in slide-in-from-top-2">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
-                   <div><label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} /></div>
-                   <div><FinancialInputWithInstallments label="Pró-Labore (R$)" value={formatForInput(formData.pro_labore)} onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})} installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})} /></div>
-                   <div>
-                     <FinancialInputWithInstallments label="Êxito Intermediário" value={newIntermediateFee} onChangeValue={setNewIntermediateFee} installments={interimInstallments} onChangeInstallments={setInterimInstallments} onAdd={() => { addIntermediateFee(); setInterimInstallments('1x'); }} />
-                     <div className="flex flex-wrap gap-2 mt-2">{formData.intermediate_fees?.map((fee, idx) => (<span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">{fee}<button onClick={() => removeIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button></span>))}</div>
-                   </div>
-                   <div><FinancialInputWithInstallments label="Êxito Final (R$)" value={formatForInput(formData.final_success_fee)} onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})} installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})} /></div>
-                </div>
-              </div>
-            )}
-              
-             {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
-              <div className="mb-8 mt-6">
-                <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
-                {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
-              </div>
-            )}
-             {formData.status === 'active' && (
-              <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                  <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="0000000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                  <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingLocations.map(l => ({label: l, value: l}))} onAction={() => {}} actionLabel="" /></div>
-                  <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={[{ label: 'Sim', value: 'true' }, { label: 'Não (Cobrar)', value: 'false' }]} /></div>
-                </div>
-              </div>
-            )}
-          </section>
-
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
-          
-          {timelineData && timelineData.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-100">
-                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-4 flex items-center">
-                    <HistoryIcon className="w-4 h-4 mr-2" /> Histórico do Caso
-                </h3>
-                <div className="relative border-l-2 border-gray-200 ml-2 space-y-6">
-                    {timelineData.map((event, index) => {
-                        const nextEvent = timelineData[index + 1]; 
-                        let duration = '';
-                        if (nextEvent) {
-                            const end = new Date(event.changed_at);
-                            const start = new Date(nextEvent.changed_at);
-                            duration = getDurationBetween(start, end);
-                        } else {
-                            duration = 'Início';
-                        }
-
-                        // Tenta exibir a Data de Referência (ex: Data Assinatura) se disponível para o status
-                        const effectiveDate = getEffectiveDate(event.new_status, '', formData);
-                        const hasEffectiveDate = effectiveDate && !isNaN(effectiveDate.getTime());
-
-                        return (
-                            <div key={event.id} className="ml-6 relative">
-                                <span className={`absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-white ${getStatusColor(event.new_status)}`}></span>
-                                
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-800">{getStatusLabel(event.new_status)}</p>
-                                        <div className="text-xs text-gray-500 flex flex-col">
-                                            <span>Registro: {new Date(event.changed_at).toLocaleDateString()} às {new Date(event.changed_at).toLocaleTimeString()}</span>
-                                            {hasEffectiveDate && (
-                                                <span className="text-salomao-blue font-medium mt-0.5">
-                                                    Ref: {effectiveDate.toLocaleDateString()}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {event.changed_by && <p className="text-[10px] text-gray-400 mt-0.5">Por: {event.changed_by}</p>}
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table className="w-full text-left text-xs">
+                    <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
+                        <tr>
+                            <th className="p-3">Status</th>
+                            <th className="p-3">Cliente</th>
+                            <th className="p-3">Processos</th>
+                            <th className="p-3">Sócio</th>
+                            <th className="p-3">HON</th>
+                            <th className="p-3 text-right">Data Relevante</th>
+                            <th className="p-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {filteredContracts.map(contract => (
+                            <tr key={contract.id} onClick={() => handleView(contract)} className="hover:bg-gray-50 cursor-pointer group">
+                                <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
+                                <td className="p-3 font-medium text-gray-800">{contract.client_name}</td>
+                                <td className="p-3 text-gray-600 max-w-[200px] truncate" title={(contract as any).processes?.map((p: any) => p.process_number).join(', ')}>
+                                    {(contract as any).processes && (contract as any).processes.length > 0 
+                                      ? (contract as any).processes.map((p: any) => p.process_number).join(', ') 
+                                      : '-'}
+                                </td>
+                                <td className="p-3 text-gray-600">{contract.partner_name}</td>
+                                <td className="p-3 font-mono text-gray-500">{contract.hon_number || '-'}</td>
+                                <td className="p-3 text-right text-gray-500">{new Date(getRelevantDate(contract) || '').toLocaleDateString()}</td>
+                                <td className="p-3 text-right">
+                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
+                                        <button onClick={(e) => { e.stopPropagation(); handleView(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                                        <button onClick={(e) => handleDeleteFromList(e, contract.id!)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
                                     </div>
-                                    <div className="text-right shrink-0 ml-4">
-                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600 whitespace-nowrap">
-                                            <Hourglass className="w-3 h-3 mr-1" /> {duration}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
           )}
-        </div>
-
-        <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
-          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
-          <button onClick={handleSaveWithIntegrations} disabled={isLoading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{isLoading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
-        </div>
-      </div>
-
-      {/* Modal Genérico de Gerenciamento de Tabelas Auxiliares */}
-      {managementModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[80vh]">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-              <h3 className="font-bold text-gray-800">{managementModal.title}</h3>
-              <button onClick={() => setManagementModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-              
-            <div className="p-4 bg-gray-50 border-b border-gray-200 shrink-0">
-                <div className="flex gap-2">
-                    <input 
-                        type="text" 
-                        id="new-item-input"
-                        className="flex-1 border border-gray-300 rounded-lg p-2 text-sm focus:border-salomao-blue outline-none"
-                        placeholder="Adicionar novo item..."
-                        onKeyPress={(e) => { if (e.key === 'Enter') handleManagerSaveItem((e.target as HTMLInputElement).value); }}
-                    />
-                    <button 
-                        onClick={() => { const el = document.getElementById('new-item-input') as HTMLInputElement; handleManagerSaveItem(el.value); el.value = ''; }}
-                        className="bg-salomao-blue text-white p-2 rounded-lg shrink-0 hover:bg-blue-900 transition-colors"
-                    >
-                        <Plus className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-
-            <div className="overflow-y-auto p-2 space-y-1 flex-1">
-                {isManagerLoading ? (
-                    <div className="flex justify-center p-4"><Loader2 className="animate-spin text-gray-400" /></div>
-                ) : (
-                    managementItems.map(item => (
-                        <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100 group hover:border-blue-200 transition-colors">
-                            <input 
-                                type="text"
-                                className="text-sm text-gray-700 bg-transparent border-none outline-none focus:ring-1 focus:ring-blue-200 rounded px-1 flex-1 mr-2"
-                                defaultValue={item.name}
-                                onBlur={(e) => { if(e.target.value !== item.name) handleManagerSaveItem(e.target.value, item.id); }}
-                            />
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => document.getElementById(`input-${item.id}`)?.focus()} className="text-blue-400 hover:text-blue-600 p-1"><Pencil className="w-3 h-3" /></button>
-                                <button onClick={() => handleManagerDeleteItem(item.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3 h-3" /></button>
-                            </div>
-                        </div>
-                    ))
-                )}
-                {!isManagerLoading && managementItems.length === 0 && <p className="text-center text-xs text-gray-400 py-4">Nenhum item cadastrado.</p>}
-            </div>
-          </div>
-        </div>
+        </>
       )}
 
-      {/* Modais de Área e Visualização de Processo mantidos mas suprimidos para brevidade se não alterados, 
-          mas como o pedido exige código completo, mantemos a estrutura original dos outros modais aqui se existissem. 
-          O showAreaManager pode usar a mesma lógica nova ou manter a antiga. Vou manter a antiga para Area pois é array local. */}
-        
-      {showAreaManager && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-gray-800">Gerenciar Áreas do Direito</h3>
-              <button onClick={() => setShowAreaManager(false)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            <div className="p-4">
-              <div className="flex gap-2 mb-4">
-                <input type="text" className="flex-1 border border-gray-300 rounded-lg p-2 text-sm" placeholder="Nome da nova área" id="new-area-input" />
-                <button onClick={() => { const input = document.getElementById('new-area-input') as HTMLInputElement; if (input.value && !legalAreas.includes(input.value)) { setLegalAreas([...legalAreas, toTitleCase(input.value)].sort()); input.value = ''; } }} className="bg-salomao-blue text-white p-2 rounded-lg shrink-0"><Plus className="w-5 h-5" /></button>
-              </div>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {legalAreas.map(area => (
-                  <div key={area} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group"><span className="text-sm text-gray-700">{area}</span><button onClick={() => setLegalAreas(legalAreas.filter(a => a !== area))} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button></div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-        
-      {viewProcess && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
-                <div className="bg-salomao-blue text-white p-6 flex justify-between items-center shrink-0">
-                    <div><h3 className="text-lg font-bold">Detalhes do Processo</h3><p className="text-xs text-blue-200 mt-1 font-mono">{viewProcess.process_number}</p></div>
-                    <button onClick={() => setViewProcess(null)} className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><X className="w-6 h-6" /></button>
-                </div>
-                <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tribunal</span><span className="text-sm font-medium text-gray-800">{viewProcess.court || '-'}</span></div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100"><span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Estado (UF)</span><span className="text-sm font-medium text-gray-800">{viewProcess.uf || '-'}</span></div>
-                        {/* Outros campos de visualização mantidos */}
-                    </div>
-                </div>
-                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                    <button onClick={() => setViewProcess(null)} className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Fechar</button>
-                    <button onClick={() => { if (viewProcessIndex !== null) { setViewProcess(null); editProcess(viewProcessIndex); } }} className="px-4 py-2 bg-salomao-blue text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors flex items-center"><Edit className="w-4 h-4 mr-2" /> Editar</button>
-                </div>
-            </div>
-        </div>
-      )}
+      <ContractDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        contract={formData}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        processes={processes}
+      />
 
-      {showUnsavedProcessWarning && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[90] p-4 animate-in fade-in">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95">
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm"><AlertCircle className="w-8 h-8 text-white" /></div>
-              <div><h3 className="text-xl font-bold text-white">Dados Não Salvos</h3><p className="text-sm text-white/90 mt-1">Processo judicial pendente</p></div>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4"><p className="text-sm text-gray-700 leading-relaxed">Você preencheu informações no <span className="font-bold text-orange-600">formulário de processo judicial</span>, mas não clicou em <span className="inline-flex items-center px-2 py-0.5 bg-salomao-blue text-white rounded text-xs font-bold"><Plus className="w-3 h-3 mr-1" /> Adicionar Processo</span></p></div>
-            </div>
-            <div className="bg-gray-50 p-4 flex justify-end gap-3 border-t border-gray-200">
-              <button onClick={() => setShowUnsavedProcessWarning(false)} className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Voltar e Corrigir</button>
-              <button onClick={() => { setCurrentProcess({ process_number: '' } as any); setShowUnsavedProcessWarning(false); }} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors flex items-center"><X className="w-4 h-4 mr-2" /> Descartar Dados</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ContractFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        formData={formData}
+        setFormData={setFormData}
+        onSave={handleSave}
+        loading={loading}
+        isEditing={isEditing}
+        partners={partners}
+        onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
+        analysts={analysts}
+        onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
+        onCNPJSearch={() => {}}
+        processes={processes}
+        currentProcess={currentProcess}
+        setCurrentProcess={setCurrentProcess}
+        editingProcessIndex={editingProcessIndex}
+        handleProcessAction={handleProcessAction}
+        editProcess={editProcess}
+        removeProcess={removeProcess}
+        newIntermediateFee={newIntermediateFee}
+        setNewIntermediateFee={setNewIntermediateFee}
+        addIntermediateFee={addIntermediateFee}
+        removeIntermediateFee={removeIntermediateFee}
+        timelineData={timelineData}
+        getStatusColor={getStatusColor}
+        getStatusLabel={getStatusLabel}
+      />
+
+      <PartnerManagerModal isOpen={isPartnerModalOpen} onClose={() => setIsPartnerModalOpen(false)} onUpdate={fetchData} />
+      <AnalystManagerModal isOpen={isAnalystModalOpen} onClose={() => setIsAnalystModalOpen(false)} onUpdate={fetchData} />
     </div>
   );
 }
