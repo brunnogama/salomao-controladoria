@@ -24,7 +24,7 @@ export function Sidebar() {
   // Configuração exata do menu fornecida
   const menuItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Contratos', path: '/contratos', icon: FileSignature },
+    { label: 'Casos', path: '/contratos', icon: FileSignature },
     { label: 'Propostas', path: '/propostas', icon: FileText },
     { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
     { label: 'Volumetria', path: '/volumetria', icon: BarChart3 },

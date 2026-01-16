@@ -348,7 +348,7 @@ export function Contracts() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
-            <FileSignature className="w-8 h-8" /> Contratos
+            <FileSignature className="w-8 h-8" /> Casos
           </h1>
           <div className="flex items-center mt-1">
             <p className="text-gray-500 mr-3">Gestão completa de casos e propostas.</p>
