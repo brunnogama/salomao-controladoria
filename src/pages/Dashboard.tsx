@@ -22,7 +22,10 @@ import {
   Briefcase,
   Clock,
   Mail,
-  LayoutDashboard // Importado para corresponder à Sidebar
+  LayoutDashboard,
+  TrendingUp,
+  TrendingDown,
+  Minus
 } from 'lucide-react';
 import { Contract } from '../types';
 
@@ -321,6 +324,13 @@ export function Dashboard() {
   const totalFechMes = metrics.mes.fechPL + metrics.mes.fechExito + metrics.mes.fechMensal;
   const maxMes = Math.max(totalPropMes, totalFechMes, 1);
 
+  // Cálculos para Análise de Entrada (Estatísticas para o card)
+  const totalEntrada12 = evolucaoMensal.reduce((acc, curr) => acc + curr.qtd, 0);
+  const mediaEntrada = evolucaoMensal.length > 0 ? (totalEntrada12 / evolucaoMensal.length).toFixed(1) : '0';
+  const ultimoQtd = evolucaoMensal.length > 0 ? evolucaoMensal[evolucaoMensal.length - 1].qtd : 0;
+  const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
+  const diffEntrada = ultimoQtd - penultimoQtd;
+
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
   return (
@@ -464,7 +474,40 @@ export function Dashboard() {
                 <div className='bg-gray-50 p-4 rounded-lg border border-gray-200 text-center'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
             </div>
             </div>
-            <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100'><h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3><div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>{evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}</div></div>
+            <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between'>
+                <div>
+                    <h3 className='font-bold text-gray-800 mb-6 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3>
+                    <div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>
+                        {evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}
+                    </div>
+                </div>
+                
+                {/* ANÁLISE DE DADOS DA ENTRADA */}
+                <div className="grid grid-cols-3 gap-6 pt-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Volume Total (12m)</span>
+                        <div className="flex items-end gap-2">
+                            <span className="text-2xl font-bold text-gray-800">{totalEntrada12}</span>
+                            <span className="text-xs text-gray-400 mb-1">casos</span>
+                        </div>
+                    </div>
+                    <div className="flex flex-col border-l border-gray-100 pl-6">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Média Mensal</span>
+                        <div className="flex items-end gap-2">
+                            <span className="text-2xl font-bold text-blue-600">{mediaEntrada}</span>
+                            <span className="text-xs text-gray-400 mb-1">/mês</span>
+                        </div>
+                    </div>
+                    <div className="flex flex-col border-l border-gray-100 pl-6">
+                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Tendência Recente</span>
+                        <div className={`flex items-center gap-2 font-bold ${diffEntrada > 0 ? 'text-green-600' : diffEntrada < 0 ? 'text-red-500' : 'text-gray-600'}`}>
+                            {diffEntrada > 0 ? <TrendingUp size={20} /> : diffEntrada < 0 ? <TrendingDown size={20} /> : <Minus size={20} />}
+                            <span className="text-lg">{diffEntrada > 0 ? `+${diffEntrada}` : diffEntrada}</span>
+                            <span className="text-[10px] font-normal text-gray-400 uppercase">vs mês anterior</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {/* SIGNATURES */}
