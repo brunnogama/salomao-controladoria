@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown } from 'lucide-react';
-import { Contract, ContractProcess } from '../../types';
+import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown, Calculator, Paperclip, CheckCircle2 } from 'lucide-react';
+import { Contract, ContractProcess, ContractDocument } from '../../types';
+import { parseCurrency } from '../../utils/masks'; // Assumindo que parseCurrency está exportado aqui, conforme visto no seu FormModal
 
 // Interface interna para os eventos construídos a partir das datas do formulário
 interface InternalTimelineEvent {
@@ -28,6 +29,11 @@ const getDurationBetween = (startDateStr: string, endDateStr: string): string =>
   return `${diffDays} dias`;
 };
 
+// Função auxiliar para formatar moeda apenas para exibição
+const formatMoney = (val: number) => {
+  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -35,9 +41,10 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   processes: ContractProcess[];
+  documents?: ContractDocument[]; // Adicionado para receber a lista de documentos
 }
 
-export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes }: Props) {
+export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes, documents = [] }: Props) {
   if (!isOpen || !contract) return null;
 
   // 1. CONSTRUÇÃO DA TIMELINE BASEADA NAS DATAS INTERNAS
@@ -91,9 +98,48 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
     return map[status] || status;
   };
 
+  // --- LÓGICA DE CÁLCULO FINANCEIRO ---
+  const calculateFinancials = () => {
+    const isFinancialRelevant = ['proposal', 'active'].includes(contract.status);
+
+    // Valores Base
+    const proLaboreBase = parseCurrency(contract.pro_labore);
+    const finalFeeBase = parseCurrency(contract.final_success_fee);
+
+    // Extras Pró-Labore
+    const proLaboreExtrasTotal = (contract as any).pro_labore_extras?.reduce((acc: number, item: any) => acc + parseCurrency(item.value), 0) || 0;
+    
+    // Êxito Intermediário (Lista de strings monetárias)
+    const intermediateTotal = contract.intermediate_fees?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
+
+    // Extras Êxito Final
+    const finalFeeExtrasTotal = (contract as any).final_success_extras?.reduce((acc: number, item: any) => acc + parseCurrency(item.value), 0) || 0;
+
+    // Totais por Categoria
+    const totalProLabore = proLaboreBase + proLaboreExtrasTotal;
+    const totalFinalFee = finalFeeBase + finalFeeExtrasTotal;
+    
+    // Soma Geral (Apenas monetária)
+    const grandTotal = totalProLabore + intermediateTotal + totalFinalFee;
+
+    return {
+      showTotals: isFinancialRelevant,
+      totalProLabore,
+      totalFinalFee,
+      intermediateTotal,
+      grandTotal,
+      hasProLaboreExtras: proLaboreExtrasTotal > 0,
+      hasFinalFeeExtras: finalFeeExtrasTotal > 0,
+      hasIntermediate: intermediateTotal > 0
+    };
+  };
+
+  const financials = calculateFinancials();
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 overflow-hidden">
+      {/* Tamanho aumentado para max-w-7xl */}
+      <div className="bg-white w-full max-w-7xl rounded-3xl shadow-2xl flex flex-col max-h-[95vh] animate-in zoom-in-95 overflow-hidden">
         
         {/* Header */}
         <div className="p-8 bg-gray-50 border-b border-gray-100 flex justify-between items-start relative">
@@ -105,6 +151,12 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
               {contract.hon_number && (
                 <span className="font-mono text-xs text-gray-500 bg-white border border-gray-200 px-2 py-1 rounded">
                   HON: {contract.hon_number}
+                </span>
+              )}
+              {/* Sinalização de Arquivo Vinculado */}
+              {documents.length > 0 && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100" title={`${documents.length} arquivo(s) vinculado(s)`}>
+                  <Paperclip className="w-3 h-3" /> {documents.length} Anexo(s)
                 </span>
               )}
             </div>
@@ -148,27 +200,93 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block">Documento</label>
+                  <label className="text-xs text-gray-400 block">Documento (CNPJ/CPF)</label>
                   <div className="text-gray-800 font-mono mt-1">{contract.cnpj || 'Não informado'}</div>
                 </div>
+                {/* Referência (se houver) */}
+                {(contract as any).reference_text && (
+                  <div className="mt-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <label className="text-xs text-gray-400 block font-bold mb-1">Referência</label>
+                    <p className="text-xs text-gray-700 italic line-clamp-3">{(contract as any).reference_text}</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Coluna 2: Financeiro */}
+            {/* Coluna 2: Financeiro (Dinâmica) */}
             <div className="space-y-6">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2">Financeiro</h3>
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center justify-between">
+                Financeiro
+                {financials.showTotals && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full border border-green-200">Consolidado</span>}
+              </h3>
+              
               <div className="space-y-4">
-                <div className="bg-green-50 p-3 rounded-xl border border-green-100">
-                  <label className="text-xs text-green-600 block font-bold uppercase">Êxito Final</label>
-                  <div className="text-xl font-bold text-green-800 mt-1">
-                    {contract.final_success_fee || '-'} 
-                    <span className="text-sm font-normal text-green-600 ml-1">({contract.final_success_percent || '0%'})</span>
+                
+                {/* Visualização Detalhada para Proposta/Ativo */}
+                {financials.showTotals ? (
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase flex items-center">
+                       <Calculator className="w-3 h-3 mr-2" /> Composição de Honorários
+                    </div>
+                    
+                    <div className="divide-y divide-gray-100">
+                      {/* Pró-Labore */}
+                      <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50">
+                         <div>
+                           <p className="text-xs font-medium text-gray-600">Pró-Labore</p>
+                           {financials.hasProLaboreExtras && <span className="text-[10px] text-gray-400">(Inclui extras)</span>}
+                         </div>
+                         <span className="text-sm font-bold text-gray-800">{formatMoney(financials.totalProLabore)}</span>
+                      </div>
+
+                      {/* Êxito Intermediário */}
+                      {(financials.hasIntermediate) && (
+                        <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50 bg-blue-50/30">
+                           <p className="text-xs font-medium text-blue-600">Êxito Intermediário</p>
+                           <span className="text-sm font-bold text-blue-800">{formatMoney(financials.intermediateTotal)}</span>
+                        </div>
+                      )}
+
+                      {/* Êxito Final (R$) */}
+                      <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50 bg-green-50/30">
+                         <div>
+                           <p className="text-xs font-medium text-green-600">Êxito Final (Valor)</p>
+                           {financials.hasFinalFeeExtras && <span className="text-[10px] text-green-500">(Inclui extras)</span>}
+                         </div>
+                         <span className="text-sm font-bold text-green-800">{formatMoney(financials.totalFinalFee)}</span>
+                      </div>
+
+                      {/* TOTAL GERAL */}
+                      <div className="px-4 py-4 bg-gray-50 flex justify-between items-center border-t border-gray-200">
+                         <p className="text-sm font-black text-gray-800 uppercase">Total Geral</p>
+                         <span className="text-lg font-black text-salomao-blue">{formatMoney(financials.grandTotal)}</span>
+                      </div>
+                    </div>
+
+                    {/* Indicadores de Porcentagem (Não somados) */}
+                    {(contract.final_success_percent || (contract as any).percent_extras) && (
+                       <div className="px-4 py-2 bg-yellow-50 border-t border-yellow-100 flex flex-wrap gap-2 items-center">
+                          <span className="text-[10px] font-bold text-yellow-700 uppercase">Indicadores (%):</span>
+                          {contract.final_success_percent && <span className="text-xs font-bold text-yellow-800 bg-white px-2 py-0.5 rounded border border-yellow-200">{contract.final_success_percent} (Final)</span>}
+                       </div>
+                    )}
                   </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 block">Pró-Labore</label>
-                  <div className="text-gray-800 font-medium mt-1">{contract.pro_labore || '-'}</div>
-                </div>
+                ) : (
+                  // Visualização Simples (Sob Análise, Rejeitado, etc)
+                  <>
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                      <label className="text-xs text-gray-500 block font-bold uppercase">Estimativa Pró-Labore</label>
+                      <div className="text-gray-800 font-medium mt-1">{contract.pro_labore || '-'}</div>
+                    </div>
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                       <label className="text-xs text-gray-500 block font-bold uppercase">Estimativa Êxito</label>
+                       <div className="text-gray-800 font-medium mt-1">
+                          {contract.final_success_fee || '-'} 
+                          {contract.final_success_percent && <span className="ml-1 text-sm text-gray-500">({contract.final_success_percent})</span>}
+                       </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -180,9 +298,13 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
               ) : (
                 <div className="space-y-3">
                   {processes.map((proc, idx) => (
-                    <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm hover:bg-gray-100 transition-colors">
-                      <div className="font-mono font-bold text-gray-700 text-xs mb-1">{proc.process_number}</div>
-                      <div className="text-gray-600 text-xs">{proc.court} • {proc.uf}</div>
+                    <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm hover:bg-gray-100 transition-colors flex flex-col gap-1">
+                      <div className="font-mono font-bold text-salomao-blue text-xs flex items-center">
+                        <CheckCircle2 className="w-3 h-3 mr-1.5 text-gray-400" />
+                        {proc.process_number}
+                      </div>
+                      <div className="text-gray-700 font-medium text-xs ml-4">{proc.opponent}</div>
+                      <div className="text-gray-500 text-[10px] ml-4">{proc.court} • {proc.uf} • {proc.vara || 'Vara não inf.'}</div>
                     </div>
                   ))}
                 </div>
