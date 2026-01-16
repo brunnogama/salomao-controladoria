@@ -16,7 +16,11 @@ import { PartnerManagerModal } from '../components/partners/PartnerManagerModal'
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { parseCurrency } from '../utils/masks';
 
-// Cores dos Status
+// --- LOGGING DE DEBUG ---
+const logDebug = (msg: string, data?: any) => {
+  console.log(`[CONTRACTS DEBUG] ${msg}`, data || '');
+};
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -53,7 +57,6 @@ const calculateTotalSuccess = (c: Contract) => {
     return total;
 };
 
-// Componente Local de Filtro
 const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: React.ElementType, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -102,6 +105,8 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 };
 
 export function Contracts() {
+  logDebug("Renderizando componente Contracts...");
+
   const navigate = useNavigate();
   const location = useLocation();
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -141,50 +146,60 @@ export function Contracts() {
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Carregar dados iniciais
   useEffect(() => {
     fetchData();
     fetchNotifications();
   }, []);
 
-  // Ler filtros da URL (evitando crash)
+  // LEITURA DE URL COM TRATAMENTO DE ERRO
   useEffect(() => {
     try {
+      logDebug("Lendo parâmetros da URL:", location.search);
       const params = new URLSearchParams(location.search);
       const statusParam = params.get('status');
       const periodParam = params.get('period');
 
-      if (statusParam) setStatusFilter(statusParam);
+      if (statusParam) {
+        logDebug("Setando Status Filter:", statusParam);
+        setStatusFilter(statusParam);
+      }
       if (periodParam && (periodParam === 'week' || periodParam === 'month')) {
+          logDebug("Setando Date Filter:", periodParam);
           setDateFilter(periodParam);
           setSortBy('date');
           setSortOrder('desc');
       }
     } catch (e) {
-      console.error("Erro ao ler URL:", e);
+      console.error("[CRITICAL ERROR] Falha ao ler URL:", e);
     }
   }, [location.search]);
 
   const fetchData = async () => {
-    setLoading(true);
-    const [contractsRes, partnersRes, analystsRes] = await Promise.all([
-      supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
-      supabase.from('partners').select('*').eq('active', true).order('name'),
-      supabase.from('analysts').select('*').eq('active', true).order('name')
-    ]);
+    try {
+        setLoading(true);
+        const [contractsRes, partnersRes, analystsRes] = await Promise.all([
+        supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
+        supabase.from('partners').select('*').eq('active', true).order('name'),
+        supabase.from('analysts').select('*').eq('active', true).order('name')
+        ]);
 
-    if (contractsRes.data) {
-        const formatted: Contract[] = contractsRes.data.map((c: any) => ({
-            ...c,
-            partner_name: c.partner?.name,
-            analyzed_by_name: c.analyst?.name,
-            process_count: c.processes?.length || 0
-        }));
-        setContracts(formatted);
+        if (contractsRes.data) {
+            logDebug("Contratos carregados:", contractsRes.data.length);
+            const formatted: Contract[] = contractsRes.data.map((c: any) => ({
+                ...c,
+                partner_name: c.partner?.name,
+                analyzed_by_name: c.analyst?.name,
+                process_count: c.processes?.length || 0
+            }));
+            setContracts(formatted);
+        }
+        if (partnersRes.data) setPartners(partnersRes.data);
+        if (analystsRes.data) setAnalysts(analystsRes.data);
+    } catch (e) {
+        console.error("Erro no fetchData:", e);
+    } finally {
+        setLoading(false);
     }
-    if (partnersRes.data) setPartners(partnersRes.data);
-    if (analystsRes.data) setAnalysts(analystsRes.data);
-    setLoading(false);
   };
 
   const fetchNotifications = async () => {
@@ -197,85 +212,116 @@ export function Contracts() {
     if (data) setNotifications(data);
   };
 
-  // Funções Auxiliares de Data (CORRIGIDAS PARA EVITAR CRASH)
+  // Funções Auxiliares de Data com TRY/CATCH para evitar crash
   const isDateInCurrentWeek = (dateString?: string) => {
-    if (!dateString) return false;
-    
-    // Verifica se já tem T (formato ISO) ou é só data
-    const dateToParse = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
-    const date = new Date(dateToParse);
-    
-    // Se data for inválida, retorna false
-    if (isNaN(date.getTime())) return false;
+    try {
+        if (!dateString) return false;
+        if (typeof dateString !== 'string') return false;
+        
+        const dateToParse = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
+        const date = new Date(dateToParse);
+        
+        if (isNaN(date.getTime())) {
+            logDebug("Data inválida encontrada em isDateInCurrentWeek:", dateString);
+            return false;
+        }
 
-    const today = new Date();
-    const currentDay = today.getDay(); 
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - currentDay);
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-    
-    return date >= startOfWeek && date <= endOfWeek;
+        const today = new Date();
+        const currentDay = today.getDay(); 
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - currentDay);
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+        
+        return date >= startOfWeek && date <= endOfWeek;
+    } catch (e) {
+        console.error("Erro em isDateInCurrentWeek:", e);
+        return false;
+    }
   };
 
   const isDateInCurrentMonth = (dateString?: string) => {
-    if (!dateString) return false;
-    const dateToParse = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
-    const date = new Date(dateToParse);
-    
-    if (isNaN(date.getTime())) return false;
+    try {
+        if (!dateString) return false;
+        if (typeof dateString !== 'string') return false;
 
-    const today = new Date();
-    return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+        const dateToParse = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
+        const date = new Date(dateToParse);
+        
+        if (isNaN(date.getTime())) return false;
+
+        const today = new Date();
+        return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+    } catch (e) {
+        console.error("Erro em isDateInCurrentMonth:", e);
+        return false;
+    }
   };
 
   const getRelevantDate = (c: Contract) => {
-    switch (c.status) {
-        case 'analysis': return c.prospect_date || c.created_at;
-        case 'proposal': return c.proposal_date || c.created_at;
-        case 'active': return c.contract_date || c.created_at;
-        case 'rejected': return c.rejection_date || c.created_at;
-        case 'probono': return c.probono_date || c.contract_date || c.created_at;
-        default: return c.created_at;
+    try {
+        switch (c.status) {
+            case 'analysis': return c.prospect_date || c.created_at;
+            case 'proposal': return c.proposal_date || c.created_at;
+            case 'active': return c.contract_date || c.created_at;
+            case 'rejected': return c.rejection_date || c.created_at;
+            case 'probono': return c.probono_date || c.contract_date || c.created_at;
+            default: return c.created_at;
+        }
+    } catch (e) {
+        console.error("Erro em getRelevantDate:", e);
+        return undefined;
     }
   };
 
-  // Lógica de Filtragem Segura
-  const filteredContracts = contracts.filter((c: Contract) => {
-    const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.hon_number?.includes(searchTerm) ||
-                          c.cnpj?.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-    const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
-    
-    let matchesDate = true;
-    if (dateFilter !== 'all') {
-        const relevantDate = getRelevantDate(c);
-        if (dateFilter === 'week') {
-            matchesDate = isDateInCurrentWeek(relevantDate);
-        } else if (dateFilter === 'month') {
-            matchesDate = isDateInCurrentMonth(relevantDate);
-        }
-    }
+  // FILTRAGEM SEGURA (Safe Filtering)
+  const filteredContracts = (() => {
+    try {
+        return contracts.filter((c: Contract) => {
+            const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                c.hon_number?.includes(searchTerm) ||
+                                c.cnpj?.includes(searchTerm);
+            const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+            const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
+            
+            let matchesDate = true;
+            if (dateFilter !== 'all') {
+                const relevantDate = getRelevantDate(c);
+                if (dateFilter === 'week') {
+                    matchesDate = isDateInCurrentWeek(relevantDate);
+                } else if (dateFilter === 'month') {
+                    matchesDate = isDateInCurrentMonth(relevantDate);
+                }
+            }
 
-    return matchesSearch && matchesStatus && matchesPartner && matchesDate;
-  }).sort((a: Contract, b: Contract) => {
-    if (sortBy === 'name') {
-        const nameA = a.client_name || '';
-        const nameB = b.client_name || '';
-        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-    } else {
-        const dStrA = getRelevantDate(a);
-        const dStrB = getRelevantDate(b);
-        // Tratamento seguro para ordenação
-        const dateA = dStrA ? new Date(dStrA.includes('T') ? dStrA : dStrA + 'T12:00:00').getTime() : 0;
-        const dateB = dStrB ? new Date(dStrB.includes('T') ? dStrB : dStrB + 'T12:00:00').getTime() : 0;
-        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+            return matchesSearch && matchesStatus && matchesPartner && matchesDate;
+        }).sort((a: Contract, b: Contract) => {
+            try {
+                if (sortBy === 'name') {
+                    const nameA = a.client_name || '';
+                    const nameB = b.client_name || '';
+                    return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+                } else {
+                    const dStrA = getRelevantDate(a);
+                    const dStrB = getRelevantDate(b);
+                    // Tratamento seguro
+                    const dateA = dStrA ? new Date(dStrA.includes('T') ? dStrA : dStrA + 'T12:00:00').getTime() : 0;
+                    const dateB = dStrB ? new Date(dStrB.includes('T') ? dStrB : dStrB + 'T12:00:00').getTime() : 0;
+                    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                }
+            } catch (sortError) {
+                console.error("Erro na ordenação:", sortError);
+                return 0;
+            }
+        });
+    } catch (filterError) {
+        console.error("[CRITICAL] Erro fatal no filtro:", filterError);
+        return []; // Retorna vazio para não quebrar a tela
     }
-  });
+  })();
 
   // Handlers
   const handleNotificationClick = (taskId: string) => navigate('/kanban', { state: { openTaskId: taskId } });
