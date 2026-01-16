@@ -568,8 +568,8 @@ export function ContractFormModal(props: Props) {
             process_count: undefined,
             analyst: undefined,
             analysts: undefined, 
-            client: undefined,    
-            partner: undefined,   
+            client: undefined,     
+            partner: undefined,    
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -1167,26 +1167,22 @@ export function ContractFormModal(props: Props) {
                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
 
-                   {/* CAMPO REFERÊNCIA COM TYPE ASSERTION */}
-                   <div>
-                      <label className="text-xs font-medium block mb-1">Referência</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
-                        value={(formData as any).reference || ''} 
-                        onChange={e => setFormData({...formData, reference: e.target.value} as any)} 
-                        placeholder="Ex: Proposta 123/2025" 
-                      />
-                   </div>
-                   
-                   {/* Pró-Labore Simplificado */}
+                   {/* Pró-Labore Simplificado (Agora com + e Tags) */}
                    <div>
                      <FinancialInputWithInstallments 
                        label="Pró-Labore (R$)" 
                        value={formatForInput(formData.pro_labore)} 
                        onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
                        installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
+                       onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore')}
                      />
+                     <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                            {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
+                      </div>
                    </div>
 
                    {/* Êxito Intermediário (Mantido como Lista/Tags) */}
@@ -1206,14 +1202,22 @@ export function ContractFormModal(props: Props) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
-                   {/* Êxito Final Simplificado */}
+                   {/* Êxito Final Simplificado (Agora com + e Tags) */}
                    <div>
                      <FinancialInputWithInstallments 
                        label="Êxito Final (R$)" 
                        value={formatForInput(formData.final_success_fee)} 
                        onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
                        installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
+                       onAdd={() => handleAddToList('final_success_extras', 'final_success_fee')}
                      />
+                     <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData as any).final_success_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                            {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
+                      </div>
                    </div>
 
                   <div>
@@ -1231,22 +1235,38 @@ export function ContractFormModal(props: Props) {
                      </div>
                   </div>
 
-                  {/* Outros Honorários Simplificado */}
+                  {/* Outros Honorários Simplificado (Agora com + e Tags) */}
                   <div>
                     <FinancialInputWithInstallments 
                       label="Outros Honorários (R$)" 
                       value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
                       installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
+                      onAdd={() => handleAddToList('other_fees_extras', 'other_fees')}
                     />
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData as any).other_fees_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                            {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
+                      </div>
                   </div>
 
-                  {/* Fixo Mensal Simplificado */}
+                  {/* Fixo Mensal Simplificado (Agora com + e Tags) */}
                   <div>
                     <FinancialInputWithInstallments 
                       label="Fixo Mensal (R$)" 
                       value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
                       installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
+                      onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee')}
                     />
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
+                            {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
+                      </div>
                   </div>
                 </div>
                 <div className="flex items-end pb-3"><div className="flex items-center"><input type="checkbox" id="timesheet" checked={formData.timesheet} onChange={e => setFormData({...formData, timesheet: e.target.checked})} className="w-4 h-4 text-salomao-blue rounded border-gray-300 focus:ring-0" /><label htmlFor="timesheet" className="ml-2 text-sm text-gray-700 font-medium whitespace-nowrap">Hon. de Timesheet</label></div></div>
@@ -1254,10 +1274,24 @@ export function ContractFormModal(props: Props) {
             )}
 
             {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
-              <div className="mb-8 mt-6">
-                <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
-                {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
-              </div>
+              <>
+                 {/* CAMPO REFERÊNCIA MOVIDO PARA CÁ */}
+                <div className="mt-6 mb-2">
+                    <label className="text-xs font-medium block mb-1">Referência</label>
+                    <input 
+                        type="text" 
+                        className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
+                        value={(formData as any).reference || ''} 
+                        onChange={e => setFormData({...formData, reference: e.target.value} as any)} 
+                        placeholder="Ex: Proposta 123/2025" 
+                    />
+                </div>
+
+                <div className="mb-8 mt-6">
+                    <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
+                    {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
+                </div>
+              </>
             )}
 
             {formData.status === 'active' && (
