@@ -298,10 +298,27 @@ export function Dashboard() {
     const txFech = fQualificados > 0 ? ((fFechados / fQualificados) * 100).toFixed(1) : '0';
     setFunil({ totalEntrada: fTotal, qualificadosProposta: fQualificados, fechados: fFechados, perdaAnalise: fPerdaAnalise, perdaNegociacao: fPerdaNegociacao, taxaConversaoProposta: txProp, taxaConversaoFechamento: txFech });
 
-    const mesesGrafico = Object.keys(mapaMeses).map((key) => ({ mes: key, qtd: mapaMeses[key], altura: 0 }));
+    // --- CORREÇÃO DA ORDENAÇÃO E TENDÊNCIA ---
+    // Gerar chaves para os últimos 12 meses cronologicamente (Do mais antigo para o atual)
+    const ultimos12MesesKeys = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        const key = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        ultimos12MesesKeys.push(key);
+    }
+
+    // Mapear os dados garantindo a ordem cronológica
+    const mesesGrafico = ultimos12MesesKeys.map(key => ({
+        mes: key,
+        qtd: mapaMeses[key] || 0,
+        altura: 0
+    }));
+
     const maxQtd = Math.max(...mesesGrafico.map((m) => m.qtd), 1);
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
-    setEvolucaoMensal(mesesGrafico.reverse().slice(0, 12).reverse());
+    
+    // Define o estado com o array já ordenado corretamente (Antigo -> Novo)
+    setEvolucaoMensal(mesesGrafico);
     
     setMetrics({ semana: mSemana, mes: mMes, geral: mGeral });
   };
