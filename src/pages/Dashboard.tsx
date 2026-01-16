@@ -74,10 +74,14 @@ export function Dashboard() {
   
   // Estado para o gráfico de FECHADOS
   const [financeiro12Meses, setFinanceiro12Meses] = useState<any[]>([]);
+  const [statsFinanceiro, setStatsFinanceiro] = useState({ total: 0, media: 0, diff: 0 });
+
   // Estado para o novo gráfico de PROPOSTAS
   const [propostas12Meses, setPropostas12Meses] = useState<any[]>([]);
+  const [statsPropostas, setStatsPropostas] = useState({ total: 0, media: 0, diff: 0 });
   
   const [mediasFinanceiras, setMediasFinanceiras] = useState({ pl: 0, exito: 0 });
+  const [mediasPropostas, setMediasPropostas] = useState({ pl: 0, exito: 0 });
   
   // Novos estados para gráficos de rejeição
   const [rejectionData, setRejectionData] = useState<{
@@ -346,11 +350,33 @@ export function Dashboard() {
     const monthsCount = finArray.length || 1;
     setMediasFinanceiras({ pl: totalPL12 / monthsCount, exito: totalExito12 / monthsCount });
 
+    // Estatisticas para Analise (Fechados)
+    const totalFechado12Meses = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo + curr.exito, 0);
+    const mediaFechadoMes = finArray.length > 0 ? totalFechado12Meses / finArray.length : 0;
+    const ultimoFechado = finArray.length > 0 ? finArray[finArray.length - 1].pl + finArray[finArray.length - 1].fixo + finArray[finArray.length - 1].exito : 0;
+    const penultimoFechado = finArray.length > 1 ? finArray[finArray.length - 2].pl + finArray[finArray.length - 2].fixo + finArray[finArray.length - 2].exito : 0;
+    const diffFechado = ultimoFechado - penultimoFechado;
+    setStatsFinanceiro({ total: totalFechado12Meses, media: mediaFechadoMes, diff: diffFechado });
+
+
     const maxValFin = Math.max(...finArray.map(i => Math.max(i.pl, i.fixo, i.exito)), 1);
     setFinanceiro12Meses(finArray.map(i => ({ ...i, hPl: (i.pl / maxValFin) * 100, hFixo: (i.fixo / maxValFin) * 100, hExito: (i.exito / maxValFin) * 100 })));
 
     // --- PROCESSAMENTO FINAL GRÁFICO PROPOSTAS (ESQUERDA) ---
     const propArray = Object.entries(propostasMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
+    const totalPropPL12 = propArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0);
+    const totalPropExito12 = propArray.reduce((acc, curr) => acc + curr.exito, 0);
+    const monthsCountProp = propArray.length || 1;
+    setMediasPropostas({ pl: totalPropPL12 / monthsCountProp, exito: totalPropExito12 / monthsCountProp });
+
+    // Estatisticas para Analise (Propostas)
+    const totalPropostas12Meses = propArray.reduce((acc, curr) => acc + curr.pl + curr.fixo + curr.exito, 0);
+    const mediaPropostasMes = propArray.length > 0 ? totalPropostas12Meses / propArray.length : 0;
+    const ultimoProp = propArray.length > 0 ? propArray[propArray.length - 1].pl + propArray[propArray.length - 1].fixo + propArray[propArray.length - 1].exito : 0;
+    const penultimoProp = propArray.length > 1 ? propArray[propArray.length - 2].pl + propArray[propArray.length - 2].fixo + propArray[propArray.length - 2].exito : 0;
+    const diffProp = ultimoProp - penultimoProp;
+    setStatsPropostas({ total: totalPropostas12Meses, media: mediaPropostasMes, diff: diffProp });
+
     const maxValProp = Math.max(...propArray.map(i => Math.max(i.pl, i.fixo, i.exito)), 1);
     setPropostas12Meses(propArray.map(i => ({ ...i, hPl: (i.pl / maxValProp) * 100, hFixo: (i.fixo / maxValProp) * 100, hExito: (i.exito / maxValProp) * 100 })));
 
@@ -465,7 +491,7 @@ export function Dashboard() {
             <div className='flex items-center gap-2 mb-4'><CalendarDays className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div><div className='mt-2 text-[10px] text-gray-400'>Novas Oportunidades</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div></div>
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div></div>
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
@@ -495,11 +521,11 @@ export function Dashboard() {
             <div className='flex items-center gap-2 mb-4'><CalendarRange className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo do Mês</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos do Mês</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div><div className='h-10 w-10 rounded-full bg-yellow-50 flex items-center justify-center text-salomao-gold self-end mt-2'><FileText className="w-5 h-5" /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div></div>
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div><div className='h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 self-end mt-2'><XCircle className="w-5 h-5" /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div><div className='h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 self-end mt-2'><HeartHandshake className="w-5 h-5" /></div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
             </div>
 
             {/* Gráfico Mês */}
@@ -533,52 +559,100 @@ export function Dashboard() {
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
             <div className='flex items-center justify-between mb-6 border-b pb-4'>
                 <h3 className='font-bold text-gray-800 flex items-center gap-2'><BarChart4 className='text-[#0F2C4C]' size={20} /> Evolução Financeira (12 Meses)</h3>
-                <div className='flex gap-4'>
-                    <div className='bg-blue-50 px-4 py-2 rounded-lg border border-blue-100'><p className='text-[10px] text-blue-600 font-bold uppercase'>Média Pró-labore (+ Fixos)</p><p className='text-lg font-bold text-blue-900'>{formatMoney(mediasFinanceiras.pl)}</p></div>
-                    <div className='bg-green-50 px-4 py-2 rounded-lg border border-green-100'><p className='text-[10px] text-green-600 font-bold uppercase'>Média Êxitos</p><p className='text-lg font-bold text-green-900'>{formatMoney(mediasFinanceiras.exito)}</p></div>
-                </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* LADO ESQUERDO - PROPOSTAS */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <p className="text-xs font-bold text-blue-600 uppercase mb-4 text-center">Evolução de Propostas (Valores)</p>
-                    <div className='h-52 flex items-end justify-around gap-2'>
-                    {propostas12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados de propostas</p>) : (propostas12Meses.map((item, index) => {
-                        const totalMes = item.pl + item.fixo + item.exito;
-                        return (
-                        <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
-                            {totalMes > 0 && (<span className='text-[8px] font-bold text-gray-600 mb-1 tracking-tighter whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
-                            <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
-                            <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
-                            <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
-                            <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-between">
+                    <div>
+                        <div className='flex justify-between items-center mb-4'>
+                            <p className="text-xs font-bold text-blue-600 uppercase">Evolução de Propostas (Valores)</p>
+                            <div className='flex flex-col items-end'>
+                                <span className='text-[9px] text-gray-400 font-bold uppercase'>Média PL / Êxito</span>
+                                <span className='text-[10px] font-bold text-blue-800'>{formatMoney(mediasPropostas.pl)} / {formatMoney(mediasPropostas.exito)}</span>
                             </div>
-                            <span className='text-[8px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
                         </div>
-                        );
-                    }))}
+                        <div className='h-52 flex items-end justify-around gap-2 mb-4'>
+                            {propostas12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados de propostas</p>) : (propostas12Meses.map((item, index) => {
+                                const totalMes = item.pl + item.fixo + item.exito;
+                                return (
+                                <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
+                                    {totalMes > 0 && (<span className='text-[8px] font-bold text-gray-600 mb-1 tracking-tighter whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
+                                    <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
+                                    <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
+                                    <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
+                                    <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
+                                    </div>
+                                    <span className='text-[8px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
+                                </div>
+                                );
+                            }))}
+                        </div>
+                    </div>
+                    {/* Analise Propostas */}
+                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-200">
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Total (12m)</span>
+                            <span className="text-sm font-bold text-gray-800">{formatMoney(statsPropostas.total)}</span>
+                        </div>
+                        <div className="flex flex-col border-l border-gray-200 pl-2">
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Média/mês</span>
+                            <span className="text-sm font-bold text-blue-600">{formatMoney(statsPropostas.media)}</span>
+                        </div>
+                        <div className="flex flex-col border-l border-gray-200 pl-2">
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Tendência</span>
+                             <div className={`flex items-center gap-1 font-bold ${statsPropostas.diff > 0 ? 'text-green-600' : statsPropostas.diff < 0 ? 'text-red-500' : 'text-gray-600'}`}>
+                                {statsPropostas.diff > 0 ? <TrendingUp size={14} /> : statsPropostas.diff < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
+                                <span className="text-xs">{formatMoney(statsPropostas.diff)}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* LADO DIREITO - FECHADOS */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <p className="text-xs font-bold text-green-600 uppercase mb-4 text-center">Evolução de Fechamentos (Valores)</p>
-                    <div className='h-52 flex items-end justify-around gap-2'>
-                    {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (financeiro12Meses.map((item, index) => {
-                        const totalMes = item.pl + item.fixo + item.exito;
-                        return (
-                        <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
-                            {totalMes > 0 && (<span className='text-[8px] font-bold text-gray-600 mb-1 tracking-tighter whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
-                            <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
-                            <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
-                            <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
-                            <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-between">
+                    <div>
+                        <div className='flex justify-between items-center mb-4'>
+                            <p className="text-xs font-bold text-green-600 uppercase">Evolução de Fechamentos (Valores)</p>
+                             <div className='flex flex-col items-end'>
+                                <span className='text-[9px] text-gray-400 font-bold uppercase'>Média PL / Êxito</span>
+                                <span className='text-[10px] font-bold text-green-800'>{formatMoney(mediasFinanceiras.pl)} / {formatMoney(mediasFinanceiras.exito)}</span>
                             </div>
-                            <span className='text-[8px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
                         </div>
-                        );
-                    }))}
+                        <div className='h-52 flex items-end justify-around gap-2 mb-4'>
+                            {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (financeiro12Meses.map((item, index) => {
+                                const totalMes = item.pl + item.fixo + item.exito;
+                                return (
+                                <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
+                                    {totalMes > 0 && (<span className='text-[8px] font-bold text-gray-600 mb-1 tracking-tighter whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
+                                    <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
+                                    <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
+                                    <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
+                                    <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
+                                    </div>
+                                    <span className='text-[8px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
+                                </div>
+                                );
+                            }))}
+                        </div>
+                    </div>
+                     {/* Analise Fechamentos */}
+                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-200">
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Total (12m)</span>
+                            <span className="text-sm font-bold text-gray-800">{formatMoney(statsFinanceiro.total)}</span>
+                        </div>
+                        <div className="flex flex-col border-l border-gray-200 pl-2">
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Média/mês</span>
+                            <span className="text-sm font-bold text-blue-600">{formatMoney(statsFinanceiro.media)}</span>
+                        </div>
+                        <div className="flex flex-col border-l border-gray-200 pl-2">
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Tendência</span>
+                             <div className={`flex items-center gap-1 font-bold ${statsFinanceiro.diff > 0 ? 'text-green-600' : statsFinanceiro.diff < 0 ? 'text-red-500' : 'text-gray-600'}`}>
+                                {statsFinanceiro.diff > 0 ? <TrendingUp size={14} /> : statsFinanceiro.diff < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
+                                <span className="text-xs">{formatMoney(statsFinanceiro.diff)}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
