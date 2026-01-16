@@ -197,6 +197,7 @@ const getThemeBackground = (status: string) => {
     case 'proposal': return 'bg-blue-50';
     case 'active': return 'bg-green-50';
     case 'rejected': return 'bg-red-50';
+    case 'probono': return 'bg-gray-50';
     default: return 'bg-gray-50';
   }
 };
@@ -560,6 +561,9 @@ export function ContractFormModal(props: Props) {
     // Nova validação para status Rejected
     if (formData.status === 'rejected' && !formData.rejection_date) return alert('A "Data Rejeição" é obrigatória.');
 
+    // Nova validação para status Probono
+    if (formData.status === 'probono' && !formData.probono_date) return alert('A "Data do Probono" é obrigatória.');
+
     if (formData.status === 'active') {
       if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
       if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
@@ -580,6 +584,7 @@ export function ContractFormModal(props: Props) {
             client_id: clientId,
             rejection_source: (formData as any).rejection_source,
             rejection_reason: (formData as any).rejection_reason,
+            probono_source: (formData as any).probono_source, // Adicionado campo Probono
             pro_labore: parseCurrency(formData.pro_labore),
             final_success_fee: parseCurrency(formData.final_success_fee),
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
@@ -1151,7 +1156,36 @@ export function ContractFormModal(props: Props) {
                 </div>
               </div>
             )}
-              
+
+            {/* Bloco Adicionado para Status Probono */}
+            {formData.status === 'probono' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div>
+                  <label className="text-xs font-medium block mb-1 text-gray-700">Data do Probono <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-gray-400 outline-none"
+                    value={formData.probono_date || ''}
+                    onChange={e => setFormData({...formData, probono_date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <CustomSelect
+                    label="Enviado por"
+                    value={(formData as any).probono_source || ''}
+                    onChange={(val: string) => setFormData({...formData, probono_source: val} as any)}
+                    options={[
+                        { label: 'Sócio', value: 'Sócio' },
+                        { label: 'Parceiro', value: 'Parceiro' },
+                        { label: 'Cliente', value: 'Cliente' },
+                        { label: 'Espontâneo', value: 'Espontâneo' },
+                        { label: 'Outro', value: 'Outro' }
+                    ]}
+                  />
+                </div>
+              </div>
+            )}
+            
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
@@ -1165,7 +1199,7 @@ export function ContractFormModal(props: Props) {
                 </div>
               </div>
             )}
-              
+            
              {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
               <div className="mb-8 mt-6">
                 <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
