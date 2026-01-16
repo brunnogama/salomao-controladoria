@@ -1167,10 +1167,16 @@ export function ContractFormModal(props: Props) {
                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
 
-                   {/* CAMPO REFERÊNCIA ADICIONADO AQUI */}
+                   {/* CAMPO REFERÊNCIA COM TYPE ASSERTION */}
                    <div>
                       <label className="text-xs font-medium block mb-1">Referência</label>
-                      <input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.reference || ''} onChange={e => setFormData({...formData, reference: e.target.value})} placeholder="Ex: Proposta 123/2025" />
+                      <input 
+                        type="text" 
+                        className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
+                        value={(formData as any).reference || ''} 
+                        onChange={e => setFormData({...formData, reference: e.target.value} as any)} 
+                        placeholder="Ex: Proposta 123/2025" 
+                      />
                    </div>
                    
                    {/* Pró-Labore Simplificado */}
