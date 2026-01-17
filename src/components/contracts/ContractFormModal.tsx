@@ -719,7 +719,7 @@ export function ContractFormModal(props: Props) {
             id: undefined,
         };
 
-        // LÓGICA DE SNAPSHOT E ZERAMENTO (PROPOSTA -> ATIVO)
+        // LÓGICA DE SNAPSHOT (PROPOSTA -> ATIVO)
         const isProposalToActive = formData.status === 'active' && initialFormData && initialFormData.status === 'proposal';
 
         if (isProposalToActive) {
@@ -736,17 +736,6 @@ export function ContractFormModal(props: Props) {
                 saved_at: new Date().toISOString()
             };
             contractPayload.proposal_snapshot = snapshot;
-
-            // ZERAR VALORES NO PAYLOAD PARA O CONTRATO ATIVO
-            contractPayload.pro_labore = 0;
-            contractPayload.final_success_fee = 0;
-            contractPayload.fixed_monthly_fee = 0;
-            contractPayload.other_fees = 0;
-            contractPayload.pro_labore_extras = [];
-            contractPayload.final_success_extras = [];
-            contractPayload.fixed_monthly_extras = [];
-            contractPayload.other_fees_extras = [];
-            contractPayload.intermediate_fees = []; // Também zera as intermediárias
         }
 
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
@@ -763,23 +752,8 @@ export function ContractFormModal(props: Props) {
         }
 
         if (savedId) {
-            // Se houve transição, precisamos garantir que as funções auxiliares usem os valores zerados,
-            // e não os valores que ainda estão no estado 'formData'.
-            const financialSource = isProposalToActive ? {
-                ...formData,
-                pro_labore: '0',
-                final_success_fee: '0',
-                fixed_monthly_fee: '0',
-                other_fees: '0',
-                pro_labore_extras: [],
-                final_success_extras: [],
-                fixed_monthly_extras: [],
-                other_fees_extras: [],
-                intermediate_fees: []
-            } : formData;
-
-            await forceUpdateFinancials(savedId, financialSource);
-            await generateFinancialInstallments(savedId, financialSource);
+            await forceUpdateFinancials(savedId, formData);
+            await generateFinancialInstallments(savedId, formData);
             
             // Salvar processos
             if (processes.length > 0) {
