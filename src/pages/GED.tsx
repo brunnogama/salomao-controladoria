@@ -8,7 +8,7 @@ interface GEDDocument {
   file_name: string;
   file_path: string;
   file_type: 'proposal' | 'contract';
-  file_size?: number; // Adicionado para cálculo
+  file_size?: number;
   uploaded_at: string;
   hon_number_ref?: string;
   contract: {
@@ -16,7 +16,7 @@ interface GEDDocument {
     status: string;
     clients: {
         name: string;
-    } | null; // Ajuste para refletir a estrutura correta do join
+    } | null;
   };
   client_name: string;
 }
@@ -34,7 +34,7 @@ export function GED() {
 
   const fetchDocuments = async () => {
     setLoading(true);
-    // Buscamos os documentos e fazemos o join com contratos e clientes
+    // 1. Buscamos os documentos do banco
     const { data, error } = await supabase
       .from('contract_documents')
       .select(`
@@ -48,10 +48,37 @@ export function GED() {
       .order('uploaded_at', { ascending: false });
 
     if (!error && data) {
-      // Normalizamos os dados para facilitar
-      const formattedDocs = data.map((doc: any) => ({
+      let formattedDocs: GEDDocument[] = data.map((doc: any) => ({
         ...doc,
         client_name: doc.contract?.clients?.name || 'Sem Cliente'
+      }));
+
+      // 2. Recuperar metadados (tamanho) do Storage se não existir no banco
+      // Agrupamos por contract_id (pasta no storage) para evitar chamadas excessivas
+      const uniqueContractIds = Array.from(new Set(formattedDocs.map(d => d.contract?.id).filter(Boolean)));
+      
+      const sizesMap = new Map<string, number>();
+
+      // Buscamos a lista de arquivos de cada pasta de contrato para pegar o metadata.size
+      await Promise.all(uniqueContractIds.map(async (contractId) => {
+        // Assume bucket 'contract-documents' baseado na lógica de upload
+        const { data: files } = await supabase.storage.from('contract-documents').list(contractId);
+        
+        if (files) {
+            files.forEach(f => {
+                // O path no banco é "contract_id/nome_do_arquivo"
+                const fullPath = `${contractId}/${f.name}`;
+                if (f.metadata && f.metadata.size) {
+                    sizesMap.set(fullPath, f.metadata.size);
+                }
+            });
+        }
+      }));
+
+      // 3. Mesclar tamanhos recuperados
+      formattedDocs = formattedDocs.map(doc => ({
+          ...doc,
+          file_size: doc.file_size || sizesMap.get(doc.file_path) || 0
       }));
 
       setDocuments(formattedDocs);
@@ -64,16 +91,25 @@ export function GED() {
   };
 
   const handleDownload = async (path: string) => {
-    // Mantendo 'ged' conforme arquivo original, mas note que Contracts usa 'contract-documents'
-    const { data } = await supabase.storage.from('ged').createSignedUrl(path, 60);
+    // Tenta baixar do bucket correto. Se 'ged' falhar, tenta 'contract-documents'
+    let { data } = await supabase.storage.from('contract-documents').createSignedUrl(path, 60);
+    
+    if (!data?.signedUrl) {
+         // Fallback para bucket 'ged' caso seja legado
+         const res = await supabase.storage.from('ged').createSignedUrl(path, 60);
+         data = res.data;
+    }
+
     if (data?.signedUrl) {
       window.open(data.signedUrl, '_blank');
+    } else {
+        alert('Erro ao gerar link de download. Arquivo não encontrado no Storage.');
     }
   };
 
   // Função para formatar bytes
   const formatBytes = (bytes: number, decimals = 2) => {
-    if (!bytes) return '0 B';
+    if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -95,12 +131,10 @@ export function GED() {
   const totalSize = filteredDocs.reduce((acc, doc) => acc + (doc.file_size || 0), 0);
 
   return (
-    // Adicionado p-8 e animação para padronizar com as outras telas
     <div className="p-8 h-full flex flex-col animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
-            {/* Ícone alterado para FolderOpen para bater com a Sidebar */}
             <FolderOpen className="w-8 h-8" /> GED - Gestão Eletrônica
           </h1>
           <p className="text-gray-500 mt-1">Repositório centralizado de contratos e propostas.</p>
@@ -121,7 +155,7 @@ export function GED() {
               onClick={() => setSelectedFolder(null)}
               className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${!selectedFolder ? 'bg-salomao-blue text-white' : 'text-gray-600 hover:bg-gray-100'}`}
             >
-              {/* Adicionado shrink-0 para impedir distorção */}
+              {/* Ícone fixo com shrink-0 para não deformar */}
               <FolderOpen className="w-4 h-4 mr-2 shrink-0" />
               Todos os Arquivos
             </button>
@@ -131,7 +165,7 @@ export function GED() {
                 onClick={() => setSelectedFolder(folder)}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${selectedFolder === folder ? 'bg-salomao-blue text-white' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                {/* Adicionado shrink-0 para impedir distorção */}
+                {/* Ícone fixo com shrink-0 */}
                 <FolderOpen className={`w-4 h-4 mr-2 shrink-0 ${selectedFolder === folder ? 'text-white' : 'text-salomao-gold'}`} />
                 <span className="truncate text-left">{folder}</span>
               </button>
@@ -146,7 +180,7 @@ export function GED() {
             <h3 className="font-bold text-gray-700 flex items-center">
               {selectedFolder ? <><FolderOpen className="w-5 h-5 mr-2 text-salomao-gold shrink-0" /> {selectedFolder}</> : 'Todos os Documentos'}
               <span className="ml-2 bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">{filteredDocs.length}</span>
-              {/* Exibição do tamanho total */}
+              {/* Exibição do tamanho total formatado */}
               <span className="ml-2 text-xs text-gray-400 font-normal">({formatBytes(totalSize)})</span>
             </h3>
             <div className="relative w-64">
@@ -203,7 +237,8 @@ export function GED() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-[10px] text-gray-400">
                         <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</span>
-                        {doc.file_size && <span>{formatBytes(doc.file_size)}</span>}
+                        {/* Exibe o tamanho individual do arquivo */}
+                        <span>{formatBytes(doc.file_size || 0)}</span>
                       </div>
                       
                       {doc.hon_number_ref && (
