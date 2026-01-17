@@ -143,7 +143,7 @@ export function ContractFormModal(props: Props) {
     newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
     timelineData, getStatusLabel
   } = props;
-   
+    
   const [localLoading, setLocalLoading] = useState(false);
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -155,7 +155,7 @@ export function ContractFormModal(props: Props) {
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [showPositionManager, setShowPositionManager] = useState(false);
-   
+    
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
   const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
   const [duplicateProcessWarning, setDuplicateProcessWarning] = useState<boolean>(false);
@@ -182,7 +182,7 @@ export function ContractFormModal(props: Props) {
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
 
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
-   
+    
   const isLoading = parentLoading || localLoading;
 
   useEffect(() => {
@@ -371,7 +371,7 @@ export function ContractFormModal(props: Props) {
 
     if (clientData.cnpj) {
       const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
-       
+        
       if (existingClient) {
         await supabase.from('clients').update(clientData).eq('id', existingClient.id);
         return existingClient.id;
@@ -648,7 +648,12 @@ export function ContractFormModal(props: Props) {
       pro_labore: cleanPL,
       final_success_fee: cleanSuccess,
       fixed_monthly_fee: cleanFixed,
-      other_fees: cleanOther
+      other_fees: cleanOther,
+      // Garantindo que os extras também sejam salvos
+      pro_labore_extras: (formData as any).pro_labore_extras,
+      final_success_extras: (formData as any).final_success_extras,
+      fixed_monthly_extras: (formData as any).fixed_monthly_extras,
+      other_fees_extras: (formData as any).other_fees_extras
     }).eq('id', contractId);
   };
 
@@ -680,14 +685,20 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
+            // Garantindo que os arrays extras sejam salvos
+            pro_labore_extras: (formData as any).pro_labore_extras,
+            final_success_extras: (formData as any).final_success_extras,
+            fixed_monthly_extras: (formData as any).fixed_monthly_extras,
+            other_fees_extras: (formData as any).other_fees_extras,
+            
             // Campos de relacionamento/UI a serem ignorados
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
             analyst: undefined,
             analysts: undefined, 
-            client: undefined,      
-            partner: undefined,     
+            client: undefined,       
+            partner: undefined,      
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -843,7 +854,7 @@ export function ContractFormModal(props: Props) {
       window.open(`https://www.jusbrasil.com.br/processos/numero/${numero}`, '_blank');
     }
   };
-   
+    
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -954,7 +965,7 @@ export function ContractFormModal(props: Props) {
   const areaOptions = [{ label: 'Selecione', value: '' }, ...legalAreas.map(a => ({ label: a, value: a }))];
   const positionOptions = [{ label: 'Selecione', value: '' }, ...positionsList.map(p => ({ label: p, value: p }))];
   const magistrateTypes = [{ label: 'Selecione', value: '' }, { label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }];
-   
+    
   // Opções formatadas para CustomSelect
   const justiceSelectOptions = [{ label: 'Selecione', value: '' }, ...justiceOptions.map(j => ({ label: j, value: j }))];
   const varaSelectOptions = [{ label: 'Selecione', value: '' }, ...varaOptions.map(v => ({ label: v, value: v }))];
@@ -1129,7 +1140,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                    {c.contracts?.client_name}
+                                                        {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
