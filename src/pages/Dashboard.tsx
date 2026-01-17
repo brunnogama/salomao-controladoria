@@ -253,6 +253,15 @@ export function Dashboard() {
         const totalIntermediario = c.intermediate_fees.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
         exito += totalIntermediario;
       }
+
+      // Soma valores cadastrados dentro dos Casos (Pro labore e Exito Final)
+      if ((c as any).cases && Array.isArray((c as any).cases)) {
+        (c as any).cases.forEach((caseItem: any) => {
+          pl += safeParseMoney(caseItem.pro_labore);
+          // Soma o êxito final do caso, com fallback para success_fee padrão se necessário
+          exito += safeParseMoney(caseItem.final_success_fee || caseItem.success_fee);
+        });
+      }
       // ---------------------------------------------------------------------
 
       // Coleta dados de rejeição 
