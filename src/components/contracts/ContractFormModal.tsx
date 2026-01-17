@@ -655,8 +655,8 @@ export function ContractFormModal(props: Props) {
             throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
         }
         
-        // CORREÇÃO: Removidos os campos que estavam sendo setados como undefined,
-        // permitindo que os arrays de extras sejam salvos.
+        // CORREÇÃO: Campos "extras" devem ser undefined para o Supabase ignorá-los
+        // pois eles não existem na tabela 'contracts', causando o erro PGRST204.
         const contractPayload: any = {
             ...formData,
             client_id: clientId,
@@ -665,6 +665,7 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
             other_fees: parseCurrency(formData.other_fees),
             
+            // Campos de relacionamento/UI a serem ignorados
             partner_name: undefined,
             analyzed_by_name: undefined,
             process_count: undefined,
@@ -676,12 +677,12 @@ export function ContractFormModal(props: Props) {
             partners: undefined,
             id: undefined,
             
-            // CORREÇÃO: Linhas abaixo removidas para que os valores não sejam apagados
-            // pro_labore_extras: undefined,
-            // final_success_extras: undefined,
-            // fixed_monthly_extras: undefined,
-            // other_fees_extras: undefined,
-            // percent_extras: undefined
+            // CORREÇÃO APLICADA: Remover do payload para o DB, mas os dados ainda existem no state para gerar parcelas
+            pro_labore_extras: undefined,
+            final_success_extras: undefined,
+            fixed_monthly_extras: undefined,
+            other_fees_extras: undefined,
+            percent_extras: undefined
         };
 
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
@@ -956,9 +957,6 @@ export function ContractFormModal(props: Props) {
 
   if (!isOpen) return null;
 
-  // ... (RESTO DO JSX DO COMPONENTE PERMANECE O MESMO) ...
-  // Por brevidade do limite de caracteres, mantenha o JSX original do ContractFormModal abaixo desta linha
-  // pois a correção principal foi na função handleSaveWithIntegrations e nas importações.
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
       <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
@@ -969,9 +967,7 @@ export function ContractFormModal(props: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
-           {/* Conteúdo do formulário igual ao original, já que as alterações foram lógicas no handleSave */}
-           {/* ... INSIRA O CONTEÚDO DO FORMULÁRIO AQUI SE NECESSÁRIO, MAS O FOCO FOI A LÓGICA ... */}
-           {/* Para garantir que o código funcione, vou incluir a renderização completa abaixo */}
+           
            <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
             <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
           </div>
@@ -1018,13 +1014,7 @@ export function ContractFormModal(props: Props) {
             </div>
           </section>
 
-          {/* ... MANTENHA TODO O RESTO DO RENDER ORIGINAL ... */}
-           {/* Para poupar espaço, assumimos que o restante do JSX é idêntico ao original fornecido, 
-               pois a correção foi na lógica do handleSaveWithIntegrations (linhas removidas do payload) */}
-           {/* Vou inserir apenas a parte financeira onde os campos extras são adicionados para garantir que a UI esteja lá */}
-           
            <section className="border-t border-black/5 pt-6">
-            {/* ... */}
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
