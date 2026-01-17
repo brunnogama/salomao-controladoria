@@ -1038,6 +1038,95 @@ export function ContractFormModal(props: Props) {
             </div>
           </section>
 
+          {/* SESSÃO DE PROCESSOS RESTAURADA */}
+          <section className="space-y-4 pt-4 border-t border-black/5">
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Processos Relacionados</h3>
+            
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
+              <div className="grid grid-cols-12 gap-3 items-end">
+                 <div className="col-span-12 md:col-span-4">
+                     <label className="text-xs font-medium block mb-1">Número do Processo (CNJ)</label>
+                     <div className="flex">
+                         <input type="text" className={`w-full border ${duplicateProcessWarning ? 'border-orange-300 bg-orange-50' : 'border-gray-300'} p-2 rounded-l-lg text-sm focus:border-salomao-blue outline-none`} placeholder="0000000-00.0000.0.00.0000" value={currentProcess.process_number} onChange={(e) => setCurrentProcess({...currentProcess, process_number: localMaskCNJ(e.target.value)})} />
+                         <button onClick={handleCNJSearch} disabled={searchingCNJ || !currentProcess.process_number} className="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded-r-lg border-y border-r border-gray-300"><Search className={`w-4 h-4 ${searchingCNJ ? 'animate-spin' : ''}`} /></button>
+                     </div>
+                     {duplicateProcessWarning && (
+                         <div className="text-[10px] text-orange-600 mt-1 flex items-center font-bold">
+                             <AlertTriangle className="w-3 h-3 mr-1" /> Este processo já está cadastrado em outro caso.
+                         </div>
+                     )}
+                 </div>
+                 <div className="col-span-12 md:col-span-6">
+                    <label className="text-xs font-medium block mb-1">Parte Contrária</label>
+                    <input type="text" className="w-full border border-gray-300 p-2 rounded-lg text-sm focus:border-salomao-blue outline-none" value={currentProcess.opponent || ''} onChange={(e) => setCurrentProcess({...currentProcess, opponent: toTitleCase(e.target.value)})} placeholder="Nome da parte contrária" />
+                     {duplicateOpponentCases.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="text-[10px] text-blue-600 font-bold mr-1">Casos similares:</span>
+                            {duplicateOpponentCases.map(c => (
+                                <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
+                                    {c.contracts?.client_name} ({c.contracts?.hon_number || 'S/N'})
+                                </a>
+                            ))}
+                        </div>
+                     )}
+                 </div>
+                 <div className="col-span-12 md:col-span-2">
+                    <button onClick={handleProcessAction} disabled={!currentProcess.process_number} className="w-full bg-salomao-blue text-white p-2 rounded-lg hover:bg-blue-900 flex items-center justify-center font-medium shadow-sm h-[38px]">
+                        {editingProcessIndex !== null ? <Check className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />} 
+                        {editingProcessIndex !== null ? 'Salvar' : 'Adicionar'}
+                    </button>
+                 </div>
+              </div>
+
+              {/* Campos Avançados do Processo (Opcionais) */}
+              <div className="grid grid-cols-12 gap-3">
+                 <div className="col-span-6 md:col-span-2"><CustomSelect label="UF" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" /></div>
+                 <div className="col-span-6 md:col-span-3"><CustomSelect label="Tribunal" value={currentProcess.court || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} options={courtSelectOptions} onAction={handleAddCourt} actionIcon={Plus} actionLabel="Add Tribunal" placeholder="Tribunal" /></div>
+                 <div className="col-span-12 md:col-span-3"><CustomSelect label="Comarca" value={currentProcess.comarca || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} options={comarcaSelectOptions} onAction={handleAddComarca} actionIcon={Plus} actionLabel="Add Comarca" placeholder="Comarca" /></div>
+                 <div className="col-span-12 md:col-span-4"><CustomSelect label="Vara" value={currentProcess.vara || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} options={varaSelectOptions} onAction={handleAddVara} actionIcon={Plus} actionLabel="Add Vara" placeholder="Vara" /></div>
+              </div>
+            </div>
+
+            {/* Lista de Processos Adicionados */}
+            {processes.length > 0 && (
+                <div className="space-y-2 mt-2">
+                    {processes.map((proc, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white border border-gray-200 p-3 rounded-lg shadow-sm hover:border-salomao-blue transition-colors group">
+                            <div className="flex-1 grid grid-cols-12 gap-4 items-center">
+                                <div className="col-span-12 md:col-span-4 flex items-center font-mono text-sm font-bold text-gray-700">
+                                    <Gavel className="w-3 h-3 mr-2 text-gray-400" /> {proc.process_number}
+                                </div>
+                                <div className="col-span-12 md:col-span-4 text-sm text-gray-600 truncate" title={proc.opponent}>{proc.opponent || 'Sem parte contrária'}</div>
+                                <div className="col-span-12 md:col-span-4 text-xs text-gray-500 flex items-center gap-2">
+                                    <span className="bg-gray-100 px-1.5 py-0.5 rounded">{proc.court || '-'}</span>
+                                    <span className="bg-gray-100 px-1.5 py-0.5 rounded">{proc.uf || '-'}</span>
+                                    <span className="truncate max-w-[100px]">{proc.vara}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                <button onClick={() => editProcess(idx)} className="p-1.5 hover:bg-blue-50 text-blue-600 rounded"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => removeProcess(idx)} className="p-1.5 hover:bg-red-50 text-red-600 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+          </section>
+
+          {/* SESSÃO DE REFERÊNCIA E OBSERVAÇÕES RESTAURADA */}
+          <section className="space-y-4 pt-4 border-t border-black/5">
+             <div className="grid grid-cols-1 gap-4">
+                 <div>
+                    <label className="text-xs font-medium block mb-1 text-gray-600">Referência (Como chegou?)</label>
+                    <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" placeholder="Indicação, Google, Antigo Cliente..." value={(formData as any).reference_text || ''} onChange={(e) => handleTextChange('reference_text', e.target.value)} />
+                 </div>
+                 <div>
+                    <label className="text-xs font-medium block mb-1 text-gray-600">Observações Gerais</label>
+                    <textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:border-salomao-blue outline-none min-h-[80px] bg-white resize-y" placeholder="Detalhes importantes sobre o caso..." value={formData.observations || ''} onChange={(e) => setFormData({...formData, observations: e.target.value})} />
+                 </div>
+             </div>
+          </section>
+
            <section className="border-t border-black/5 pt-6">
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
