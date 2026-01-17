@@ -43,8 +43,9 @@ const safeParseMoney = (value: string | number | undefined | null): number => {
     return parseFloat(strVal);
   }
 
-  // Tratamento para formato BRL (ex: "R$ 1.500,00")
-  const cleanStr = strVal.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+  // Tratamento para formato BRL (ex: "R$ 1.500,00") ou com separadores de milhar
+  // Remove tudo que não for dígito, vírgula ou sinal de menos
+  const cleanStr = strVal.replace(/[^\d,-]/g, '').replace(',', '.');
   const floatVal = parseFloat(cleanStr);
   return isNaN(floatVal) ? 0 : floatVal;
 };
@@ -239,14 +240,31 @@ export function Dashboard() {
     contratos.forEach((c) => {
       const dataCriacao = new Date(c.created_at || new Date());
       
-      // --- CORREÇÃO: SOMA DE VALORES COMPLETOS (INTERMEDIÁRIOS E OUTROS) ---
+      // --- CORREÇÃO FUNDAMENTAL: SOMA DE VALORES PRINCIPAIS E LISTAS EXTRAS ---
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
       let mensal = safeParseMoney(c.fixed_monthly_fee);
+      let outros = safeParseMoney((c as any).other_fees);
+
+      // Soma Arrays de Extras (Quando o valor principal é movido para lista com '+')
+      if ((c as any).pro_labore_extras && Array.isArray((c as any).pro_labore_extras)) {
+        pl += (c as any).pro_labore_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      }
       
-      // Soma Outros Honorários ao PL (Fixo/Entrada)
-      const outrosHonorarios = safeParseMoney((c as any).other_fees);
-      pl += outrosHonorarios;
+      if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
+        exito += (c as any).final_success_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      }
+      
+      if ((c as any).fixed_monthly_extras && Array.isArray((c as any).fixed_monthly_extras)) {
+        mensal += (c as any).fixed_monthly_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      }
+
+      if ((c as any).other_fees_extras && Array.isArray((c as any).other_fees_extras)) {
+        outros += (c as any).other_fees_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      }
+
+      // Consolida Outros Honorários no PL (Entrada)
+      pl += outros;
 
       // Soma Êxito Intermediário ao Êxito Total
       if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
@@ -285,7 +303,6 @@ export function Dashboard() {
             financeiroMap[key].pl += pl;
             financeiroMap[key].fixo += mensal;
             financeiroMap[key].exito += exito;
-            // Intermediários já foram somados na variável 'exito' acima
           }
         }
       }
@@ -296,12 +313,12 @@ export function Dashboard() {
         dProposta.setDate(1); dProposta.setHours(0,0,0,0);
 
         if (dProposta >= dataLimite12Meses) {
-             const key = dProposta.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-             if (propostasMap[key]) {
-                 propostasMap[key].pl += pl;
-                 propostasMap[key].fixo += mensal;
-                 propostasMap[key].exito += exito;
-             }
+              const key = dProposta.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+              if (propostasMap[key]) {
+                  propostasMap[key].pl += pl;
+                  propostasMap[key].fixo += mensal;
+                  propostasMap[key].exito += exito;
+              }
         }
       }
 
