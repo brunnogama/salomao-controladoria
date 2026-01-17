@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye, AlertTriangle } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -30,6 +30,18 @@ const formatForInput = (val: string | number | undefined) => {
 const ensureDateValue = (dateStr?: string | null) => {
     if (!dateStr) return '';
     return dateStr.split('T')[0];
+};
+
+// Nova Máscara CNJ Correta: NNNNNNN-DD.AAAA.J.TR.OOOO
+const localMaskCNJ = (value: string) => {
+    return value
+        .replace(/\D/g, '')
+        .replace(/(\d{7})(\d)/, '$1-$2')
+        .replace(/(\d{2})(\d)/, '$1.$2')
+        .replace(/(\d{4})(\d)/, '$1.$2')
+        .replace(/(\d{1})(\d)/, '$1.$2')
+        .replace(/(\d{2})(\d)/, '$1.$2')
+        .replace(/(-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})\d+?$/, '$1');
 };
 
 // Componente visualmente idêntico ao CustomSelect para uso em espaços restritos (como input groups)
@@ -148,6 +160,11 @@ export function ContractFormModal(props: Props) {
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
   
+  // Estados para alertas de duplicidade
+  const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
+  const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
+  const [duplicateProcessWarning, setDuplicateProcessWarning] = useState<boolean>(false);
+
   // Estado local para adicionar magistrados
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
@@ -195,8 +212,93 @@ export function ContractFormModal(props: Props) {
       // Limpar UF do processo ao abrir novo modal
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
       setNewSubject('');
+      setDuplicateClientCases([]);
+      setDuplicateOpponentCases([]);
+      setDuplicateProcessWarning(false);
     }
   }, [isOpen, formData.id]);
+
+  // Verificar duplicidade de Cliente
+  useEffect(() => {
+    const checkClientDuplicates = async () => {
+        if (!formData.client_name || formData.client_name.length < 3) {
+            setDuplicateClientCases([]);
+            return;
+        }
+        
+        const { data } = await supabase
+            .from('contracts')
+            .select('id, hon_number, status')
+            .ilike('client_name', `%${formData.client_name}%`)
+            .neq('id', formData.id || '00000000-0000-0000-0000-000000000000') // Não mostrar o próprio caso se estiver editando
+            .limit(5);
+            
+        if (data) setDuplicateClientCases(data);
+    };
+    
+    const timer = setTimeout(checkClientDuplicates, 800);
+    return () => clearTimeout(timer);
+  }, [formData.client_name, formData.id]);
+
+  // Verificar duplicidade de Parte Oposta (Contrário)
+  useEffect(() => {
+    const checkOpponentDuplicates = async () => {
+        if (!currentProcess.opponent || currentProcess.opponent.length < 3) {
+            setDuplicateOpponentCases([]);
+            return;
+        }
+
+        const { data } = await supabase
+            .from('contract_processes')
+            .select('contract_id, contracts(id, client_name, hon_number)')
+            .ilike('opponent', `%${currentProcess.opponent}%`)
+            .limit(5);
+            
+        if (data) {
+            // Filtrar duplicatas de contrato (um contrato pode ter varios processos com mesmo oponente)
+            const uniqueCases = data.reduce((acc: any[], current: any) => {
+                const x = acc.find(item => item.contracts?.id === current.contracts?.id);
+                if (!x && current.contracts) {
+                    return acc.concat([current]);
+                } else {
+                    return acc;
+                }
+            }, []);
+            setDuplicateOpponentCases(uniqueCases);
+        }
+    };
+
+    const timer = setTimeout(checkOpponentDuplicates, 800);
+    return () => clearTimeout(timer);
+  }, [currentProcess.opponent]);
+
+  // Verificar duplicidade de Número de Processo
+  useEffect(() => {
+    const checkProcessNumber = async () => {
+        if (!currentProcess.process_number || currentProcess.process_number.length < 15) {
+            setDuplicateProcessWarning(false);
+            return;
+        }
+        
+        // Remove pontuação para comparar se necessário, ou usa máscara exata. 
+        // Supabase query simples por match exato da string.
+        const { data } = await supabase
+            .from('contract_processes')
+            .select('id')
+            .eq('process_number', currentProcess.process_number)
+            .limit(1);
+            
+        if (data && data.length > 0) {
+            setDuplicateProcessWarning(true);
+        } else {
+            setDuplicateProcessWarning(false);
+        }
+    };
+
+    const timer = setTimeout(checkProcessNumber, 800);
+    return () => clearTimeout(timer);
+  }, [currentProcess.process_number]);
+
 
   // Função central para carregar dados do Supabase
   const fetchAuxiliaryTables = async () => {
@@ -913,7 +1015,24 @@ export function ContractFormModal(props: Props) {
                 </div>
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
-              <div className="md:col-span-9"><label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label><input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} /></div>
+              <div className="md:col-span-9">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label>
+                <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} />
+                {duplicateClientCases.length > 0 && (
+                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex flex-col gap-1">
+                        <span className="text-xs text-blue-700 font-bold flex items-center">
+                            <AlertCircle className="w-3 h-3 mr-1" /> Já há casos para este cliente:
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                            {duplicateClientCases.map(c => (
+                                <a key={c.id} href={`/contracts/${c.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline bg-white px-2 py-0.5 rounded border border-blue-100 flex items-center">
+                                    <LinkIcon className="w-2.5 h-2.5 mr-1"/> {c.hon_number || 'Sem HON'} ({c.status})
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
@@ -940,7 +1059,7 @@ export function ContractFormModal(props: Props) {
                                 onChange={(val: string) => {
                                     setIsStandardCNJ(val === 'cnj');
                                     if (val === 'cnj') {
-                                        setCurrentProcess({...currentProcess, process_number: maskCNJ(currentProcess.process_number || '')});
+                                        setCurrentProcess({...currentProcess, process_number: localMaskCNJ(currentProcess.process_number || '')});
                                         setOtherProcessType('');
                                     }
                                 }}
@@ -956,11 +1075,11 @@ export function ContractFormModal(props: Props) {
                                 <input 
                                     type="text" 
                                     className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8" 
-                                    placeholder={isStandardCNJ ? "0000000-00..." : "Nº Processo"} 
+                                    placeholder={isStandardCNJ ? "0000000-00.0000.0.00.0000" : "Nº Processo"} 
                                     value={currentProcess.process_number} 
                                     onChange={(e) => setCurrentProcess({
                                         ...currentProcess, 
-                                        process_number: isStandardCNJ ? maskCNJ(e.target.value) : e.target.value
+                                        process_number: isStandardCNJ ? localMaskCNJ(e.target.value) : e.target.value
                                     })} 
                                 />
                                 <button 
@@ -1017,6 +1136,16 @@ export function ContractFormModal(props: Props) {
                     </div>
                   </div>
 
+                  {duplicateProcessWarning && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                        <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-bold text-red-700">Aviso Importante</p>
+                            <p className="text-xs text-red-600">Este número de processo já está cadastrado no sistema. Deseja realmente cadastrar um processo que já existe?</p>
+                        </div>
+                    </div>
+                  )}
+
                   {/* Linha 2: Parte Oposta, Magistrado */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-5">
@@ -1029,6 +1158,20 @@ export function ContractFormModal(props: Props) {
                             actionLabel="Adicionar Parte Oposta"
                             placeholder="Selecione ou adicione"
                         />
+                        {duplicateOpponentCases.length > 0 && (
+                            <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 flex flex-col gap-1">
+                                <span className="text-xs text-yellow-700 font-bold flex items-center">
+                                    <AlertCircle className="w-3 h-3 mr-1" /> Já há casos com este contrário:
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                    {duplicateOpponentCases.map(op => (
+                                        <a key={op.contract_id} href={`/contracts/${op.contract_id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-yellow-600 hover:underline bg-white px-2 py-0.5 rounded border border-yellow-100 flex items-center">
+                                            <LinkIcon className="w-2.5 h-2.5 mr-1"/> {op.contracts?.client_name ? op.contracts.client_name.split(' ')[0] : 'Caso'} ({op.contracts?.hon_number || 'S/N'})
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="md:col-span-7">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
