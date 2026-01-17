@@ -238,15 +238,27 @@ export function Dashboard() {
 
     contratos.forEach((c) => {
       const dataCriacao = new Date(c.created_at || new Date());
-      const pl = safeParseMoney(c.pro_labore);
-      const exito = safeParseMoney(c.final_success_fee);
-      const mensal = safeParseMoney(c.fixed_monthly_fee);
+      
+      // --- CORREÇÃO: SOMA DE VALORES COMPLETOS (INTERMEDIÁRIOS E OUTROS) ---
+      let pl = safeParseMoney(c.pro_labore);
+      let exito = safeParseMoney(c.final_success_fee);
+      let mensal = safeParseMoney(c.fixed_monthly_fee);
+      
+      // Soma Outros Honorários ao PL (Fixo/Entrada)
+      const outrosHonorarios = safeParseMoney((c as any).other_fees);
+      pl += outrosHonorarios;
+
+      // Soma Êxito Intermediário ao Êxito Total
+      if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
+        const totalIntermediario = c.intermediate_fees.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+        exito += totalIntermediario;
+      }
+      // ---------------------------------------------------------------------
 
       // Coleta dados de rejeição 
       if (c.status === 'rejected') {
           totalRejected++;
           const reason = (c as any).rejection_reason || 'Não informado';
-          // Adicionado fallback para rejected_by caso rejection_source esteja vazio
           const source = (c as any).rejection_source || (c as any).rejected_by || 'Não informado';
           
           reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
@@ -264,18 +276,12 @@ export function Dashboard() {
             financeiroMap[key].pl += pl;
             financeiroMap[key].fixo += mensal;
             financeiroMap[key].exito += exito;
-            
-            if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
-              c.intermediate_fees.forEach(f => {
-                financeiroMap[key].exito += safeParseMoney(f);
-              });
-            }
+            // Intermediários já foram somados na variável 'exito' acima
           }
         }
       }
 
       // --- POPULA GRÁFICO DE PROPOSTAS (Esquerda) ---
-      // Considera qualquer caso que tenha uma data de proposta válida
       if (c.proposal_date) {
         const dProposta = new Date(c.proposal_date + 'T12:00:00');
         dProposta.setDate(1); dProposta.setHours(0,0,0,0);
