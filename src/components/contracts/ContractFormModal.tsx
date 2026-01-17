@@ -15,7 +15,6 @@ const DEFAULT_CLASSES = ['Procedimento Comum', 'Execução de Título Extrajudic
 const DEFAULT_SUBJECTS = ['Dano Moral', 'Dano Material', 'Inadimplemento', 'Rescisão Indireta', 'Verbas Rescisórias', 'Acidente de Trabalho', 'Doença Ocupacional', 'Horas Extras', 'Assédio Moral'];
 const DEFAULT_POSITIONS = ['Autor', 'Réu', 'Terceiro Interessado', 'Exequente', 'Executado', 'Reclamante', 'Reclamado', 'Apelante', 'Apelado', 'Agravante', 'Agravado', 'Impetrante', 'Impetrado'];
 
-// Função auxiliar aprimorada para garantir formatação R$ ao carregar do banco
 const formatForInput = (val: string | number | undefined) => {
   if (val === undefined || val === null) return '';
   if (typeof val === 'number') return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -25,13 +24,11 @@ const formatForInput = (val: string | number | undefined) => {
   return val;
 };
 
-// Função auxiliar para garantir que a data apareça corretamente no input type="date"
 const ensureDateValue = (dateStr?: string | null) => {
     if (!dateStr) return '';
     return dateStr.split('T')[0];
 };
 
-// Nova Máscara CNJ Correta
 const localMaskCNJ = (value: string) => {
     const cleanValue = value.replace(/\D/g, '');
     return cleanValue
@@ -607,17 +604,52 @@ export function ContractFormModal(props: Props) {
       }
     };
 
+    // Main values
     addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
     addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
     addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
     addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
 
+    // Intermediate Fees Logic (Existing)
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
         const val = parseCurrency(fee);
         if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'intermediate_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
       });
     }
+
+    // Pro Labore Extras (Replicating Intermediate Logic)
+    if ((formData as any).pro_labore_extras && (formData as any).pro_labore_extras.length > 0) {
+        (formData as any).pro_labore_extras.forEach((fee: string) => {
+          const val = parseCurrency(fee);
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'pro_labore', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
+        });
+    }
+
+    // Final Success Extras (Replicating Intermediate Logic)
+    if ((formData as any).final_success_extras && (formData as any).final_success_extras.length > 0) {
+        (formData as any).final_success_extras.forEach((fee: string) => {
+          const val = parseCurrency(fee);
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'final_success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
+        });
+    }
+
+    // Other Fees Extras (Replicating Intermediate Logic)
+    if ((formData as any).other_fees_extras && (formData as any).other_fees_extras.length > 0) {
+        (formData as any).other_fees_extras.forEach((fee: string) => {
+          const val = parseCurrency(fee);
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'other', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
+        });
+    }
+
+    // Fixed Monthly Extras (Replicating Intermediate Logic)
+    if ((formData as any).fixed_monthly_extras && (formData as any).fixed_monthly_extras.length > 0) {
+        (formData as any).fixed_monthly_extras.forEach((fee: string) => {
+          const val = parseCurrency(fee);
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'fixed', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
+        });
+    }
+
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
@@ -655,8 +687,7 @@ export function ContractFormModal(props: Props) {
             throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
         }
         
-        // CORREÇÃO: Campos "extras" devem ser undefined para o Supabase ignorá-los
-        // pois eles não existem na tabela 'contracts', causando o erro PGRST204.
+        // CORREÇÃO: Agora enviamos os campos extras para o Supabase (requer colunas criadas no BD)
         const contractPayload: any = {
             ...formData,
             client_id: clientId,
@@ -676,13 +707,6 @@ export function ContractFormModal(props: Props) {
             processes: undefined,
             partners: undefined,
             id: undefined,
-            
-            // CORREÇÃO APLICADA: Remover do payload para o DB, mas os dados ainda existem no state para gerar parcelas
-            pro_labore_extras: undefined,
-            final_success_extras: undefined,
-            fixed_monthly_extras: undefined,
-            other_fees_extras: undefined,
-            percent_extras: undefined
         };
 
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
@@ -728,7 +752,7 @@ export function ContractFormModal(props: Props) {
         } else if (error.code === 'PGRST204') {
              console.warn('Erro de estrutura de dados:', error.message);
              const column = error.message.match(/'([^']+)'/)?.[1];
-             alert(`Erro Técnico: Tentativa de salvar campo inválido (${column}).`);
+             alert(`Erro Técnico: Tentativa de salvar campo inválido (${column}).\n\nSOLUÇÃO: Rode o SQL fornecido no Supabase para criar as colunas que faltam.`);
         } else {
             alert(`Não foi possível salvar as alterações.\n\n${error.message}`);
         }
