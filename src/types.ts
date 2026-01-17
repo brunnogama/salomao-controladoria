@@ -1,3 +1,4 @@
+src/types.ts
 export interface Client {
   id?: string;
   name: string;
@@ -157,6 +158,7 @@ export interface Contract {
   
   // Campos de Rejeição/Probono
   rejected_by?: string;
+  rejection_by?: string; // Adicionado para compatibilidade com o modal
   rejection_source?: string;
   rejection_reason?: string;
   probono_source?: string;
