@@ -589,8 +589,8 @@ export function ContractFormModal(props: Props) {
     setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') }));
   };
 
-  const generateFinancialInstallments = async (contractId: string) => {
-    if (formData.status !== 'active') return;
+  const generateFinancialInstallments = async (contractId: string, sourceData = formData) => {
+    if (sourceData.status !== 'active') return;
     await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
     
     const installmentsToInsert: any[] = [];
@@ -605,46 +605,46 @@ export function ContractFormModal(props: Props) {
     };
 
     // Main values
-    addInstallments(formData.pro_labore, formData.pro_labore_installments, 'pro_labore');
-    addInstallments(formData.final_success_fee, formData.final_success_fee_installments, 'final_success_fee');
-    addInstallments(formData.fixed_monthly_fee, formData.fixed_monthly_fee_installments, 'fixed');
-    addInstallments(formData.other_fees, formData.other_fees_installments, 'other');
+    addInstallments(sourceData.pro_labore, sourceData.pro_labore_installments, 'pro_labore');
+    addInstallments(sourceData.final_success_fee, sourceData.final_success_fee_installments, 'final_success_fee');
+    addInstallments(sourceData.fixed_monthly_fee, sourceData.fixed_monthly_fee_installments, 'fixed');
+    addInstallments(sourceData.other_fees, sourceData.other_fees_installments, 'other');
 
     // Intermediate Fees Logic (Existing)
-    if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
-      formData.intermediate_fees.forEach(fee => {
+    if (sourceData.intermediate_fees && sourceData.intermediate_fees.length > 0) {
+      sourceData.intermediate_fees.forEach(fee => {
         const val = safeParseFloat(fee);
         if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'intermediate_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
       });
     }
 
     // Pro Labore Extras (Replicating Intermediate Logic)
-    if ((formData as any).pro_labore_extras && (formData as any).pro_labore_extras.length > 0) {
-        (formData as any).pro_labore_extras.forEach((fee: string) => {
+    if ((sourceData as any).pro_labore_extras && (sourceData as any).pro_labore_extras.length > 0) {
+        (sourceData as any).pro_labore_extras.forEach((fee: string) => {
           const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'pro_labore', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
     }
 
     // Final Success Extras (Replicating Intermediate Logic)
-    if ((formData as any).final_success_extras && (formData as any).final_success_extras.length > 0) {
-        (formData as any).final_success_extras.forEach((fee: string) => {
+    if ((sourceData as any).final_success_extras && (sourceData as any).final_success_extras.length > 0) {
+        (sourceData as any).final_success_extras.forEach((fee: string) => {
           const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'final_success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
     }
 
     // Other Fees Extras (Replicating Intermediate Logic)
-    if ((formData as any).other_fees_extras && (formData as any).other_fees_extras.length > 0) {
-        (formData as any).other_fees_extras.forEach((fee: string) => {
+    if ((sourceData as any).other_fees_extras && (sourceData as any).other_fees_extras.length > 0) {
+        (sourceData as any).other_fees_extras.forEach((fee: string) => {
           const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'other', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
     }
 
     // Fixed Monthly Extras (Replicating Intermediate Logic)
-    if ((formData as any).fixed_monthly_extras && (formData as any).fixed_monthly_extras.length > 0) {
-        (formData as any).fixed_monthly_extras.forEach((fee: string) => {
+    if ((sourceData as any).fixed_monthly_extras && (sourceData as any).fixed_monthly_extras.length > 0) {
+        (sourceData as any).fixed_monthly_extras.forEach((fee: string) => {
           const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'fixed', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
@@ -653,11 +653,11 @@ export function ContractFormModal(props: Props) {
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
 
-  const forceUpdateFinancials = async (contractId: string) => {
-    const cleanPL = safeParseFloat(formData.pro_labore || "");
-    const cleanSuccess = safeParseFloat(formData.final_success_fee || "");
-    const cleanFixed = safeParseFloat(formData.fixed_monthly_fee || "");
-    const cleanOther = safeParseFloat(formData.other_fees || "");
+  const forceUpdateFinancials = async (contractId: string, sourceData = formData) => {
+    const cleanPL = safeParseFloat(sourceData.pro_labore || "");
+    const cleanSuccess = safeParseFloat(sourceData.final_success_fee || "");
+    const cleanFixed = safeParseFloat(sourceData.fixed_monthly_fee || "");
+    const cleanOther = safeParseFloat(sourceData.other_fees || "");
 
     await supabase.from('contracts').update({
       pro_labore: cleanPL,
@@ -665,10 +665,10 @@ export function ContractFormModal(props: Props) {
       fixed_monthly_fee: cleanFixed,
       other_fees: cleanOther,
       // Garantindo que os extras também sejam salvos
-      pro_labore_extras: (formData as any).pro_labore_extras,
-      final_success_extras: (formData as any).final_success_extras,
-      fixed_monthly_extras: (formData as any).fixed_monthly_extras,
-      other_fees_extras: (formData as any).other_fees_extras
+      pro_labore_extras: (sourceData as any).pro_labore_extras,
+      final_success_extras: (sourceData as any).final_success_extras,
+      fixed_monthly_extras: (sourceData as any).fixed_monthly_extras,
+      other_fees_extras: (sourceData as any).other_fees_extras
     }).eq('id', contractId);
   };
 
@@ -719,8 +719,10 @@ export function ContractFormModal(props: Props) {
             id: undefined,
         };
 
-        // LÓGICA DE SNAPSHOT (PROPOSTA -> ATIVO)
-        if (formData.status === 'active' && initialFormData && initialFormData.status === 'proposal') {
+        // LÓGICA DE SNAPSHOT E ZERAMENTO (PROPOSTA -> ATIVO)
+        const isProposalToActive = formData.status === 'active' && initialFormData && initialFormData.status === 'proposal';
+
+        if (isProposalToActive) {
             const snapshot = {
                 pro_labore: initialFormData.pro_labore,
                 final_success_fee: initialFormData.final_success_fee,
@@ -734,6 +736,17 @@ export function ContractFormModal(props: Props) {
                 saved_at: new Date().toISOString()
             };
             contractPayload.proposal_snapshot = snapshot;
+
+            // ZERAR VALORES NO PAYLOAD PARA O CONTRATO ATIVO
+            contractPayload.pro_labore = 0;
+            contractPayload.final_success_fee = 0;
+            contractPayload.fixed_monthly_fee = 0;
+            contractPayload.other_fees = 0;
+            contractPayload.pro_labore_extras = [];
+            contractPayload.final_success_extras = [];
+            contractPayload.fixed_monthly_extras = [];
+            contractPayload.other_fees_extras = [];
+            contractPayload.intermediate_fees = []; // Também zera as intermediárias
         }
 
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
@@ -750,8 +763,23 @@ export function ContractFormModal(props: Props) {
         }
 
         if (savedId) {
-            await forceUpdateFinancials(savedId);
-            await generateFinancialInstallments(savedId);
+            // Se houve transição, precisamos garantir que as funções auxiliares usem os valores zerados,
+            // e não os valores que ainda estão no estado 'formData'.
+            const financialSource = isProposalToActive ? {
+                ...formData,
+                pro_labore: '0',
+                final_success_fee: '0',
+                fixed_monthly_fee: '0',
+                other_fees: '0',
+                pro_labore_extras: [],
+                final_success_extras: [],
+                fixed_monthly_extras: [],
+                other_fees_extras: [],
+                intermediate_fees: []
+            } : formData;
+
+            await forceUpdateFinancials(savedId, financialSource);
+            await generateFinancialInstallments(savedId, financialSource);
             
             // Salvar processos
             if (processes.length > 0) {
