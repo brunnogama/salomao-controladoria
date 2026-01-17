@@ -45,6 +45,12 @@ const formatMoney = (val: number | string | undefined) => {
 
 const calculateTotalSuccess = (c: Contract) => {
   let total = parseCurrency(c.final_success_fee);
+  
+  // CORREÇÃO: Adicionando extras do êxito final
+  if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
+    (c as any).final_success_extras.forEach((fee: string) => total += parseCurrency(fee));
+  }
+
   if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
     c.intermediate_fees.forEach((fee: string) => total += parseCurrency(fee));
   }
