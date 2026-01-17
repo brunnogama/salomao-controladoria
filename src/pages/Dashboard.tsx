@@ -1,5 +1,3 @@
-// src/components/Dashboard.tsx
-
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import html2canvas from 'html2canvas';
@@ -34,9 +32,19 @@ import { Contract } from '../types';
 
 // Função de parse robusta para garantir que o dashboard leia os números corretamente
 const safeParseMoney = (value: string | number | undefined | null): number => {
-  if (!value) return 0;
+  if (value === undefined || value === null || value === '') return 0;
   if (typeof value === 'number') return value;
-  const cleanStr = value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+  
+  const strVal = String(value).trim();
+
+  // Verifica se já está em formato numérico padrão (ex: "1500.00" vindo do DB)
+  // Aceita números, ponto decimal, e sinal negativo, sem 'R$' ou vírgulas
+  if (!strVal.includes('R$') && !strVal.includes(',') && !isNaN(Number(strVal))) {
+    return parseFloat(strVal);
+  }
+
+  // Tratamento para formato BRL (ex: "R$ 1.500,00")
+  const cleanStr = strVal.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
   const floatVal = parseFloat(cleanStr);
   return isNaN(floatVal) ? 0 : floatVal;
 };
