@@ -8,11 +8,15 @@ interface GEDDocument {
   file_name: string;
   file_path: string;
   file_type: 'proposal' | 'contract';
+  file_size?: number; // Adicionado para cálculo
   uploaded_at: string;
   hon_number_ref?: string;
   contract: {
     id: string;
     status: string;
+    clients: {
+        name: string;
+    } | null; // Ajuste para refletir a estrutura correta do join
   };
   client_name: string;
 }
@@ -67,6 +71,16 @@ export function GED() {
     }
   };
 
+  // Função para formatar bytes
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
   // Filtragem
   const filteredDocs = documents.filter(doc => {
     const matchesFolder = selectedFolder ? doc.client_name === selectedFolder : true;
@@ -76,6 +90,9 @@ export function GED() {
       : true;
     return matchesFolder && matchesSearch;
   });
+
+  // Cálculo do tamanho total
+  const totalSize = filteredDocs.reduce((acc, doc) => acc + (doc.file_size || 0), 0);
 
   return (
     // Adicionado p-8 e animação para padronizar com as outras telas
@@ -104,7 +121,8 @@ export function GED() {
               onClick={() => setSelectedFolder(null)}
               className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${!selectedFolder ? 'bg-salomao-blue text-white' : 'text-gray-600 hover:bg-gray-100'}`}
             >
-              <FolderOpen className="w-4 h-4 mr-2" />
+              {/* Adicionado shrink-0 para impedir distorção */}
+              <FolderOpen className="w-4 h-4 mr-2 shrink-0" />
               Todos os Arquivos
             </button>
             {folders.map(folder => (
@@ -113,8 +131,9 @@ export function GED() {
                 onClick={() => setSelectedFolder(folder)}
                 className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${selectedFolder === folder ? 'bg-salomao-blue text-white' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <FolderOpen className={`w-4 h-4 mr-2 ${selectedFolder === folder ? 'text-white' : 'text-salomao-gold'}`} />
-                <span className="truncate">{folder}</span>
+                {/* Adicionado shrink-0 para impedir distorção */}
+                <FolderOpen className={`w-4 h-4 mr-2 shrink-0 ${selectedFolder === folder ? 'text-white' : 'text-salomao-gold'}`} />
+                <span className="truncate text-left">{folder}</span>
               </button>
             ))}
           </div>
@@ -125,8 +144,10 @@ export function GED() {
           {/* Toolbar */}
           <div className="p-4 border-b border-gray-100 flex justify-between items-center">
             <h3 className="font-bold text-gray-700 flex items-center">
-              {selectedFolder ? <><FolderOpen className="w-5 h-5 mr-2 text-salomao-gold" /> {selectedFolder}</> : 'Todos os Documentos'}
+              {selectedFolder ? <><FolderOpen className="w-5 h-5 mr-2 text-salomao-gold shrink-0" /> {selectedFolder}</> : 'Todos os Documentos'}
               <span className="ml-2 bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">{filteredDocs.length}</span>
+              {/* Exibição do tamanho total */}
+              <span className="ml-2 text-xs text-gray-400 font-normal">({formatBytes(totalSize)})</span>
             </h3>
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -180,9 +201,9 @@ export function GED() {
 
                     {/* Footer Info */}
                     <div className="space-y-2">
-                      <div className="flex items-center text-[10px] text-gray-400">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                      <div className="flex items-center justify-between text-[10px] text-gray-400">
+                        <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</span>
+                        {doc.file_size && <span>{formatBytes(doc.file_size)}</span>}
                       </div>
                       
                       {doc.hon_number_ref && (
