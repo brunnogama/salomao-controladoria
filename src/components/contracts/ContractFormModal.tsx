@@ -143,7 +143,7 @@ export function ContractFormModal(props: Props) {
     newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee,
     timelineData, getStatusLabel
   } = props;
-  
+   
   const [localLoading, setLocalLoading] = useState(false);
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -155,7 +155,7 @@ export function ContractFormModal(props: Props) {
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [showPositionManager, setShowPositionManager] = useState(false);
-  
+   
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
   const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
   const [duplicateProcessWarning, setDuplicateProcessWarning] = useState<boolean>(false);
@@ -182,7 +182,7 @@ export function ContractFormModal(props: Props) {
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
 
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
-  
+   
   const isLoading = parentLoading || localLoading;
 
   useEffect(() => {
@@ -371,7 +371,7 @@ export function ContractFormModal(props: Props) {
 
     if (clientData.cnpj) {
       const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
-      
+       
       if (existingClient) {
         await supabase.from('clients').update(clientData).eq('id', existingClient.id);
         return existingClient.id;
@@ -843,7 +843,7 @@ export function ContractFormModal(props: Props) {
       window.open(`https://www.jusbrasil.com.br/processos/numero/${numero}`, '_blank');
     }
   };
-  
+   
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -952,9 +952,9 @@ export function ContractFormModal(props: Props) {
   const rejectionByOptions = [{ label: 'Selecione', value: '' }, { label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
   const rejectionReasonOptions = [{ label: 'Selecione', value: '' }, { label: 'Cliente declinou', value: 'Cliente declinou' }, { label: 'Cliente não retornou', value: 'Cliente não retornou' }, { label: 'Caso ruim', value: 'Caso ruim' }, { label: 'Conflito de interesses', value: 'Conflito de interesses' }];
   const areaOptions = [{ label: 'Selecione', value: '' }, ...legalAreas.map(a => ({ label: a, value: a }))];
-  const positionOptions = [{ label: 'Autor', value: 'Autor' }, { label: 'Réu', value: 'Réu' }, { label: 'Terceiro Interessado', value: 'Terceiro' }];
+  const positionOptions = [{ label: 'Selecione', value: '' }, ...positionsList.map(p => ({ label: p, value: p }))];
   const magistrateTypes = [{ label: 'Selecione', value: '' }, { label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }];
-  
+   
   // Opções formatadas para CustomSelect
   const justiceSelectOptions = [{ label: 'Selecione', value: '' }, ...justiceOptions.map(j => ({ label: j, value: j }))];
   const varaSelectOptions = [{ label: 'Selecione', value: '' }, ...varaOptions.map(v => ({ label: v, value: v }))];
@@ -962,9 +962,6 @@ export function ContractFormModal(props: Props) {
   const comarcaSelectOptions = [{ label: 'Selecione', value: '' }, ...comarcaOptions.map(c => ({ label: c, value: c }))];
   const classSelectOptions = [{ label: 'Selecione', value: '' }, ...classOptions.map(c => ({ label: c, value: c }))];
   const subjectSelectOptions = [{ label: 'Selecione', value: '' }, ...subjectOptions.map(s => ({ label: s, value: s }))];
-
-  // Opção para posição no processo com dados buscados
-  const positionsSelectOptions = [{ label: 'Selecione', value: '' }, ...positionsList.map(p => ({ label: p, value: p }))];
 
   if (!isOpen) return null;
 
@@ -982,41 +979,6 @@ export function ContractFormModal(props: Props) {
            <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
             <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
           </div>
-
-          {/* CAMPOS ESPECIFICOS POR STATUS (RESTAURADOS) */}
-          {formData.status === 'analysis' && (
-              <div className="bg-yellow-100/50 p-4 rounded-lg border border-yellow-200 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                      <label className="text-xs font-medium block mb-1">Data do Prospect</label>
-                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={ensureDateValue(formData.prospect_date)} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
-                  </div>
-                  <div>
-                      <CustomSelect label="Analisado Por" value={formData.analyzed_by || ''} onChange={(val: string) => setFormData({...formData, analyzed_by: val})} options={analystSelectOptions} />
-                  </div>
-              </div>
-          )}
-
-          {formData.status === 'rejected' && (
-              <div className="bg-red-100/50 p-4 rounded-lg border border-red-200 grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                      <label className="text-xs font-medium block mb-1">Data da Rejeição</label>
-                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={ensureDateValue(formData.rejection_date)} onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
-                  </div>
-                  <div><CustomSelect label="Analisado por" value={formData.analyzed_by || ''} onChange={(val: string) => setFormData({...formData, analyzed_by: val})} options={analystSelectOptions} /></div>
-                  <div><CustomSelect label="Quem rejeitou" value={formData.rejection_by || ''} onChange={(val: string) => setFormData({...formData, rejection_by: val})} options={rejectionByOptions} /></div>
-                  <div><CustomSelect label="Motivo da Rejeição" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} /></div>
-              </div>
-          )}
-
-          {formData.status === 'probono' && (
-              <div className="bg-gray-100/50 p-4 rounded-lg border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                      <label className="text-xs font-medium block mb-1">Data Probono</label>
-                      <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white" value={ensureDateValue(formData.probono_date)} onChange={e => setFormData({...formData, probono_date: e.target.value})} />
-                  </div>
-                  <div><CustomSelect label="Enviado Por" value={formData.partner_id || ''} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} /></div>
-              </div>
-          )}
 
           <section className="space-y-5">
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
@@ -1147,20 +1109,7 @@ export function ContractFormModal(props: Props) {
                         />
                     </div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
-                    
-                    {/* POSICAO RESTAURADA COM BOTAO DE GERENCIAR */}
-                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}>
-                        <CustomSelect 
-                            label="Posição no Processo" 
-                            value={currentProcess.position || formData.client_position || ''} 
-                            onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} 
-                            options={positionsSelectOptions} 
-                            className="custom-select-small"
-                            onAction={() => setShowPositionManager(true)}
-                            actionLabel="Gerenciar Posições"
-                            actionIcon={Settings}
-                        />
-                    </div>
+                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" onAction={() => setShowPositionManager(true)} actionLabel="Gerenciar Posições" actionIcon={Settings} /></div>
                   </div>
 
                   {/* Linha 2: Parte Oposta, Magistrado */}
@@ -1180,7 +1129,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                              {c.contracts?.client_name}
+                                                    {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
@@ -1346,6 +1295,50 @@ export function ContractFormModal(props: Props) {
           </section>
 
            <section className="border-t border-black/5 pt-6">
+
+            {/* Campos Condicionais por Status (Restaurados) */}
+            {formData.status === 'analysis' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 animate-in fade-in slide-in-from-top-2">
+                    <div>
+                        <label className="text-xs font-medium block mb-1">Data do Prospect</label>
+                        <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.prospect_date)} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
+                    </div>
+                    <div>
+                        <CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} />
+                    </div>
+                </div>
+            )}
+
+            {formData.status === 'rejected' && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6 animate-in fade-in slide-in-from-top-2">
+                    <div>
+                        <label className="text-xs font-medium block mb-1">Data da Rejeição</label>
+                        <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.rejection_date)} onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
+                    </div>
+                    <div>
+                        <CustomSelect label="Analisado por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} />
+                    </div>
+                    <div>
+                        <CustomSelect label="Quem rejeitou" value={formData.rejection_by || ''} onChange={(val: string) => setFormData({...formData, rejection_by: val})} options={rejectionByOptions} />
+                    </div>
+                    <div>
+                        <CustomSelect label="Motivo da Rejeição" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
+                    </div>
+                </div>
+            )}
+
+            {formData.status === 'probono' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 animate-in fade-in slide-in-from-top-2">
+                    <div>
+                        <label className="text-xs font-medium block mb-1">Data Probono</label>
+                        <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.probono_date)} onChange={e => setFormData({...formData, probono_date: e.target.value})} />
+                    </div>
+                    <div>
+                        <CustomSelect label="Enviado Por" value={formData.partner_id || ''} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} />
+                    </div>
+                </div>
+            )}
+
             {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
@@ -1490,15 +1483,15 @@ export function ContractFormModal(props: Props) {
             </div>
            )}
 
-           {/* OBSERVAÇÕES NO FINAL */}
+           {/* OBSERVAÇÕES NO FINAL (MOVIDO ANTES DOS BOTOES) */}
            <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
 
-           {/* BOTÕES NO FINAL */}
-           <div className="pt-6 border-t border-black/5 flex justify-end gap-3">
-             <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
-             <button onClick={handleSaveWithIntegrations} disabled={isLoading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{isLoading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
-           </div>
+        </div>
 
+        {/* BOTOES NO FINAL (MOVIDO DEPOIS DAS OBSERVACOES) */}
+        <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
+          <button onClick={handleSaveWithIntegrations} disabled={isLoading} className="px-6 py-2 bg-salomao-blue text-white rounded-lg hover:bg-blue-900 shadow-lg flex items-center transition-all transform active:scale-95">{isLoading ? 'Salvando...' : <><Save className="w-4 h-4 mr-2" /> Salvar Caso</>}</button>
         </div>
       </div>
 
@@ -1564,7 +1557,7 @@ export function ContractFormModal(props: Props) {
         </div>
       )}
 
-       {/* Modal de Gerenciamento de Posições (RESTAURADO) */}
+      {/* Modal de Gerenciamento de Posições (NOVO) */}
        {showPositionManager && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
@@ -1578,21 +1571,18 @@ export function ContractFormModal(props: Props) {
                 <input 
                   type="text" 
                   className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
-                  placeholder="Nova posição"
+                  placeholder="Nome da nova posição"
                   id="new-position-input"
                   onKeyPress={async (e) => {
                     if (e.key === 'Enter') {
                       const input = e.target as HTMLInputElement;
                       const value = input.value.trim();
                       if (value && !positionsList.includes(value)) {
-                         const cleanValue = toTitleCase(value);
-                         const { error } = await supabase.from('process_positions').insert({ name: cleanValue });
-                         if (!error) {
-                            setPositionsList([...positionsList, cleanValue].sort());
+                        const { error } = await supabase.from('process_positions').insert({ name: toTitleCase(value) });
+                        if (!error) {
+                            setPositionsList([...positionsList, toTitleCase(value)].sort());
                             input.value = '';
-                         } else {
-                            alert('Erro ao salvar: ' + error.message);
-                         }
+                        }
                       }
                     }
                   }}
@@ -1602,13 +1592,10 @@ export function ContractFormModal(props: Props) {
                     const input = document.getElementById('new-position-input') as HTMLInputElement;
                     const value = input.value.trim();
                     if (value && !positionsList.includes(value)) {
-                        const cleanValue = toTitleCase(value);
-                        const { error } = await supabase.from('process_positions').insert({ name: cleanValue });
+                        const { error } = await supabase.from('process_positions').insert({ name: toTitleCase(value) });
                         if (!error) {
-                           setPositionsList([...positionsList, cleanValue].sort());
-                           input.value = '';
-                        } else {
-                           alert('Erro ao salvar: ' + error.message);
+                            setPositionsList([...positionsList, toTitleCase(value)].sort());
+                            input.value = '';
                         }
                     }
                   }}
@@ -1622,7 +1609,7 @@ export function ContractFormModal(props: Props) {
                 {positionsList.map(pos => (
                   <div key={pos} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
                     <span className="text-sm text-gray-700">{pos}</span>
-                    {/* Não permitimos deletar as padrões facilmente aqui para evitar erros de integridade, apenas visualização das listas */}
+                    {/* Nota: Não implementamos delete aqui para não quebrar integridade referencial facilmente, apenas insert */}
                   </div>
                 ))}
               </div>
