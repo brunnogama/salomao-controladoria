@@ -33,15 +33,18 @@ const ensureDateValue = (dateStr?: string | null) => {
 };
 
 // Nova Máscara CNJ Correta: NNNNNNN-DD.AAAA.J.TR.OOOO
+// A função primeiro remove tudo que não é dígito para garantir uma base limpa
 const localMaskCNJ = (value: string) => {
-    return value
-        .replace(/\D/g, '')
-        .replace(/(\d{7})(\d)/, '$1-$2')
-        .replace(/(\d{2})(\d)/, '$1.$2')
-        .replace(/(\d{4})(\d)/, '$1.$2')
-        .replace(/(\d{1})(\d)/, '$1.$2')
-        .replace(/(\d{2})(\d)/, '$1.$2')
-        .replace(/(-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})\d+?$/, '$1');
+    const cleanValue = value.replace(/\D/g, ''); // Remove tudo que não for número primeiro
+    
+    // Aplica a máscara progressivamente
+    return cleanValue
+        .replace(/^(\d{7})(\d)/, '$1-$2')       // NNNNNNN-
+        .replace(/^(\d{7}-\d{2})(\d)/, '$1.$2')  // NNNNNNN-DD.
+        .replace(/^(\d{7}-\d{2}\.\d{4})(\d)/, '$1.$2') // NNNNNNN-DD.AAAA.
+        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d)(\d)/, '$1.$2') // NNNNNNN-DD.AAAA.J.
+        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d\.\d{2})(\d)/, '$1.$2') // NNNNNNN-DD.AAAA.J.TR.
+        .substring(0, 25); // Limita ao tamanho máximo do CNJ (20 dígitos + 5 separadores)
 };
 
 // Componente visualmente idêntico ao CustomSelect para uso em espaços restritos (como input groups)
