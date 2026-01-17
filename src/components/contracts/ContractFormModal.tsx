@@ -372,7 +372,7 @@ export function ContractFormModal(props: Props) {
     const newValue = newLabel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_");
     if (statusOptions.some(s => s.value === newValue)) return alert("Este status já existe.");
     try {
-      const { error } = await supabase.from('contract_statuses').insert({ label: toTitleCase(newLabel), value: newValue, color: 'bg-gray-100 text-gray-800 border-gray-200' });
+      const { error } = await supabase.from('contract_statuses').insert({ label: toTitleCase(newLabel.trim()), value: newValue, color: 'bg-gray-100 text-gray-800 border-gray-200' });
       if (error) throw error;
       await fetchStatuses();
       setFormData({ ...formData, status: newValue as any });
@@ -467,22 +467,22 @@ export function ContractFormModal(props: Props) {
 
   const handleAddJustice = () => {
     const newJustice = window.prompt("Digite o novo tipo de Justiça:");
-    if (newJustice && !justiceOptions.includes(newJustice)) {
-      setJusticeOptions([...justiceOptions, toTitleCase(newJustice)]);
+    if (newJustice && !justiceOptions.includes(newJustice.trim())) {
+      setJusticeOptions([...justiceOptions, toTitleCase(newJustice.trim())]);
     }
   };
 
   const handleAddVara = () => {
     const newVara = window.prompt("Digite o novo tipo de Vara:");
-    if (newVara && !varaOptions.includes(newVara)) {
-      setVaraOptions([...varaOptions, toTitleCase(newVara)]);
+    if (newVara && !varaOptions.includes(newVara.trim())) {
+      setVaraOptions([...varaOptions, toTitleCase(newVara.trim())]);
     }
   };
 
   const handleAddCourt = async () => {
     const newCourt = window.prompt("Digite a sigla do novo Tribunal:");
     if (newCourt) {
-        const cleanCourt = newCourt.toUpperCase();
+        const cleanCourt = newCourt.trim().toUpperCase();
         if (!courtOptions.includes(cleanCourt)) {
             const { error } = await supabase.from('courts').insert({ name: cleanCourt });
             if (!error) {
@@ -521,7 +521,7 @@ export function ContractFormModal(props: Props) {
   const handleAddOpponent = async () => {
     const newOpponent = window.prompt("Digite o nome da Parte Oposta:");
     if (newOpponent) {
-        const cleanOpponent = toTitleCase(newOpponent);
+        const cleanOpponent = toTitleCase(newOpponent.trim());
         if (!opponentOptions.includes(cleanOpponent)) {
             const { error } = await supabase
                 .from('opponents')
@@ -544,7 +544,7 @@ export function ContractFormModal(props: Props) {
     
     const newComarca = window.prompt(`Digite a nova Comarca para ${currentProcess.uf}:`);
     if (newComarca) {
-        const cleanComarca = toTitleCase(newComarca);
+        const cleanComarca = toTitleCase(newComarca.trim());
         if (!comarcaOptions.includes(cleanComarca)) {
             const { error } = await supabase.from('comarcas').insert({ name: cleanComarca, uf: currentProcess.uf });
             if (!error) {
@@ -560,7 +560,7 @@ export function ContractFormModal(props: Props) {
   const handleAddClass = async () => {
     const newClass = window.prompt("Digite a nova Classe Processual:");
     if (newClass) {
-        const cleanClass = toTitleCase(newClass);
+        const cleanClass = toTitleCase(newClass.trim());
         if (!classOptions.includes(cleanClass)) {
             const { error } = await supabase.from('process_classes').insert({ name: cleanClass });
             if (!error) {
@@ -576,7 +576,7 @@ export function ContractFormModal(props: Props) {
   const handleAddPosition = async () => {
     const newPos = window.prompt("Digite a nova Posição no Processo:");
     if (newPos) {
-        const cleanPos = toTitleCase(newPos);
+        const cleanPos = toTitleCase(newPos.trim());
         if (!positionsList.includes(cleanPos)) {
             const { error } = await supabase.from('process_positions').insert({ name: cleanPos });
             if (!error) {
@@ -593,7 +593,7 @@ export function ContractFormModal(props: Props) {
   const handleCreateSubjectOption = async () => {
       const newSubjectName = window.prompt("Digite o novo Assunto:");
       if (newSubjectName) {
-          const cleanSubject = toTitleCase(newSubjectName);
+          const cleanSubject = toTitleCase(newSubjectName.trim());
           if (!subjectOptions.includes(cleanSubject)) {
               const { error } = await supabase.from('process_subjects').insert({ name: cleanSubject });
               if (!error) {
@@ -1017,7 +1017,13 @@ export function ContractFormModal(props: Props) {
               </div>
               <div className="md:col-span-9">
                 <label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label>
-                <input type="text" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" value={formData.client_name} onChange={(e) => handleTextChange('client_name', e.target.value)} />
+                <input 
+                    type="text" 
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" 
+                    value={formData.client_name} 
+                    onChange={(e) => handleTextChange('client_name', e.target.value)} 
+                    onBlur={(e) => handleTextChange('client_name', e.target.value.trim())}
+                />
                 {duplicateClientCases.length > 0 && (
                     <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex flex-col gap-1">
                         <span className="text-xs text-blue-700 font-bold flex items-center">
@@ -1105,6 +1111,7 @@ export function ContractFormModal(props: Props) {
                                 onChange={(e) => {
                                     setOtherProcessType(e.target.value);
                                 }} 
+                                onBlur={(e) => setOtherProcessType(e.target.value.trim())}
                             />
                         </div>
                     )}
@@ -1126,7 +1133,7 @@ export function ContractFormModal(props: Props) {
                     <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}>
                         <CustomSelect 
                             label="Posição no Processo" 
-                            value={currentProcess.position || formData.client_position || ''} 
+                            value={currentProcess.position || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} 
                             options={positionSelectOptions} 
                             onAction={handleAddPosition}
@@ -1473,6 +1480,7 @@ export function ContractFormModal(props: Props) {
                         className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none h-24 resize-none" 
                         value={(formData as any).reference || ''} 
                         onChange={e => setFormData({...formData, reference: e.target.value} as any)} 
+                        onBlur={e => setFormData({...formData, reference: e.target.value.trim()} as any)}
                         placeholder="Ex: Proposta 123/2025" 
                     />
                 </div>
@@ -1511,7 +1519,15 @@ export function ContractFormModal(props: Props) {
             )}
           </section>
 
-          <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label>
+            <textarea 
+                className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" 
+                value={formData.observations} 
+                onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}
+                onBlur={(e) => setFormData({...formData, observations: toTitleCase(e.target.value.trim())})}
+            ></textarea>
+          </div>
 
           {isEditing && timelineData.length > 0 && (
             <div className="border-t border-black/5 pt-6">
