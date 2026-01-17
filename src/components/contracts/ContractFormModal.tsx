@@ -38,9 +38,10 @@ const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: 
         <div className="relative h-full w-full">
             <select
                 className="w-full h-full appearance-none bg-transparent pl-3 pr-8 text-xs font-medium text-gray-700 outline-none cursor-pointer focus:bg-gray-50 transition-colors"
-                value={value || '1x'}
+                value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
             >
+                <option value="">Selecione</option>
                 {options.map(opt => (
                     <option key={opt} value={opt}>{opt}</option>
                 ))}
@@ -68,7 +69,7 @@ const FinancialInputWithInstallments = ({
           placeholder="R$ 0,00"
         />
         <div className={`w-20 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}>
-           <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
+           <MinimalSelect value={installments || ''} onChange={onChangeInstallments} options={installmentOptions} />
         </div>
         {onAdd && (
           <button 
@@ -143,12 +144,12 @@ export function ContractFormModal(props: Props) {
   const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-  const [interimInstallments, setInterimInstallments] = useState('1x');
+  const [interimInstallments, setInterimInstallments] = useState('');
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
   
   // Estado local para adicionar magistrados
-  const [newMagistrateTitle, setNewMagistrateTitle] = useState('Juiz');
+  const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
   
   // Estado para controlar o tipo de numeração do processo (CNJ ou Outro)
@@ -188,7 +189,7 @@ export function ContractFormModal(props: Props) {
     } else {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-      setInterimInstallments('1x');
+      setInterimInstallments('');
       setIsStandardCNJ(true);
       setOtherProcessType('');
       // Limpar UF do processo ao abrir novo modal
@@ -258,7 +259,7 @@ export function ContractFormModal(props: Props) {
         if (indexB !== -1) return 1;
         return a.label.localeCompare(b.label);
       });
-      const options = sortedData.map(s => ({ label: s.label, value: s.value }));
+      const options = [{ label: 'Selecione', value: '' }, ...sortedData.map(s => ({ label: s.label, value: s.value }))];
       setStatusOptions(options);
     }
   };
@@ -865,24 +866,25 @@ export function ContractFormModal(props: Props) {
 
   const handleTextChange = (field: keyof Contract, value: string) => { setFormData({ ...formData, [field]: toTitleCase(value) }); };
 
-  const partnerSelectOptions = partners.map(p => ({ label: p.name, value: p.id }));
-  const analystSelectOptions = analysts ? analysts.map(a => ({ label: a.name, value: a.id })) : [];
-  const ufOptions = UFS.map(uf => ({ label: uf.nome, value: uf.sigla }));
-  const positionSelectOptions = positionsList.map(p => ({ label: p, value: p }));
-  const billingOptions = billingLocations.map(l => ({ label: l, value: l }));
-  const signatureOptions = [{ label: 'Sim', value: 'true' }, { label: 'Não (Cobrar)', value: 'false' }];
-  const rejectionByOptions = [{ label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
-  const rejectionReasonOptions = [{ label: 'Cliente declinou', value: 'Cliente declinou' }, { label: 'Cliente não retornou', value: 'Cliente não retornou' }, { label: 'Caso ruim', value: 'Caso ruim' }, { label: 'Conflito de interesses', value: 'Conflito de interesses' }];
-  const areaOptions = legalAreas.map(a => ({ label: a, value: a }));
-  const magistrateTypes = [{ label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }];
+  // PREPENDED SELECIONE OPTION TO ALL GENERATED OPTIONS
+  const partnerSelectOptions = [{ label: 'Selecione', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))];
+  const analystSelectOptions = [{ label: 'Selecione', value: '' }, ...(analysts ? analysts.map(a => ({ label: a.name, value: a.id })) : [])];
+  const ufOptions = [{ label: 'Selecione', value: '' }, ...UFS.map(uf => ({ label: uf.nome, value: uf.sigla }))];
+  const positionSelectOptions = [{ label: 'Selecione', value: '' }, ...positionsList.map(p => ({ label: p, value: p }))];
+  const billingOptions = [{ label: 'Selecione', value: '' }, ...billingLocations.map(l => ({ label: l, value: l }))];
+  const signatureOptions = [{ label: 'Selecione', value: '' }, { label: 'Sim', value: 'true' }, { label: 'Não (Cobrar)', value: 'false' }];
+  const rejectionByOptions = [{ label: 'Selecione', value: '' }, { label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
+  const rejectionReasonOptions = [{ label: 'Selecione', value: '' }, { label: 'Cliente declinou', value: 'Cliente declinou' }, { label: 'Cliente não retornou', value: 'Cliente não retornou' }, { label: 'Caso ruim', value: 'Caso ruim' }, { label: 'Conflito de interesses', value: 'Conflito de interesses' }];
+  const areaOptions = [{ label: 'Selecione', value: '' }, ...legalAreas.map(a => ({ label: a, value: a }))];
+  const magistrateTypes = [{ label: 'Selecione', value: '' }, { label: 'Juiz', value: 'Juiz' }, { label: 'Desembargador', value: 'Desembargador' }, { label: 'Ministro', value: 'Ministro' }];
   
   // Opções formatadas para CustomSelect
-  const justiceSelectOptions = justiceOptions.map(j => ({ label: j, value: j }));
-  const varaSelectOptions = varaOptions.map(v => ({ label: v, value: v }));
-  const courtSelectOptions = courtOptions.map(c => ({ label: c, value: c }));
-  const comarcaSelectOptions = comarcaOptions.map(c => ({ label: c, value: c }));
-  const classSelectOptions = classOptions.map(c => ({ label: c, value: c }));
-  const subjectSelectOptions = subjectOptions.map(s => ({ label: s, value: s }));
+  const justiceSelectOptions = [{ label: 'Selecione', value: '' }, ...justiceOptions.map(j => ({ label: j, value: j }))];
+  const varaSelectOptions = [{ label: 'Selecione', value: '' }, ...varaOptions.map(v => ({ label: v, value: v }))];
+  const courtSelectOptions = [{ label: 'Selecione', value: '' }, ...courtOptions.map(c => ({ label: c, value: c }))];
+  const comarcaSelectOptions = [{ label: 'Selecione', value: '' }, ...comarcaOptions.map(c => ({ label: c, value: c }))];
+  const classSelectOptions = [{ label: 'Selecione', value: '' }, ...classOptions.map(c => ({ label: c, value: c }))];
+  const subjectSelectOptions = [{ label: 'Selecione', value: '' }, ...subjectOptions.map(s => ({ label: s, value: s }))];
 
   if (!isOpen) return null;
 
@@ -943,6 +945,7 @@ export function ContractFormModal(props: Props) {
                                     }
                                 }}
                                 options={[
+                                    { label: 'Selecione', value: '' },
                                     { label: 'CNJ', value: 'cnj' },
                                     { label: 'Outro', value: 'other' }
                                 ]}
@@ -1021,7 +1024,7 @@ export function ContractFormModal(props: Props) {
                             label="Contrário (Parte Oposta) *" 
                             value={currentProcess.opponent || formData.company_name || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
-                            options={opponentOptions.map(o => ({ label: o, value: o }))}
+                            options={[{ label: 'Selecione', value: '' }, ...opponentOptions.map(o => ({ label: o, value: o }))]}
                             onAction={handleAddOpponent}
                             actionLabel="Adicionar Parte Oposta"
                             placeholder="Selecione ou adicione"
@@ -1041,7 +1044,7 @@ export function ContractFormModal(props: Props) {
                                 <CustomSelect 
                                     value={newMagistrateName}
                                     onChange={(val: string) => setNewMagistrateName(val)}
-                                    options={magistrateOptions.map(m => ({ label: m, value: m }))}
+                                    options={[{ label: 'Selecione', value: '' }, ...magistrateOptions.map(m => ({ label: m, value: m }))]}
                                     placeholder="Selecione magistrado"
                                     onAction={handleAddMagistrateName}
                                     actionLabel="Adicionar Novo Magistrado"
@@ -1068,7 +1071,7 @@ export function ContractFormModal(props: Props) {
                             label="Numeral" 
                             value={(currentProcess as any).numeral || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, numeral: val} as any)} 
-                            options={numeralOptions} 
+                            options={[{ label: 'Selecione', value: '' }, ...numeralOptions]} 
                             placeholder="Nº"
                         />
                     </div>
