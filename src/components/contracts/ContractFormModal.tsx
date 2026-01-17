@@ -40,6 +40,18 @@ const localMaskCNJ = (value: string) => {
         .substring(0, 25);
 };
 
+// Função interna robusta para converter string BRL para float antes de salvar
+const safeParseFloat = (value: string | number | undefined | null): number => {
+    if (!value) return 0;
+    if (typeof value === 'number') return value;
+    
+    // Remove "R$", espaços, pontos de milhar e substitui vírgula por ponto
+    const cleanStr = value.toString().replace(/[^\d,-]/g, '').replace(',', '.');
+    const floatVal = parseFloat(cleanStr);
+    
+    return isNaN(floatVal) ? 0 : floatVal;
+};
+
 const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => {
     return (
         <div className="relative h-full w-full">
@@ -580,7 +592,7 @@ export function ContractFormModal(props: Props) {
     
     const installmentsToInsert: any[] = [];
     const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string) => {
-      const totalValue = parseCurrency(totalValueStr);
+      const totalValue = safeParseFloat(totalValueStr);
       if (totalValue <= 0) return;
       const numInstallments = parseInt((installmentsStr || '1x').replace('x', '')) || 1;
       const amountPerInstallment = totalValue / numInstallments;
@@ -598,7 +610,7 @@ export function ContractFormModal(props: Props) {
     // Intermediate Fees Logic (Existing)
     if (formData.intermediate_fees && formData.intermediate_fees.length > 0) {
       formData.intermediate_fees.forEach(fee => {
-        const val = parseCurrency(fee);
+        const val = safeParseFloat(fee);
         if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'intermediate_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
       });
     }
@@ -606,7 +618,7 @@ export function ContractFormModal(props: Props) {
     // Pro Labore Extras (Replicating Intermediate Logic)
     if ((formData as any).pro_labore_extras && (formData as any).pro_labore_extras.length > 0) {
         (formData as any).pro_labore_extras.forEach((fee: string) => {
-          const val = parseCurrency(fee);
+          const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'pro_labore', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
     }
@@ -614,7 +626,7 @@ export function ContractFormModal(props: Props) {
     // Final Success Extras (Replicating Intermediate Logic)
     if ((formData as any).final_success_extras && (formData as any).final_success_extras.length > 0) {
         (formData as any).final_success_extras.forEach((fee: string) => {
-          const val = parseCurrency(fee);
+          const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'final_success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
     }
@@ -622,7 +634,7 @@ export function ContractFormModal(props: Props) {
     // Other Fees Extras (Replicating Intermediate Logic)
     if ((formData as any).other_fees_extras && (formData as any).other_fees_extras.length > 0) {
         (formData as any).other_fees_extras.forEach((fee: string) => {
-          const val = parseCurrency(fee);
+          const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'other', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
     }
@@ -630,7 +642,7 @@ export function ContractFormModal(props: Props) {
     // Fixed Monthly Extras (Replicating Intermediate Logic)
     if ((formData as any).fixed_monthly_extras && (formData as any).fixed_monthly_extras.length > 0) {
         (formData as any).fixed_monthly_extras.forEach((fee: string) => {
-          const val = parseCurrency(fee);
+          const val = safeParseFloat(fee);
           if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'fixed', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString() });
         });
     }
@@ -639,10 +651,10 @@ export function ContractFormModal(props: Props) {
   };
 
   const forceUpdateFinancials = async (contractId: string) => {
-    const cleanPL = parseCurrency(formData.pro_labore || "");
-    const cleanSuccess = parseCurrency(formData.final_success_fee || "");
-    const cleanFixed = parseCurrency(formData.fixed_monthly_fee || "");
-    const cleanOther = parseCurrency(formData.other_fees || "");
+    const cleanPL = safeParseFloat(formData.pro_labore || "");
+    const cleanSuccess = safeParseFloat(formData.final_success_fee || "");
+    const cleanFixed = safeParseFloat(formData.fixed_monthly_fee || "");
+    const cleanOther = safeParseFloat(formData.other_fees || "");
 
     await supabase.from('contracts').update({
       pro_labore: cleanPL,
@@ -680,10 +692,10 @@ export function ContractFormModal(props: Props) {
         const contractPayload: any = {
             ...formData,
             client_id: clientId,
-            pro_labore: parseCurrency(formData.pro_labore),
-            final_success_fee: parseCurrency(formData.final_success_fee),
-            fixed_monthly_fee: parseCurrency(formData.fixed_monthly_fee),
-            other_fees: parseCurrency(formData.other_fees),
+            pro_labore: safeParseFloat(formData.pro_labore),
+            final_success_fee: safeParseFloat(formData.final_success_fee),
+            fixed_monthly_fee: safeParseFloat(formData.fixed_monthly_fee),
+            other_fees: safeParseFloat(formData.other_fees),
             
             // Garantindo que os arrays extras sejam salvos
             pro_labore_extras: (formData as any).pro_labore_extras,
