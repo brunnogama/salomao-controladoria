@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye, AlertTriangle } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -167,6 +167,7 @@ export function ContractFormModal(props: Props) {
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [showPositionManager, setShowPositionManager] = useState(false);
+  const [initialFormData, setInitialFormData] = useState<Contract | null>(null);
     
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
   const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
@@ -202,6 +203,7 @@ export function ContractFormModal(props: Props) {
       fetchStatuses();
       fetchAuxiliaryTables();
       if (formData.id) fetchDocuments();
+      setInitialFormData(JSON.parse(JSON.stringify(formData)));
     } else {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
@@ -213,6 +215,7 @@ export function ContractFormModal(props: Props) {
       setDuplicateClientCases([]);
       setDuplicateOpponentCases([]);
       setDuplicateProcessWarning(false);
+      setInitialFormData(null);
     }
   }, [isOpen, formData.id]);
 
@@ -716,6 +719,23 @@ export function ContractFormModal(props: Props) {
             id: undefined,
         };
 
+        // LÓGICA DE SNAPSHOT (PROPOSTA -> ATIVO)
+        if (formData.status === 'active' && initialFormData && initialFormData.status === 'proposal') {
+            const snapshot = {
+                pro_labore: initialFormData.pro_labore,
+                final_success_fee: initialFormData.final_success_fee,
+                fixed_monthly_fee: initialFormData.fixed_monthly_fee,
+                other_fees: initialFormData.other_fees,
+                pro_labore_extras: (initialFormData as any).pro_labore_extras,
+                final_success_extras: (initialFormData as any).final_success_extras,
+                fixed_monthly_extras: (initialFormData as any).fixed_monthly_extras,
+                other_fees_extras: (initialFormData as any).other_fees_extras,
+                proposal_date: initialFormData.proposal_date,
+                saved_at: new Date().toISOString()
+            };
+            contractPayload.proposal_snapshot = snapshot;
+        }
+
         Object.keys(contractPayload).forEach(key => contractPayload[key] === undefined && delete contractPayload[key]);
 
         let savedId = formData.id;
@@ -985,6 +1005,51 @@ export function ContractFormModal(props: Props) {
   const comarcaSelectOptions = [{ label: 'Selecione', value: '' }, ...comarcaOptions.map(c => ({ label: c, value: c }))];
   const classSelectOptions = [{ label: 'Selecione', value: '' }, ...classOptions.map(c => ({ label: c, value: c }))];
   const subjectSelectOptions = [{ label: 'Selecione', value: '' }, ...subjectOptions.map(s => ({ label: s, value: s }))];
+
+  const renderFinancialComparison = () => {
+      const snapshot = (formData as any).proposal_snapshot;
+      if (!snapshot) return null;
+
+      const getValue = (val: any) => safeParseFloat(val);
+      const format = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+      const renderRow = (label: string, currentVal: any, snapshotVal: any) => {
+          const current = getValue(currentVal);
+          const old = getValue(snapshotVal);
+          const diff = current - old;
+          
+          if (current === 0 && old === 0) return null;
+
+          return (
+              <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0 text-sm">
+                  <span className="text-gray-600 font-medium w-1/3">{label}</span>
+                  <div className="flex-1 flex justify-end gap-4 text-right">
+                      <span className="text-gray-400 line-through text-xs" title="Valor na Proposta">{format(old)}</span>
+                      <span className="font-bold text-gray-800" title="Valor Fechado">{format(current)}</span>
+                      <span className={`font-mono text-xs font-bold flex items-center ${diff > 0 ? 'text-green-600' : diff < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                          {diff > 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : diff < 0 ? <TrendingDown className="w-3 h-3 mr-1" /> : null}
+                          {diff > 0 ? '+' : ''}{format(diff)}
+                      </span>
+                  </div>
+              </div>
+          );
+      };
+
+      return (
+          <div className="bg-white/80 border border-indigo-100 rounded-xl p-4 mb-6 shadow-sm">
+              <h4 className="text-xs font-bold text-indigo-800 uppercase mb-3 flex items-center">
+                  <HistoryIcon className="w-3 h-3 mr-2" />
+                  Histórico de Valores (Proposta vs Fechamento)
+              </h4>
+              <div className="space-y-1">
+                  {renderRow('Pró-Labore', formData.pro_labore, snapshot.pro_labore)}
+                  {renderRow('Êxito Final', formData.final_success_fee, snapshot.final_success_fee)}
+                  {renderRow('Fixo Mensal', formData.fixed_monthly_fee, snapshot.fixed_monthly_fee)}
+                  {renderRow('Outros Honorários', formData.other_fees, snapshot.other_fees)}
+              </div>
+          </div>
+      );
+  };
 
   if (!isOpen) return null;
 
@@ -1498,6 +1563,7 @@ export function ContractFormModal(props: Props) {
 
            {formData.status === 'active' && (
             <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
+                {renderFinancialComparison()}
                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                    <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
                    <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
