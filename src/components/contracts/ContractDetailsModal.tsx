@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown, Calculator, Paperclip, CheckCircle2 } from 'lucide-react';
 import { Contract, ContractProcess, ContractDocument } from '../../types';
-import { parseCurrency } from '../../utils/masks'; // Assumindo que parseCurrency está exportado aqui, conforme visto no seu FormModal
+import { parseCurrency } from '../../utils/masks'; 
 
 // Interface interna para os eventos construídos a partir das datas do formulário
 interface InternalTimelineEvent {
@@ -41,7 +41,7 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   processes: ContractProcess[];
-  documents?: ContractDocument[]; // Adicionado para receber a lista de documentos
+  documents?: ContractDocument[];
 }
 
 export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes, documents = [] }: Props) {
@@ -51,7 +51,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
   const buildInternalTimeline = (): InternalTimelineEvent[] => {
     const events: InternalTimelineEvent[] = [];
 
-    // Adiciona eventos apenas se a data interna estiver preenchida no formulário
     if (contract.prospect_date) {
       events.push({ label: 'Sob Análise (Prospect)', date: contract.prospect_date, status: 'analysis', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' });
     }
@@ -68,13 +67,11 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
       events.push({ label: 'Probono', date: contract.probono_date, status: 'probono', color: 'bg-purple-100 text-purple-800 border-purple-200' });
     }
 
-    // Ordena cronologicamente (Data mais antiga primeiro)
     return events.sort((a, b) => a.date.localeCompare(b.date));
   };
 
   const timelineEvents = buildInternalTimeline();
 
-  // Cálculo da duração total (Primeiro evento -> Último evento)
   const getTotalDuration = () => {
     if (timelineEvents.length < 2) return '0 dias';
     const first = timelineEvents[0];
@@ -98,39 +95,58 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
     return map[status] || status;
   };
 
-  // --- LÓGICA DE CÁLCULO FINANCEIRO ---
+  // --- LÓGICA DE CÁLCULO FINANCEIRO CORRIGIDA ---
   const calculateFinancials = () => {
     const isFinancialRelevant = ['proposal', 'active'].includes(contract.status);
 
-    // Valores Base
+    // 1. Pró-Labore (Base + Extras)
     const proLaboreBase = parseCurrency(contract.pro_labore);
-    const finalFeeBase = parseCurrency(contract.final_success_fee);
+    // CORREÇÃO: Tratando como string[] igual ao intermediate_fees
+    const proLaboreExtrasTotal = (contract as any).pro_labore_extras?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
+    const totalProLabore = proLaboreBase + proLaboreExtrasTotal;
 
-    // Extras Pró-Labore
-    const proLaboreExtrasTotal = (contract as any).pro_labore_extras?.reduce((acc: number, item: any) => acc + parseCurrency(item.value), 0) || 0;
-    
-    // Êxito Intermediário (Lista de strings monetárias)
+    // 2. Êxito Intermediário (Lista)
     const intermediateTotal = contract.intermediate_fees?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
 
-    // Extras Êxito Final
-    const finalFeeExtrasTotal = (contract as any).final_success_extras?.reduce((acc: number, item: any) => acc + parseCurrency(item.value), 0) || 0;
-
-    // Totais por Categoria
-    const totalProLabore = proLaboreBase + proLaboreExtrasTotal;
+    // 3. Êxito Final (Base + Extras)
+    const finalFeeBase = parseCurrency(contract.final_success_fee);
+    // CORREÇÃO: Tratando como string[]
+    const finalFeeExtrasTotal = (contract as any).final_success_extras?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
     const totalFinalFee = finalFeeBase + finalFeeExtrasTotal;
+
+    // 4. Outros Honorários (Base + Extras)
+    const otherFeesBase = parseCurrency(contract.other_fees);
+    // CORREÇÃO: Tratando como string[]
+    const otherFeesExtrasTotal = (contract as any).other_fees_extras?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
+    const totalOtherFees = otherFeesBase + otherFeesExtrasTotal;
+
+    // 5. Fixo Mensal (Base + Extras)
+    const fixedMonthlyBase = parseCurrency(contract.fixed_monthly_fee);
+    // CORREÇÃO: Tratando como string[]
+    const fixedMonthlyExtrasTotal = (contract as any).fixed_monthly_extras?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
+    const totalFixedMonthly = fixedMonthlyBase + fixedMonthlyExtrasTotal;
     
-    // Soma Geral (Apenas monetária)
-    const grandTotal = totalProLabore + intermediateTotal + totalFinalFee;
+    // Soma Geral
+    const grandTotal = totalProLabore + intermediateTotal + totalFinalFee + totalOtherFees + totalFixedMonthly;
 
     return {
       showTotals: isFinancialRelevant,
       totalProLabore,
       totalFinalFee,
       intermediateTotal,
+      totalOtherFees,
+      totalFixedMonthly,
       grandTotal,
+      
+      // Flags para UI
       hasProLaboreExtras: proLaboreExtrasTotal > 0,
       hasFinalFeeExtras: finalFeeExtrasTotal > 0,
-      hasIntermediate: intermediateTotal > 0
+      hasOtherFeesExtras: otherFeesExtrasTotal > 0,
+      hasFixedMonthlyExtras: fixedMonthlyExtrasTotal > 0,
+      hasIntermediate: intermediateTotal > 0,
+      
+      hasFixed: totalFixedMonthly > 0,
+      hasOther: totalOtherFees > 0
     };
   };
 
@@ -138,7 +154,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      {/* Tamanho aumentado para max-w-7xl */}
       <div className="bg-white w-full max-w-7xl rounded-3xl shadow-2xl flex flex-col max-h-[95vh] animate-in zoom-in-95 overflow-hidden">
         
         {/* Header */}
@@ -153,7 +168,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   HON: {contract.hon_number}
                 </span>
               )}
-              {/* Sinalização de Arquivo Vinculado */}
               {documents.length > 0 && (
                 <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100" title={`${documents.length} arquivo(s) vinculado(s)`}>
                   <Paperclip className="w-3 h-3" /> {documents.length} Anexo(s)
@@ -167,7 +181,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           </div>
           
-          {/* Ações */}
           <div className="flex gap-2">
             <button onClick={onEdit} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Editar">
               <Edit className="w-5 h-5" />
@@ -203,7 +216,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   <label className="text-xs text-gray-400 block">Documento (CNPJ/CPF)</label>
                   <div className="text-gray-800 font-mono mt-1">{contract.cnpj || 'Não informado'}</div>
                 </div>
-                {/* Referência (se houver) */}
                 {(contract as any).reference_text && (
                   <div className="mt-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
                     <label className="text-xs text-gray-400 block font-bold mb-1">Referência</label>
@@ -213,7 +225,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
               </div>
             </div>
 
-            {/* Coluna 2: Financeiro (Dinâmica) */}
+            {/* Coluna 2: Financeiro */}
             <div className="space-y-6">
               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center justify-between">
                 Financeiro
@@ -222,7 +234,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
               
               <div className="space-y-4">
                 
-                {/* Visualização Detalhada para Proposta/Ativo */}
                 {financials.showTotals ? (
                   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                     <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase flex items-center">
@@ -247,7 +258,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                         </div>
                       )}
 
-                      {/* Êxito Final (R$) */}
+                      {/* Êxito Final */}
                       <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50 bg-green-50/30">
                          <div>
                            <p className="text-xs font-medium text-green-600">Êxito Final (Valor)</p>
@@ -256,6 +267,28 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                          <span className="text-sm font-bold text-green-800">{formatMoney(financials.totalFinalFee)}</span>
                       </div>
 
+                      {/* Outros Honorários */}
+                      {(financials.hasOther) && (
+                        <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50">
+                           <div>
+                             <p className="text-xs font-medium text-gray-600">Outros Honorários</p>
+                             {financials.hasOtherFeesExtras && <span className="text-[10px] text-gray-400">(Inclui extras)</span>}
+                           </div>
+                           <span className="text-sm font-bold text-gray-800">{formatMoney(financials.totalOtherFees)}</span>
+                        </div>
+                      )}
+
+                       {/* Fixo Mensal */}
+                       {(financials.hasFixed) && (
+                        <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50">
+                           <div>
+                             <p className="text-xs font-medium text-gray-600">Fixo Mensal</p>
+                             {financials.hasFixedMonthlyExtras && <span className="text-[10px] text-gray-400">(Inclui extras)</span>}
+                           </div>
+                           <span className="text-sm font-bold text-gray-800">{formatMoney(financials.totalFixedMonthly)}</span>
+                        </div>
+                      )}
+
                       {/* TOTAL GERAL */}
                       <div className="px-4 py-4 bg-gray-50 flex justify-between items-center border-t border-gray-200">
                          <p className="text-sm font-black text-gray-800 uppercase">Total Geral</p>
@@ -263,16 +296,19 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                       </div>
                     </div>
 
-                    {/* Indicadores de Porcentagem (Não somados) */}
                     {(contract.final_success_percent || (contract as any).percent_extras) && (
                        <div className="px-4 py-2 bg-yellow-50 border-t border-yellow-100 flex flex-wrap gap-2 items-center">
                           <span className="text-[10px] font-bold text-yellow-700 uppercase">Indicadores (%):</span>
                           {contract.final_success_percent && <span className="text-xs font-bold text-yellow-800 bg-white px-2 py-0.5 rounded border border-yellow-200">{contract.final_success_percent} (Final)</span>}
+                          
+                          {/* Exibir Extras de Percentual se houver */}
+                          {(contract as any).percent_extras?.map((val: string, idx: number) => (
+                             <span key={idx} className="text-xs font-bold text-yellow-800 bg-white px-2 py-0.5 rounded border border-yellow-200">{val}</span>
+                          ))}
                        </div>
                     )}
                   </div>
                 ) : (
-                  // Visualização Simples (Sob Análise, Rejeitado, etc)
                   <>
                     <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
                       <label className="text-xs text-gray-500 block font-bold uppercase">Estimativa Pró-Labore</label>
@@ -321,7 +357,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           )}
 
-          {/* --- TIMELINE DE STATUS (DATAS INTERNAS) --- */}
           {timelineEvents.length > 0 && (
             <div className="border-t border-gray-100 pt-6">
               <div className="flex justify-between items-center mb-6">
@@ -338,14 +373,12 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   const isLast = idx === timelineEvents.length - 1;
                   const nextEvent = !isLast ? timelineEvents[idx + 1] : null;
                   
-                  // Calcula duração até o próximo evento (se existir)
                   const durationToNext = nextEvent 
                     ? getDurationBetween(event.date, nextEvent.date)
                     : null;
 
                   return (
                     <div key={idx} className="relative pl-8 pb-8 last:pb-0 group">
-                      {/* Bolinha da Timeline */}
                       <span className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${event.status === contract.status ? 'bg-salomao-blue border-blue-200 scale-110' : 'bg-white border-gray-300'}`}></span>
                       
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-lg border border-gray-100 shadow-sm hover:border-blue-200 transition-colors">
@@ -361,7 +394,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                           </p>
                         </div>
 
-                        {/* Se houver próximo evento, mostra a duração entre eles */}
                         {durationToNext && (
                            <div className="mt-3 sm:mt-0 flex items-center text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
                               <ArrowDown className="w-3 h-3 mr-1" />
