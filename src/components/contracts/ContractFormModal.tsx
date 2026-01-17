@@ -13,6 +13,7 @@ const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, {
 const DEFAULT_COURTS = ['STF', 'STJ', 'TST', 'TRF1', 'TRF2', 'TRF3', 'TRF4', 'TRF5', 'TJSP', 'TJRJ', 'TJMG', 'TJRS', 'TJPR', 'TJSC', 'TJBA', 'TJDFT', 'TRT1', 'TRT2', 'TRT15'];
 const DEFAULT_CLASSES = ['Procedimento Comum', 'Execução de Título Extrajudicial', 'Monitória', 'Mandado de Segurança', 'Ação Trabalhista - Rito Ordinário', 'Ação Trabalhista - Rito Sumaríssimo', 'Recurso Ordinário', 'Agravo de Instrumento', 'Apelação'];
 const DEFAULT_SUBJECTS = ['Dano Moral', 'Dano Material', 'Inadimplemento', 'Rescisão Indireta', 'Verbas Rescisórias', 'Acidente de Trabalho', 'Doença Ocupacional', 'Horas Extras', 'Assédio Moral'];
+const DEFAULT_POSITIONS = ['Autor', 'Réu', 'Terceiro Interessado', 'Exequente', 'Executado', 'Reclamante', 'Reclamado', 'Apelante', 'Apelado', 'Agravante', 'Agravado', 'Impetrante', 'Impetrado'];
 
 // Função auxiliar aprimorada para garantir formatação R$ ao carregar do banco
 const formatForInput = (val: string | number | undefined) => {
@@ -166,6 +167,7 @@ export function ContractFormModal(props: Props) {
   const [comarcaOptions, setComarcaOptions] = useState<string[]>([]); 
   const [classOptions, setClassOptions] = useState<string[]>(DEFAULT_CLASSES);
   const [subjectOptions, setSubjectOptions] = useState<string[]>(DEFAULT_SUBJECTS);
+  const [positionsList, setPositionsList] = useState<string[]>(DEFAULT_POSITIONS);
   const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
 
@@ -208,6 +210,10 @@ export function ContractFormModal(props: Props) {
     // Assuntos (Mesclando com Defaults)
     const { data: subjects } = await supabase.from('process_subjects').select('name').order('name');
     if (subjects) setSubjectOptions(prev => Array.from(new Set([...DEFAULT_SUBJECTS, ...subjects.map(s => s.name)])).sort());
+
+    // Posições (Mesclando com Defaults) - ADICIONADO RESTAURAÇÃO
+    const { data: positions } = await supabase.from('process_positions').select('name').order('name');
+    if (positions) setPositionsList(prev => Array.from(new Set([...DEFAULT_POSITIONS, ...positions.map(p => p.name)])).sort());
 
     // Magistrados
     const { data: mags } = await supabase.from('magistrates').select('name').order('name');
@@ -459,6 +465,22 @@ export function ContractFormModal(props: Props) {
                 setCurrentProcess({...currentProcess, process_class: cleanClass});
             } else {
                 alert("Erro ao salvar classe: " + error.message);
+            }
+        }
+    }
+  };
+
+  const handleAddPosition = async () => {
+    const newPos = window.prompt("Digite a nova Posição no Processo:");
+    if (newPos) {
+        const cleanPos = toTitleCase(newPos);
+        if (!positionsList.includes(cleanPos)) {
+            const { error } = await supabase.from('process_positions').insert({ name: cleanPos });
+            if (!error) {
+                setPositionsList([...positionsList, cleanPos].sort());
+                setCurrentProcess({...currentProcess, position: cleanPos});
+            } else {
+                alert("Erro ao salvar posição: " + error.message);
             }
         }
     }
@@ -846,7 +868,7 @@ export function ContractFormModal(props: Props) {
   const partnerSelectOptions = partners.map(p => ({ label: p.name, value: p.id }));
   const analystSelectOptions = analysts ? analysts.map(a => ({ label: a.name, value: a.id })) : [];
   const ufOptions = UFS.map(uf => ({ label: uf.nome, value: uf.sigla }));
-  const positionOptions = [{ label: 'Autor', value: 'Autor' }, { label: 'Réu', value: 'Réu' }, { label: 'Terceiro Interessado', value: 'Terceiro' }];
+  const positionSelectOptions = positionsList.map(p => ({ label: p, value: p }));
   const billingOptions = billingLocations.map(l => ({ label: l, value: l }));
   const signatureOptions = [{ label: 'Sim', value: 'true' }, { label: 'Não (Cobrar)', value: 'false' }];
   const rejectionByOptions = [{ label: 'Cliente', value: 'Cliente' }, { label: 'Escritório', value: 'Escritório' }];
@@ -979,7 +1001,17 @@ export function ContractFormModal(props: Props) {
                         />
                     </div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
-                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" /></div>
+                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}>
+                        <CustomSelect 
+                            label="Posição no Processo" 
+                            value={currentProcess.position || formData.client_position || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} 
+                            options={positionSelectOptions} 
+                            onAction={handleAddPosition}
+                            actionLabel="Adicionar Posição"
+                            className="custom-select-small" 
+                        />
+                    </div>
                   </div>
 
                   {/* Linha 2: Parte Oposta, Magistrado */}
