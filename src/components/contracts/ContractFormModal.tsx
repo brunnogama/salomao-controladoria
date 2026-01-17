@@ -24,6 +24,13 @@ const formatForInput = (val: string | number | undefined) => {
   return val;
 };
 
+// Função auxiliar para garantir que a data apareça corretamente no input type="date"
+// Remove a parte do tempo se vier do banco (ex: 2023-01-01T00:00:00 -> 2023-01-01)
+const ensureDateValue = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    return dateStr.split('T')[0];
+};
+
 // Componente visualmente idêntico ao CustomSelect para uso em espaços restritos (como input groups)
 const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => {
     return (
@@ -1062,7 +1069,7 @@ export function ContractFormModal(props: Props) {
 
                   {/* Linha 4: Data Distribuição, Justiça, Valor da Causa */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={currentProcess.distribution_date || ''} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
+                    <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={ensureDateValue(currentProcess.distribution_date)} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
                     <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={handleAddJustice} actionLabel="Adicionar Justiça" /></div>
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                   </div>
@@ -1158,7 +1165,7 @@ export function ContractFormModal(props: Props) {
                 <div className="space-y-4">
                   <div>
                     <label className="text-xs font-medium block mb-1 text-yellow-800">Data Prospect <span className="text-red-500">*</span></label>
-                    <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={formData.prospect_date || ''} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
+                    <input type="date" className="w-full border border-yellow-200 p-2.5 rounded-lg text-sm bg-white focus:border-yellow-400 outline-none" value={ensureDateValue(formData.prospect_date)} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
                   </div>
                 </div>
                 <div><CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" className="border-yellow-200" /></div>
@@ -1170,7 +1177,7 @@ export function ContractFormModal(props: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                    <div>
                      <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
-                     <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={formData.status === 'proposal' ? formData.proposal_date : formData.contract_date} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
+                     <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.status === 'proposal' ? formData.proposal_date : formData.contract_date)} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
                    </div>
 
                    {/* Pró-Labore Simplificado (Agora com + e Tags) */}
@@ -1311,7 +1318,15 @@ export function ContractFormModal(props: Props) {
 
             {formData.status === 'rejected' && (
               <div className="grid grid-cols-3 gap-4">
-                <div><label className="text-xs font-medium block mb-1">Data Rejeição</label><input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" onChange={e => setFormData({...formData, rejection_date: e.target.value})} /></div>
+                <div>
+                    <label className="text-xs font-medium block mb-1">Data Rejeição</label>
+                    <input 
+                        type="date" 
+                        className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
+                        value={ensureDateValue(formData.rejection_date)} 
+                        onChange={e => setFormData({...formData, rejection_date: e.target.value})} 
+                    />
+                </div>
                 <CustomSelect label="Rejeitado por" value={formData.rejected_by || ''} onChange={(val: string) => setFormData({...formData, rejected_by: val})} options={rejectionByOptions} />
                 <CustomSelect label="Motivo" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
               </div>
