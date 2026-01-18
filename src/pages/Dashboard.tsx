@@ -34,7 +34,7 @@ import { Contract } from '../types';
 const safeParseMoney = (value: string | number | undefined | null): number => {
   if (value === undefined || value === null || value === '') return 0;
   if (typeof value === 'number') return value;
-   
+    
   const strVal = String(value).trim();
 
   // Verifica se já está em formato numérico padrão (ex: "1500.00" vindo do DB)
@@ -72,6 +72,8 @@ export function Dashboard() {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
       valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0,
       totalFechadoPL: 0, totalFechadoExito: 0, assinados: 0, naoAssinados: 0,
+      mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0,
+      mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0,
     },
   });
 
@@ -83,7 +85,7 @@ export function Dashboard() {
   });
 
   const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
-   
+    
   // Estado para o gráfico de FECHADOS
   const [financeiro12Meses, setFinanceiro12Meses] = useState<any[]>([]);
   const [statsFinanceiro, setStatsFinanceiro] = useState({ total: 0, media: 0, diff: 0 });
@@ -91,10 +93,10 @@ export function Dashboard() {
   // Estado para o novo gráfico de PROPOSTAS
   const [propostas12Meses, setPropostas12Meses] = useState<any[]>([]);
   const [statsPropostas, setStatsPropostas] = useState({ total: 0, media: 0, diff: 0 });
-   
+    
   const [mediasFinanceiras, setMediasFinanceiras] = useState({ pl: 0, exito: 0 });
   const [mediasPropostas, setMediasPropostas] = useState({ pl: 0, exito: 0 });
-   
+    
   // Novos estados para gráficos de rejeição
   const [rejectionData, setRejectionData] = useState<{
     reasons: { label: string, value: number, percent: number }[],
@@ -210,6 +212,8 @@ export function Dashboard() {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
       valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0,
       totalFechadoPL: 0, totalFechadoExito: 0, assinados: 0, naoAssinados: 0,
+      mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0,
+      mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0,
     };
 
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
@@ -501,6 +505,12 @@ export function Dashboard() {
     const maxQtd = Math.max(...mesesGrafico.map((m) => m.qtd), 1);
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
     
+    // Cálculo das médias mensais para a Fotografia Financeira
+    mGeral.mediaMensalNegociacaoPL = mGeral.valorEmNegociacaoPL / monthsCountProp;
+    mGeral.mediaMensalNegociacaoExito = mGeral.valorEmNegociacaoExito / monthsCountProp;
+    mGeral.mediaMensalCarteiraPL = mGeral.totalFechadoPL / monthsCount;
+    mGeral.mediaMensalCarteiraExito = mGeral.totalFechadoExito / monthsCount;
+
     setEvolucaoMensal(mesesGrafico);
     setMetrics({ semana: mSemana, mes: mMes, geral: mGeral });
 
@@ -656,8 +666,26 @@ export function Dashboard() {
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-6'>
             <h3 className='font-bold text-gray-700 border-b pb-2 flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={20} /> Fotografia Financeira Total</h3>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
-            <div><p className='text-xs text-gray-500 font-medium uppercase mb-2'>Valores em Negociação (Ativo)</p><div className='space-y-2'><FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} /><FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span></div></div></div>
-            <div className='md:border-l md:pl-8 border-gray-100'><p className='text-xs text-gray-500 font-medium uppercase mb-2'>Carteira Ativa (Receita)</p><div className='space-y-2'><FinItem label='Pró-labore Total (Fechado)' value={metrics.geral.totalFechadoPL} colorClass='text-green-700' /><FinItem label='Êxito Total (Fechado)' value={metrics.geral.totalFechadoExito} colorClass='text-green-700' /><FinItem label='Média Mensal do Total' value={metrics.geral.receitaRecorrenteAtiva} colorClass='text-green-700' /><div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span></div></div></div>
+            <div>
+              <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Valores em Negociação (Ativo)</p>
+              <div className='space-y-2'>
+                <FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} />
+                <FinItem label='Média Mensal (PL)' value={metrics.geral.mediaMensalNegociacaoPL} />
+                <FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} />
+                <FinItem label='Média Mensal (Êxito)' value={metrics.geral.mediaMensalNegociacaoExito} />
+                <div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span></div>
+              </div>
+            </div>
+            <div className='md:border-l md:pl-8 border-gray-100'>
+              <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Carteira Ativa (Receita)</p>
+              <div className='space-y-2'>
+                <FinItem label='Pró-labore Total (Fechado)' value={metrics.geral.totalFechadoPL} colorClass='text-green-700' />
+                <FinItem label='Média Mensal (PL)' value={metrics.geral.mediaMensalCarteiraPL} colorClass='text-green-600' />
+                <FinItem label='Êxito Total (Fechado)' value={metrics.geral.totalFechadoExito} colorClass='text-green-700' />
+                <FinItem label='Média Mensal (Êxito)' value={metrics.geral.mediaMensalCarteiraExito} colorClass='text-green-600' />
+                <div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span></div>
+              </div>
+            </div>
             </div>
         </div>
 
