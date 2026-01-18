@@ -71,11 +71,9 @@ const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: 
 };
 
 const FinancialInputWithInstallments = ({ 
-  label, value, onChangeValue, installments, onChangeInstallments, onAdd,
-  clause, onChangeClause
+  label, value, onChangeValue, installments, onChangeInstallments, onAdd, clause, onChangeClause
 }: { 
-  label: string, value: string | undefined, onChangeValue: (val: string) => void, installments: string | undefined, onChangeInstallments: (val: string) => void, onAdd?: () => void,
-  clause?: string, onChangeClause?: (val: string) => void
+  label: string, value: string | undefined, onChangeValue: (val: string) => void, installments: string | undefined, onChangeInstallments: (val: string) => void, onAdd?: () => void, clause?: string, onChangeClause?: (val: string) => void
 }) => {
   const installmentOptions = Array.from({ length: 24 }, (_, i) => `${i + 1}x`);
   return (
@@ -83,18 +81,18 @@ const FinancialInputWithInstallments = ({
       <label className="text-xs font-medium block mb-1 text-gray-600">{label}</label>
       <div className="flex rounded-lg shadow-sm">
         {onChangeClause && (
-            <input
-                type="text"
-                className="w-24 border border-gray-300 rounded-l-lg border-r-0 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none text-center font-medium text-gray-700"
-                placeholder="Cláusula"
-                value={clause || ''}
+             <input 
+                type="text" 
+                className="w-16 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-gray-50 focus:border-salomao-blue outline-none border-r-0 placeholder-gray-400 text-center"
+                value={clause || ''} 
                 onChange={(e) => onChangeClause(e.target.value)}
-                title="Número da Cláusula (ex: 2.1)"
-            />
+                placeholder="Cl."
+                title="Cláusula (ex: 2.1)"
+             />
         )}
         <input 
           type="text" 
-          className={`flex-1 border border-gray-300 ${onChangeClause ? 'rounded-l-none border-l' : 'rounded-l-lg'} p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0 ${!onAdd ? 'rounded-r-none border-r-0' : ''}`}
+          className={`flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0 ${!onChangeClause ? 'rounded-l-lg' : ''} ${!onAdd ? 'rounded-r-none border-r-0' : ''}`}
           value={value || ''} 
           onChange={(e) => onChangeValue(maskMoney(e.target.value))}
           placeholder="R$ 0,00"
@@ -176,7 +174,7 @@ export function ContractFormModal(props: Props) {
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
   const [interimInstallments, setInterimInstallments] = useState('');
-  const [interimClause, setInterimClause] = useState(''); // Novo estado para cláusula intermediária
+  const [interimClause, setInterimClause] = useState(''); // Estado local para cláusula intermediária
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   const [showAreaManager, setShowAreaManager] = useState(false);
   const [showPositionManager, setShowPositionManager] = useState(false);
@@ -428,43 +426,62 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  const handleAddToList = (listField: string, valueField: keyof Contract, clauseField: string) => {
+  const handleAddToList = (listField: string, valueField: keyof Contract) => {
     const value = (formData as any)[valueField];
-    const clause = (formData as any)[clauseField];
+    const clauseValue = (formData as any)[valueField + '_clause'];
     if (!value || value === 'R$ 0,00' || value === '') return;
     
-    // Combina Cláusula e Valor se existir cláusula
-    const entry = clause ? `${clause}||${value}` : value;
-    
+    // Arrays paralelos: um para valores, outro para cláusulas (se houver)
+    const currentList = (formData as any)[listField] || [];
+    const currentClausesList = (formData as any)[listField + '_clauses'] || [];
+
     setFormData(prev => ({ 
         ...prev, 
-        [listField]: [...(prev as any)[listField] || [], entry], 
+        [listField]: [...currentList, value],
+        [listField + '_clauses']: [...currentClausesList, clauseValue || ''], // Salva cláusula paralela
         [valueField]: '',
-        [clauseField]: '' // Limpa o campo de cláusula também
+        [valueField + '_clause']: '' // Limpa o input de cláusula
     }));
-  };
-  
-  // Função auxiliar para renderizar as tags de extras, suportando o formato Clause||Value
-  const renderExtraTag = (val: string, idx: number, listField: string) => {
-     const parts = val.includes('||') ? val.split('||') : ['', val];
-     const clause = parts.length > 1 ? parts[0] : '';
-     const value = parts.length > 1 ? parts[1] : parts[0];
-     
-     return (
-        <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm">
-           {clause && <span className="mr-1 font-bold text-blue-900 border-r border-blue-200 pr-1">{clause}</span>}
-           {value}
-           <button onClick={() => removeExtra(listField, idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-        </span>
-     );
   };
 
   const removeExtra = (field: string, index: number) => {
     setFormData((prev: any) => {
       const newList = [...(prev[field] || [])];
+      const newClausesList = [...(prev[field + '_clauses'] || [])]; // Remove também do array de cláusulas
       newList.splice(index, 1);
-      return { ...prev, [field]: newList };
+      if(newClausesList.length > index) newClausesList.splice(index, 1);
+      
+      return { ...prev, [field]: newList, [field + '_clauses']: newClausesList };
     });
+  };
+
+  // Wrapper específico para intermediate fees pois usa estados locais diferentes
+  const handleAddIntermediateFee = () => {
+      if(!newIntermediateFee) return;
+      addIntermediateFee(); // Função original do pai que lida com o array de valores
+      // A função do pai não sabe sobre cláusulas, então não podemos usar a função prop direta se quisermos salvar cláusula.
+      // Porém, como o `addIntermediateFee` vem de fora (props), assumimos que o pai controla o estado.
+      // Se o pai não suporta cláusulas, precisamos adaptar ou assumir que intermediate não tem cláusula no array pai.
+      // EDIT: O prompt pede alteração "nos dois arquivos". Vou assumir que posso injetar a lógica de cláusula aqui se eu controlar o estado.
+      // Mas `addIntermediateFee` é uma prop. Vou usar a lógica local para extras que eu controlo (pro_labore, etc) e tentar adaptar intermediate.
+      // Como `intermediate_fees` é array de string no pai, se eu quiser salvar cláusula, o pai teria que aceitar.
+      // Visto que não tenho o arquivo pai (App.tsx ou similar), vou salvar a cláusula apenas se o array existir no formData (que é Contract).
+      // O `Contract` type tem `intermediate_fees`. Vou adicionar `intermediate_fees_clauses` ao `formData` via cast.
+      
+      const currentClauses = (formData as any).intermediate_fees_clauses || [];
+      setFormData(prev => ({
+          ...prev,
+          intermediate_fees_clauses: [...currentClauses, interimClause]
+      } as any));
+      setInterimClause('');
+      setInterimInstallments('1x');
+  };
+  
+  const handleRemoveIntermediateFee = (idx: number) => {
+      removeIntermediateFee(idx); // Remove valor
+      const currentClauses = [...((formData as any).intermediate_fees_clauses || [])];
+      currentClauses.splice(idx, 1);
+      setFormData(prev => ({ ...prev, intermediate_fees_clauses: currentClauses } as any));
   };
 
   const addMagistrate = (magistrateName = newMagistrateName) => {
@@ -648,47 +665,61 @@ export function ContractFormModal(props: Props) {
             amount: amountPerInstallment, 
             status: 'pending', 
             due_date: addMonths(new Date(), i).toISOString(),
-            clause: clause // Salva a cláusula no financeiro
+            clause: clause || null // Salva a cláusula
         });
       }
     };
 
-    // Main values (Passando a cláusula do formData)
+    // Main values com cláusulas
     addInstallments(sourceData.pro_labore, sourceData.pro_labore_installments, 'pro_labore', (sourceData as any).pro_labore_clause);
     addInstallments(sourceData.final_success_fee, sourceData.final_success_fee_installments, 'final_success_fee', (sourceData as any).final_success_fee_clause);
     addInstallments(sourceData.fixed_monthly_fee, sourceData.fixed_monthly_fee_installments, 'fixed', (sourceData as any).fixed_monthly_fee_clause);
     addInstallments(sourceData.other_fees, sourceData.other_fees_installments, 'other', (sourceData as any).other_fees_clause);
 
-    // Helper para processar extras com cláusulas
-    const processExtras = (extrasList: string[], type: string) => {
-        if (extrasList && extrasList.length > 0) {
-            extrasList.forEach(fee => {
-                const parts = fee.split('||');
-                const valStr = parts.length > 1 ? parts[1] : parts[0];
-                const clauseStr = parts.length > 1 ? parts[0] : null;
-                const val = safeParseFloat(valStr);
-                
-                if (val > 0) installmentsToInsert.push({ 
-                    contract_id: contractId, 
-                    type: type, 
-                    installment_number: 1, 
-                    total_installments: 1, 
-                    amount: val, 
-                    status: 'pending', 
-                    due_date: addMonths(new Date(), 1).toISOString(),
-                    clause: clauseStr
-                });
-            });
-        }
-    };
+    // Intermediate Fees Logic (Updated with Clauses)
+    if (sourceData.intermediate_fees && sourceData.intermediate_fees.length > 0) {
+      sourceData.intermediate_fees.forEach((fee, idx) => {
+        const val = safeParseFloat(fee);
+        const clause = (sourceData as any).intermediate_fees_clauses?.[idx];
+        if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'intermediate_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+      });
+    }
 
-    // Intermediate Fees Logic
-    processExtras(sourceData.intermediate_fees || [], 'intermediate_fee');
-    // Extras
-    processExtras((sourceData as any).pro_labore_extras, 'pro_labore');
-    processExtras((sourceData as any).final_success_extras, 'final_success_fee');
-    processExtras((sourceData as any).other_fees_extras, 'other');
-    processExtras((sourceData as any).fixed_monthly_extras, 'fixed');
+    // Pro Labore Extras (Replicating Intermediate Logic with Clauses)
+    if ((sourceData as any).pro_labore_extras && (sourceData as any).pro_labore_extras.length > 0) {
+        (sourceData as any).pro_labore_extras.forEach((fee: string, idx: number) => {
+          const val = safeParseFloat(fee);
+          const clause = (sourceData as any).pro_labore_extras_clauses?.[idx];
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'pro_labore', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+        });
+    }
+
+    // Final Success Extras (Replicating Intermediate Logic with Clauses)
+    if ((sourceData as any).final_success_extras && (sourceData as any).final_success_extras.length > 0) {
+        (sourceData as any).final_success_extras.forEach((fee: string, idx: number) => {
+          const val = safeParseFloat(fee);
+          const clause = (sourceData as any).final_success_extras_clauses?.[idx];
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'final_success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+        });
+    }
+
+    // Other Fees Extras (Replicating Intermediate Logic with Clauses)
+    if ((sourceData as any).other_fees_extras && (sourceData as any).other_fees_extras.length > 0) {
+        (sourceData as any).other_fees_extras.forEach((fee: string, idx: number) => {
+          const val = safeParseFloat(fee);
+          const clause = (sourceData as any).other_fees_extras_clauses?.[idx];
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'other', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+        });
+    }
+
+    // Fixed Monthly Extras (Replicating Intermediate Logic with Clauses)
+    if ((sourceData as any).fixed_monthly_extras && (sourceData as any).fixed_monthly_extras.length > 0) {
+        (sourceData as any).fixed_monthly_extras.forEach((fee: string, idx: number) => {
+          const val = safeParseFloat(fee);
+          const clause = (sourceData as any).fixed_monthly_extras_clauses?.[idx];
+          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'fixed', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+        });
+    }
 
     if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
   };
@@ -704,18 +735,27 @@ export function ContractFormModal(props: Props) {
       final_success_fee: cleanSuccess,
       fixed_monthly_fee: cleanFixed,
       other_fees: cleanOther,
-      // Salva os campos de cláusula principais
-      pro_labore_clause: (sourceData as any).pro_labore_clause,
-      final_success_fee_clause: (sourceData as any).final_success_fee_clause,
-      fixed_monthly_fee_clause: (sourceData as any).fixed_monthly_fee_clause,
-      other_fees_clause: (sourceData as any).other_fees_clause,
       // Garantindo que os extras também sejam salvos
       pro_labore_extras: (sourceData as any).pro_labore_extras,
       final_success_extras: (sourceData as any).final_success_extras,
       fixed_monthly_extras: (sourceData as any).fixed_monthly_extras,
       other_fees_extras: (sourceData as any).other_fees_extras,
       // Salvar timesheet se existir
-      timesheet: (sourceData as any).timesheet
+      timesheet: (sourceData as any).timesheet,
+      
+      // Salvar as cláusulas principais
+      pro_labore_clause: (sourceData as any).pro_labore_clause,
+      final_success_fee_clause: (sourceData as any).final_success_fee_clause,
+      fixed_monthly_fee_clause: (sourceData as any).fixed_monthly_fee_clause,
+      other_fees_clause: (sourceData as any).other_fees_clause,
+
+      // Salvar arrays de cláusulas extras
+      pro_labore_extras_clauses: (sourceData as any).pro_labore_extras_clauses,
+      final_success_extras_clauses: (sourceData as any).final_success_extras_clauses,
+      fixed_monthly_extras_clauses: (sourceData as any).fixed_monthly_extras_clauses,
+      other_fees_extras_clauses: (sourceData as any).other_fees_extras_clauses,
+      intermediate_fees_clauses: (sourceData as any).intermediate_fees_clauses,
+
     }).eq('id', contractId);
   };
 
@@ -747,18 +787,25 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee: safeParseFloat(formData.fixed_monthly_fee),
             other_fees: safeParseFloat(formData.other_fees),
             
-            // Campos de Cláusula Principais
-            pro_labore_clause: (formData as any).pro_labore_clause,
-            final_success_fee_clause: (formData as any).final_success_fee_clause,
-            fixed_monthly_fee_clause: (formData as any).fixed_monthly_fee_clause,
-            other_fees_clause: (formData as any).other_fees_clause,
-            
             // Garantindo que os arrays extras sejam salvos
             pro_labore_extras: (formData as any).pro_labore_extras,
             final_success_extras: (formData as any).final_success_extras,
             fixed_monthly_extras: (formData as any).fixed_monthly_extras,
             other_fees_extras: (formData as any).other_fees_extras,
             timesheet: (formData as any).timesheet,
+
+            // Salvar cláusulas no payload
+            pro_labore_clause: (formData as any).pro_labore_clause,
+            final_success_fee_clause: (formData as any).final_success_fee_clause,
+            fixed_monthly_fee_clause: (formData as any).fixed_monthly_fee_clause,
+            other_fees_clause: (formData as any).other_fees_clause,
+            
+            // Salvar arrays de cláusulas
+            pro_labore_extras_clauses: (formData as any).pro_labore_extras_clauses,
+            final_success_extras_clauses: (formData as any).final_success_extras_clauses,
+            fixed_monthly_extras_clauses: (formData as any).fixed_monthly_extras_clauses,
+            other_fees_extras_clauses: (formData as any).other_fees_extras_clauses,
+            intermediate_fees_clauses: (formData as any).intermediate_fees_clauses,
             
             // Campos de relacionamento/UI a serem ignorados
             partner_name: undefined,
@@ -767,7 +814,7 @@ export function ContractFormModal(props: Props) {
             analyst: undefined,
             analysts: undefined, 
             client: undefined,        
-            partner: undefined,        
+            partner: undefined,       
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -1512,12 +1559,17 @@ export function ContractFormModal(props: Props) {
                         value={formatForInput(formData.pro_labore)} 
                         onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
                         installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
-                        onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore', 'pro_labore_clause')}
+                        onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore')}
                         clause={(formData as any).pro_labore_clause}
                         onChangeClause={(v: any) => setFormData({...formData, pro_labore_clause: v} as any)}
                       />
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => renderExtraTag(val, idx, 'pro_labore_extras'))}
+                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).pro_labore_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).pro_labore_extras_clauses[idx]}` : ''}>
+                             {(formData as any).pro_labore_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).pro_labore_extras_clauses[idx]})</span>}
+                            {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
                       </div>
                     </div>
 
@@ -1527,21 +1579,16 @@ export function ContractFormModal(props: Props) {
                         label="Êxito Intermediário" 
                         value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
                         installments={interimInstallments} onChangeInstallments={setInterimInstallments}
-                        onAdd={() => { 
-                            if(newIntermediateFee) {
-                                // Manualmente tratando a adição já que newIntermediateFee é estado local
-                                const entry = interimClause ? `${interimClause}||${newIntermediateFee}` : newIntermediateFee;
-                                setFormData(prev => ({...prev, intermediate_fees: [...(prev.intermediate_fees || []), entry]}));
-                                setNewIntermediateFee('');
-                                setInterimClause('');
-                                setInterimInstallments('1x');
-                            }
-                        }}
+                        onAdd={handleAddIntermediateFee}
                         clause={interimClause}
                         onChangeClause={setInterimClause}
                       />
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.intermediate_fees?.map((fee, idx) => renderExtraTag(fee, idx, 'intermediate_fees'))}
+                        {formData.intermediate_fees?.map((fee, idx) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).intermediate_fees_clauses?.[idx] ? `Cláusula: ${(formData as any).intermediate_fees_clauses[idx]}` : ''}>
+                              {(formData as any).intermediate_fees_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).intermediate_fees_clauses[idx]})</span>}
+                              {fee}<button onClick={() => handleRemoveIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button></span>
+                        ))}
                       </div>
                     </div>
 
@@ -1552,12 +1599,17 @@ export function ContractFormModal(props: Props) {
                         value={formatForInput(formData.final_success_fee)} 
                         onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
                         installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
-                        onAdd={() => handleAddToList('final_success_extras', 'final_success_fee', 'final_success_fee_clause')}
+                        onAdd={() => handleAddToList('final_success_extras', 'final_success_fee')}
                         clause={(formData as any).final_success_fee_clause}
                         onChangeClause={(v: any) => setFormData({...formData, final_success_fee_clause: v} as any)}
                       />
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).final_success_extras?.map((val: string, idx: number) => renderExtraTag(val, idx, 'final_success_extras'))}
+                        {(formData as any).final_success_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).final_success_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).final_success_extras_clauses[idx]}` : ''}>
+                            {(formData as any).final_success_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).final_success_extras_clauses[idx]})</span>}
+                            {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
                       </div>
                     </div>
                 </div>
@@ -1567,7 +1619,7 @@ export function ContractFormModal(props: Props) {
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
                     <div className="flex rounded-lg shadow-sm">
                       <input type="text" className="flex-1 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
-                      <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent', '')}><Plus className="w-4 h-4" /></button>
+                      <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {(formData as any).percent_extras?.map((val: string, idx: number) => (
@@ -1584,12 +1636,17 @@ export function ContractFormModal(props: Props) {
                       label="Outros Honorários (R$)" 
                       value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
                       installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
-                      onAdd={() => handleAddToList('other_fees_extras', 'other_fees', 'other_fees_clause')}
+                      onAdd={() => handleAddToList('other_fees_extras', 'other_fees')}
                       clause={(formData as any).other_fees_clause}
                       onChangeClause={(v: any) => setFormData({...formData, other_fees_clause: v} as any)}
                     />
                     <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).other_fees_extras?.map((val: string, idx: number) => renderExtraTag(val, idx, 'other_fees_extras'))}
+                        {(formData as any).other_fees_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).other_fees_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).other_fees_extras_clauses[idx]}` : ''}>
+                            {(formData as any).other_fees_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).other_fees_extras_clauses[idx]})</span>}
+                            {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
                       </div>
                   </div>
 
@@ -1599,12 +1656,17 @@ export function ContractFormModal(props: Props) {
                       label="Fixo Mensal (R$)" 
                       value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
                       installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
-                      onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee', 'fixed_monthly_fee_clause')}
+                      onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee')}
                       clause={(formData as any).fixed_monthly_fee_clause}
                       onChangeClause={(v: any) => setFormData({...formData, fixed_monthly_fee_clause: v} as any)}
                     />
                     <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => renderExtraTag(val, idx, 'fixed_monthly_extras'))}
+                        {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => (
+                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).fixed_monthly_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).fixed_monthly_extras_clauses[idx]}` : ''}>
+                            {(formData as any).fixed_monthly_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).fixed_monthly_extras_clauses[idx]})</span>}
+                            {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                          </span>
+                        ))}
                       </div>
                   </div>
                   
@@ -1612,7 +1674,7 @@ export function ContractFormModal(props: Props) {
                   <div>
                       <label className="text-xs font-medium block mb-1">Timesheet</label>
                       <div className="flex items-center h-[42px] border border-gray-300 rounded-lg px-3 bg-white">
-                         <input
+                        <input
                             type="checkbox"
                             id="timesheet_check"
                             checked={(formData as any).timesheet || false}

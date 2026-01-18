@@ -117,7 +117,7 @@ export function Finance() {
     const data = filteredInstallments.map(i => ({
       'Cliente': i.contract?.client_name,
       'HON': i.contract?.hon_number,
-      'Cláusula': (i as any).clause || '-',
+      'Cláusula': (i as any).clause || '', // Adicionado no Excel
       'Tipo': getTypeLabel(i.type),
       'Parcela': `${i.installment_number}/${i.total_installments}`,
       'Valor': i.amount,
@@ -246,7 +246,7 @@ export function Finance() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left text-gray-600">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase font-bold border-b border-gray-100">
-                <tr><th className="px-6 py-4">Status / HON</th><th className="px-6 py-4">Vencimento</th><th className="px-6 py-4">Cliente</th><th className="px-6 py-4">Cláusula</th><th className="px-6 py-4">Tipo / Parcela</th><th className="px-6 py-4">Sócio / Local</th><th className="px-6 py-4 text-right">Valor</th><th className="px-6 py-4 text-right">Ação</th></tr>
+                <tr><th className="px-6 py-4">Status / HON</th><th className="px-6 py-4">Vencimento</th><th className="px-6 py-4">Cláusula</th><th className="px-6 py-4">Cliente</th><th className="px-6 py-4">Tipo / Parcela</th><th className="px-6 py-4">Sócio / Local</th><th className="px-6 py-4 text-right">Valor</th><th className="px-6 py-4 text-right">Ação</th></tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredInstallments.map((item) => (
@@ -256,14 +256,8 @@ export function Finance() {
                       <div className="text-xs font-mono text-gray-500">HON: {item.contract?.hon_number || '-'}</div>
                     </td>
                     <td className="px-6 py-4 text-xs font-mono">{item.paid_at ? <span className="text-green-600">Pago: {new Date(item.paid_at).toLocaleDateString()}</span> : item.due_date ? new Date(item.due_date).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-gray-700">{(item as any).clause || '-'}</td>
                     <td className="px-6 py-4"><div className="font-bold text-gray-800">{item.contract?.client_name}</div></td>
-                    <td className="px-6 py-4">
-                        {(item as any).clause ? (
-                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md font-mono text-xs font-bold border border-blue-100">{(item as any).clause}</span>
-                        ) : (
-                            <span className="text-gray-300">-</span>
-                        )}
-                    </td>
                     <td className="px-6 py-4"><div className="text-gray-700 font-medium">{getTypeLabel(item.type)}</div><div className="text-xs text-gray-400">Parcela {item.installment_number}/{item.total_installments}</div></td>
                     <td className="px-6 py-4 text-xs"><div className="text-salomao-blue font-medium">{item.contract?.partner_name || '-'}</div><div className="text-gray-400">{item.contract?.billing_location || '-'}</div></td>
                     <td className="px-6 py-4 text-right font-bold text-gray-800">{item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
