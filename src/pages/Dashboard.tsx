@@ -308,7 +308,7 @@ export function Dashboard() {
       }
 
       // --- POPULA GRÁFICO DE PROPOSTAS (Esquerda) ---
-      if (c.proposal_date) {
+      if (c.status === 'proposal' && c.proposal_date) {
         const dProposta = new Date(c.proposal_date + 'T12:00:00');
         dProposta.setDate(1); dProposta.setHours(0,0,0,0);
 
