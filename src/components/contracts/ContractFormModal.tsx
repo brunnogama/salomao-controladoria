@@ -668,7 +668,9 @@ export function ContractFormModal(props: Props) {
       pro_labore_extras: (sourceData as any).pro_labore_extras,
       final_success_extras: (sourceData as any).final_success_extras,
       fixed_monthly_extras: (sourceData as any).fixed_monthly_extras,
-      other_fees_extras: (sourceData as any).other_fees_extras
+      other_fees_extras: (sourceData as any).other_fees_extras,
+      // Salvar timesheet se existir
+      timesheet: (sourceData as any).timesheet
     }).eq('id', contractId);
   };
 
@@ -705,6 +707,7 @@ export function ContractFormModal(props: Props) {
             final_success_extras: (formData as any).final_success_extras,
             fixed_monthly_extras: (formData as any).fixed_monthly_extras,
             other_fees_extras: (formData as any).other_fees_extras,
+            timesheet: (formData as any).timesheet,
             
             // Campos de relacionamento/UI a serem ignorados
             partner_name: undefined,
@@ -712,8 +715,8 @@ export function ContractFormModal(props: Props) {
             process_count: undefined,
             analyst: undefined,
             analysts: undefined, 
-            client: undefined,       
-            partner: undefined,      
+            client: undefined,        
+            partner: undefined,       
             processes: undefined,
             partners: undefined,
             id: undefined,
@@ -1123,45 +1126,59 @@ export function ContractFormModal(props: Props) {
                     <div className={isStandardCNJ ? "md:col-span-5" : "md:col-span-4"}>
                         <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
                             Número do Processo *
-                            {currentProcess.process_number && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
+                            {currentProcess.process_number && currentProcess.process_number !== 'CONSULTORIA' && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
                         </label>
                         <div className="flex items-center">
                             <CustomSelect 
-                                value={isStandardCNJ ? 'cnj' : 'other'}
+                                value={currentProcess.process_number === 'CONSULTORIA' ? 'consultoria' : (isStandardCNJ ? 'cnj' : 'other')}
                                 onChange={(val: string) => {
-                                    setIsStandardCNJ(val === 'cnj');
-                                    if (val === 'cnj') {
-                                        setCurrentProcess({...currentProcess, process_number: maskCNJ(currentProcess.process_number || '')});
+                                    if (val === 'consultoria') {
+                                        setIsStandardCNJ(false);
+                                        setCurrentProcess({ ...currentProcess, process_number: 'CONSULTORIA', uf: currentProcess.uf || '' });
                                         setOtherProcessType('');
+                                    } else if (val === 'cnj') {
+                                        setIsStandardCNJ(true);
+                                        setCurrentProcess({ ...currentProcess, process_number: '' });
+                                    } else {
+                                        setIsStandardCNJ(false);
+                                        if (currentProcess.process_number === 'CONSULTORIA') setCurrentProcess({ ...currentProcess, process_number: '' });
                                     }
                                 }}
                                 options={[
                                     { label: 'CNJ', value: 'cnj' },
-                                    { label: 'Outro', value: 'other' }
+                                    { label: 'Outro', value: 'other' },
+                                    { label: 'Consultoria', value: 'consultoria' }
                                 ]}
-                                className="mr-2 w-24"
+                                className="mr-2 w-28"
                             />
                             
-                            <div className="flex-1 relative">
-                                <input 
-                                    type="text" 
-                                    className={`w-full border-b ${duplicateProcessWarning ? 'border-orange-300 bg-orange-50' : 'border-gray-300'} focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8`} 
-                                    placeholder={isStandardCNJ ? "0000000-00..." : "Nº Processo"} 
-                                    value={currentProcess.process_number} 
-                                    onChange={(e) => setCurrentProcess({
-                                        ...currentProcess, 
-                                        process_number: isStandardCNJ ? localMaskCNJ(e.target.value) : e.target.value
-                                    })} 
-                                />
-                                <button 
-                                    onClick={handleCNJSearch} 
-                                    disabled={!isStandardCNJ || searchingCNJ || !currentProcess.process_number} 
-                                    className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
-                                    title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
-                                >
-                                    {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                                </button>
-                            </div>
+                            {currentProcess.process_number !== 'CONSULTORIA' && (
+                              <div className="flex-1 relative">
+                                  <input 
+                                      type="text" 
+                                      className={`w-full border-b ${duplicateProcessWarning ? 'border-orange-300 bg-orange-50' : 'border-gray-300'} focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8`} 
+                                      placeholder={isStandardCNJ ? "0000000-00..." : "Nº Processo"} 
+                                      value={currentProcess.process_number} 
+                                      onChange={(e) => setCurrentProcess({
+                                          ...currentProcess, 
+                                          process_number: isStandardCNJ ? localMaskCNJ(e.target.value) : e.target.value
+                                      })} 
+                                  />
+                                  <button 
+                                      onClick={handleCNJSearch} 
+                                      disabled={!isStandardCNJ || searchingCNJ || !currentProcess.process_number} 
+                                      className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
+                                      title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
+                                  >
+                                      {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                  </button>
+                              </div>
+                            )}
+                            {currentProcess.process_number === 'CONSULTORIA' && (
+                               <div className="flex-1">
+                                  <input type="text" disabled value="CONSULTORIA" className="w-full border-b border-gray-200 bg-gray-50 text-gray-500 py-1.5 text-sm font-bold" />
+                               </div>
+                            )}
                         </div>
                         {duplicateProcessWarning && (
                           <div className="text-[10px] text-orange-600 mt-1 flex items-center font-bold">
@@ -1170,8 +1187,8 @@ export function ContractFormModal(props: Props) {
                         )}
                     </div>
                     
-                    {/* Campo Extra para Tipo de Processo (se não for CNJ) */}
-                    {!isStandardCNJ && (
+                    {/* Campo Extra para Tipo de Processo (se não for CNJ e nem Consultoria) */}
+                    {!isStandardCNJ && currentProcess.process_number !== 'CONSULTORIA' && (
                         <div className="md:col-span-2">
                             <label className="text-[10px] text-gray-500 uppercase font-bold">Tipo (ex: AgInt)</label>
                             <input 
@@ -1219,7 +1236,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                        {c.contracts?.client_name}
+                                                                {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
@@ -1469,9 +1486,7 @@ export function ContractFormModal(props: Props) {
                         ))}
                       </div>
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                     {/* Êxito Final Simplificado (Agora com + e Tags) */}
                     <div>
                       <FinancialInputWithInstallments 
@@ -1489,7 +1504,9 @@ export function ContractFormModal(props: Props) {
                         ))}
                       </div>
                     </div>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
                   <div>
                     <label className="text-xs font-medium block mb-1">Êxito %</label>
                     <div className="flex rounded-lg shadow-sm">
@@ -1538,6 +1555,21 @@ export function ContractFormModal(props: Props) {
                         ))}
                       </div>
                   </div>
+                  
+                  {/* Timesheet Toggle */}
+                  <div>
+                     <label className="text-xs font-medium block mb-1">Timesheet</label>
+                     <div className="flex items-center h-[42px] border border-gray-300 rounded-lg px-3 bg-white">
+                        <input
+                            type="checkbox"
+                            id="timesheet_check"
+                            checked={(formData as any).timesheet || false}
+                            onChange={(e) => setFormData({...formData, timesheet: e.target.checked} as any)}
+                            className="w-4 h-4 text-salomao-blue rounded focus:ring-salomao-blue"
+                        />
+                        <label htmlFor="timesheet_check" className="ml-2 text-sm text-gray-700">Utilizar Timesheet</label>
+                     </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1546,6 +1578,18 @@ export function ContractFormModal(props: Props) {
             {/* SEÇÃO DE DOCUMENTOS E REFERÊNCIA (DO SEGUNDO CÓDIGO) */}
            {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
              <>
+               {/* BLOCO HON MOVIDO PARA CÁ (ACIMA DA REFERENCIA) */}
+               {formData.status === 'active' && (
+                <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
+                    {renderFinancialComparison()}
+                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                       <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
+                       <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
+                       <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
+                   </div>
+                </div>
+               )}
+
                <div className="mt-6 mb-2">
                    <label className="text-xs font-medium block mb-1">Referência</label>
                    <textarea 
@@ -1561,17 +1605,6 @@ export function ContractFormModal(props: Props) {
                    {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
                </div>
              </>
-           )}
-
-           {formData.status === 'active' && (
-            <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
-                {renderFinancialComparison()}
-               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                   <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                   <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
-                   <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
-               </div>
-            </div>
            )}
 
            {/* OBSERVAÇÕES NO FINAL (MOVIDO ANTES DOS BOTOES) */}
