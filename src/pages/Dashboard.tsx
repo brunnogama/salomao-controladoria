@@ -34,7 +34,7 @@ import { Contract } from '../types';
 const safeParseMoney = (value: string | number | undefined | null): number => {
   if (value === undefined || value === null || value === '') return 0;
   if (typeof value === 'number') return value;
-  
+   
   const strVal = String(value).trim();
 
   // Verifica se já está em formato numérico padrão (ex: "1500.00" vindo do DB)
@@ -79,10 +79,11 @@ export function Dashboard() {
     totalEntrada: 0, qualificadosProposta: 0, fechados: 0,
     perdaAnalise: 0, perdaNegociacao: 0,
     taxaConversaoProposta: '0', taxaConversaoFechamento: '0',
+    tempoMedioProspectProposta: 0, tempoMedioPropostaFechamento: 0 // Novos estados para tempo médio
   });
 
   const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
-  
+   
   // Estado para o gráfico de FECHADOS
   const [financeiro12Meses, setFinanceiro12Meses] = useState<any[]>([]);
   const [statsFinanceiro, setStatsFinanceiro] = useState({ total: 0, media: 0, diff: 0 });
@@ -90,10 +91,10 @@ export function Dashboard() {
   // Estado para o novo gráfico de PROPOSTAS
   const [propostas12Meses, setPropostas12Meses] = useState<any[]>([]);
   const [statsPropostas, setStatsPropostas] = useState({ total: 0, media: 0, diff: 0 });
-  
+   
   const [mediasFinanceiras, setMediasFinanceiras] = useState({ pl: 0, exito: 0 });
   const [mediasPropostas, setMediasPropostas] = useState({ pl: 0, exito: 0 });
-  
+   
   // Novos estados para gráficos de rejeição
   const [rejectionData, setRejectionData] = useState<{
     reasons: { label: string, value: number, percent: number }[],
@@ -214,6 +215,12 @@ export function Dashboard() {
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
     let fPerdaAnalise = 0; let fPerdaNegociacao = 0;
 
+    // Variáveis para cálculo de tempo médio
+    let somaDiasProspectProposta = 0;
+    let qtdProspectProposta = 0;
+    let somaDiasPropostaFechamento = 0;
+    let qtdPropostaFechamento = 0;
+
     const mapaMeses: Record<string, number> = {};
     const financeiroMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
     const propostasMap: Record<string, { pl: number, fixo: number, exito: number, data: Date }> = {};
@@ -321,6 +328,28 @@ export function Dashboard() {
               }
         }
       }
+
+      // --- CÁLCULO DE DIAS ENTRE FASES ---
+      const dProspect = c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null;
+      const dProposal = c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : null;
+      const dContract = c.contract_date ? new Date(c.contract_date + 'T12:00:00') : null;
+
+      // Tempo de Prospect -> Proposta
+      if (dProspect && dProposal && dProposal >= dProspect) {
+          const diffTime = Math.abs(dProposal.getTime() - dProspect.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          somaDiasProspectProposta += diffDays;
+          qtdProspectProposta++;
+      }
+
+      // Tempo de Proposta -> Fechamento
+      if (dProposal && dContract && dContract >= dProposal) {
+          const diffTime = Math.abs(dContract.getTime() - dProposal.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          somaDiasPropostaFechamento += diffDays;
+          qtdPropostaFechamento++;
+      }
+      // -----------------------------------
 
       mGeral.totalCasos++;
       if (c.status === 'analysis') mGeral.emAnalise++;
@@ -437,7 +466,22 @@ export function Dashboard() {
 
     const txProp = fTotal > 0 ? ((fQualificados / fTotal) * 100).toFixed(1) : '0';
     const txFech = fQualificados > 0 ? ((fFechados / fQualificados) * 100).toFixed(1) : '0';
-    setFunil({ totalEntrada: fTotal, qualificadosProposta: fQualificados, fechados: fFechados, perdaAnalise: fPerdaAnalise, perdaNegociacao: fPerdaNegociacao, taxaConversaoProposta: txProp, taxaConversaoFechamento: txFech });
+    
+    // Calcula médias de dias
+    const mediaDiasProspectProposta = qtdProspectProposta > 0 ? Math.round(somaDiasProspectProposta / qtdProspectProposta) : 0;
+    const mediaDiasPropostaFechamento = qtdPropostaFechamento > 0 ? Math.round(somaDiasPropostaFechamento / qtdPropostaFechamento) : 0;
+
+    setFunil({ 
+        totalEntrada: fTotal, 
+        qualificadosProposta: fQualificados, 
+        fechados: fFechados, 
+        perdaAnalise: fPerdaAnalise, 
+        perdaNegociacao: fPerdaNegociacao, 
+        taxaConversaoProposta: txProp, 
+        taxaConversaoFechamento: txFech,
+        tempoMedioProspectProposta: mediaDiasProspectProposta,
+        tempoMedioPropostaFechamento: mediaDiasPropostaFechamento
+    });
 
     // --- ORDENAÇÃO DINÂMICA: JUNHO 2025 ATÉ O MÊS ATUAL ---
     const mesesGrafico = [];
@@ -530,12 +574,20 @@ export function Dashboard() {
       <div ref={dashboardRef} className="space-y-8 bg-[#F8FAFC] p-2">
         {/* FUNIL */}
          <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
-            <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão.</p></div></div>
+            <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão e tempo médio.</p></div></div>
             <div className='grid grid-cols-1 md:grid-cols-5 gap-4 items-center'>
             <div className='md:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative'><p className='text-xs font-bold text-gray-500 uppercase'>1. Prospects</p><p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div></div>
-            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div></div>
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
+                <div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div>
+                <div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div>
+                <div className='text-[10px] text-gray-400 flex items-center gap-1 mt-1'><Clock size={10} /> ~{funil.tempoMedioProspectProposta} dias</div>
+            </div>
             <div className='md:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative'><p className='text-xs font-bold text-blue-600 uppercase'>2. Propostas</p><p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div></div>
-            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'><div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div><div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div></div>
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
+                <div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div>
+                <div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div>
+                <div className='text-[10px] text-gray-400 flex items-center gap-1 mt-1'><Clock size={10} /> ~{funil.tempoMedioPropostaFechamento} dias</div>
+            </div>
             <div className='md:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center'><p className='text-xs font-bold text-green-600 uppercase'>3. Fechados</p><p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p></div>
             </div>
         </div>
