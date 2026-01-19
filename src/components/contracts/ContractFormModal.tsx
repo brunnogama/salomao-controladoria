@@ -1655,7 +1655,6 @@ export function ContractFormModal(props: Props) {
                     label="Nome do Cliente *" 
                     value={formData.client_name} 
                     onChange={(val: string) => handleTextChange('client_name', val)} 
-                    onBlur={(val: string) => handleTextChange('client_name', val.trim())}
                     options={clientSelectOptions}
                     onAction={() => setActiveManager('client')}
                     actionIcon={Settings}
