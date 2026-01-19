@@ -635,15 +635,32 @@ export function Dashboard() {
             <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
                 <div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div>
                 <div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div>
-                <div className='text-[10px] text-gray-400 flex items-center gap-1 mt-1'><Clock size={10} /> ~{funil.tempoMedioProspectProposta} dias</div>
+                <div className='mt-3 bg-gray-50 border border-gray-200 p-2 rounded-lg w-full text-center'>
+                    <p className='text-[9px] text-gray-500 uppercase font-bold'>Tempo Médio</p>
+                    <p className='text-sm font-bold text-gray-700 flex items-center justify-center gap-1'><Clock size={12} /> {funil.tempoMedioProspectProposta} dias</p>
+                </div>
             </div>
             <div className='md:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative'><p className='text-xs font-bold text-blue-600 uppercase'>2. Propostas</p><p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div></div>
             <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
                 <div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div>
                 <div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div>
-                <div className='text-[10px] text-gray-400 flex items-center gap-1 mt-1'><Clock size={10} /> ~{funil.tempoMedioPropostaFechamento} dias</div>
+                <div className='mt-3 bg-blue-50 border border-blue-100 p-2 rounded-lg w-full text-center'>
+                    <p className='text-[9px] text-blue-600 uppercase font-bold'>Tempo Médio</p>
+                    <p className='text-sm font-bold text-blue-900 flex items-center justify-center gap-1'><Clock size={12} /> {funil.tempoMedioPropostaFechamento} dias</p>
+                </div>
             </div>
             <div className='md:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center'><p className='text-xs font-bold text-green-600 uppercase'>3. Fechados</p><p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p></div>
+            </div>
+            <div className='mt-6 pt-4 border-t border-gray-100 flex items-start gap-3'>
+                <div className='p-2 bg-gray-50 rounded-full text-gray-500'><Clock size={16} /></div>
+                <div>
+                    <h4 className='text-sm font-bold text-gray-800'>Análise de Ciclo (Tempo)</h4>
+                    <p className='text-xs text-gray-500 mt-1'>
+                        O indicador de <strong>Tempo Médio</strong> reflete a velocidade do pipeline. 
+                        O tempo de <strong>Prospect → Proposta</strong> mede a agilidade na qualificação, enquanto 
+                        <strong> Proposta → Fechamento</strong> mede a duração da negociação.
+                    </p>
+                </div>
             </div>
         </div>
 
