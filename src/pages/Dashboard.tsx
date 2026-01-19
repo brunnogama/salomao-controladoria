@@ -299,6 +299,10 @@ export function Dashboard() {
       }
       // ---------------------------------------------------------------------
 
+      // Contagem de Contratos por Sócio (Agora contando todos os status, usando o campo correto)
+      const pName = (c as any)['Responsável (Sócio) *'] || (c as any).owner || (c as any).partner || 'Não Informado';
+      partnerCounts[pName] = (partnerCounts[pName] || 0) + 1;
+
       // Coleta dados de rejeição 
       if (c.status === 'rejected') {
           totalRejected++;
@@ -322,10 +326,6 @@ export function Dashboard() {
             financeiroMap[key].exito += exito;
           }
         }
-
-        // Contagem de Contratos por Sócio
-        const pName = (c as any).owner || (c as any).partner || 'Não Informado';
-        partnerCounts[pName] = (partnerCounts[pName] || 0) + 1;
       }
 
       // --- POPULA GRÁFICO DE PROPOSTAS (Esquerda) ---
