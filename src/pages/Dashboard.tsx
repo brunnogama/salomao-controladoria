@@ -103,8 +103,8 @@ export function Dashboard() {
     sources: { label: string, value: number, percent: number }[]
   }>({ reasons: [], sources: [] });
 
-  // Novo estado para Contratos por Sócio
-  const [contractsByPartner, setContractsByPartner] = useState<{name: string, value: number}[]>([]);
+  // Novo estado para Contratos por Sócio (Atualizado para conter detalhes de status)
+  const [contractsByPartner, setContractsByPartner] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -237,8 +237,8 @@ export function Dashboard() {
     const sourceCounts: Record<string, number> = {};
     let totalRejected = 0;
 
-    // Contador para Sócios
-    const partnerCounts: Record<string, number> = {};
+    // Contador para Sócios (Agora com detalhes de status)
+    const partnerCounts: Record<string, any> = {};
 
     // Gera as chaves dinamicamente a partir de Junho de 2025 até o mês ATUAL (hoje)
     let iteradorMeses = new Date(dataInicioFixo);
@@ -299,9 +299,20 @@ export function Dashboard() {
       }
       // ---------------------------------------------------------------------
 
-      // Contagem de Contratos por Sócio (Agora contando todos os status, usando o campo correto)
+      // Contagem de Contratos por Sócio DETALHADA
       const pName = (c as any)['Responsável (Sócio) *'] || (c as any).owner || (c as any).partner || 'Não Informado';
-      partnerCounts[pName] = (partnerCounts[pName] || 0) + 1;
+      
+      if (!partnerCounts[pName]) {
+          partnerCounts[pName] = { total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0 };
+      }
+      partnerCounts[pName].total++;
+      
+      if (c.status === 'analysis') partnerCounts[pName].analysis++;
+      else if (c.status === 'proposal') partnerCounts[pName].proposal++;
+      else if (c.status === 'active') partnerCounts[pName].active++;
+      else if (c.status === 'rejected') partnerCounts[pName].rejected++;
+      else if (c.status === 'probono') partnerCounts[pName].probono++;
+
 
       // Coleta dados de rejeição 
       if (c.status === 'rejected') {
@@ -540,10 +551,10 @@ export function Dashboard() {
         sources: formatRejection(sourceCounts)
     });
 
-    // Formatação dos Dados de Sócios
+    // Formatação dos Dados de Sócios (Agora com detalhes)
     setContractsByPartner(Object.entries(partnerCounts)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value));
+        .map(([name, stats]: any) => ({ name, ...stats }))
+        .sort((a: any, b: any) => b.total - a.total));
   };
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -872,12 +883,17 @@ export function Dashboard() {
              <div className="space-y-4">
                  {contractsByPartner.length === 0 ? <p className="text-sm text-gray-400">Nenhum dado.</p> : contractsByPartner.map((item, idx) => (
                     <div key={idx} className="group">
-                        <div className="flex justify-between text-xs mb-1">
-                            <span className="font-medium text-gray-700">{item.name}</span>
-                            <span className="text-gray-500">{item.value}</span>
+                        <div className="flex justify-between items-end text-xs mb-1">
+                            <div>
+                                <span className="font-medium text-gray-700 block">{item.name}</span>
+                                <span className="text-[10px] text-gray-400">
+                                    Anál: {item.analysis} | Prop: {item.proposal} | Fech: {item.active} | Rej: {item.rejected}
+                                </span>
+                            </div>
+                            <span className="text-gray-500 font-bold">{item.total}</span>
                         </div>
                         <div className="w-full bg-gray-100 rounded-full h-2.5">
-                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(item.value / (contractsByPartner[0]?.value || 1)) * 100}%` }}></div>
+                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(item.total / (contractsByPartner[0]?.total || 1)) * 100}%` }}></div>
                         </div>
                     </div>
                  ))}
