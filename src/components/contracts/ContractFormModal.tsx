@@ -377,7 +377,7 @@ export function ContractFormModal(props: Props) {
 
   useEffect(() => {
     const checkProcessNumber = async () => {
-        if (!currentProcess.process_number || currentProcess.process_number.length < 15) {
+        if (!currentProcess.process_number || currentProcess.process_number.length < 15 || currentProcess.process_number === 'CONSULTORIA' || currentProcess.process_number === 'ASSESSORIA JURÍDICA') {
             setDuplicateProcessWarning(false);
             return;
         }
@@ -1240,9 +1240,248 @@ export function ContractFormModal(props: Props) {
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
             
-           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50">
-            <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
-          </div>
+           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50 mb-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                 <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
+                 {/* Campo de Data Movido para o lado do Status */}
+                 {formData.status && formData.status !== '' && (
+                    <div className="animate-in fade-in slide-in-from-left-2">
+                        <label className="text-xs font-medium block mb-1">
+                             {formData.status === 'analysis' ? 'Data do Prospect' :
+                              formData.status === 'proposal' ? 'Data da Proposta' :
+                              formData.status === 'active' ? 'Data da Assinatura' :
+                              formData.status === 'rejected' ? 'Data da Rejeição' :
+                              formData.status === 'probono' ? 'Data Probono' : 'Data do Status'}
+                        </label>
+                        <input 
+                            type="date" 
+                            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
+                            value={ensureDateValue(
+                                formData.status === 'analysis' ? formData.prospect_date :
+                                formData.status === 'proposal' ? formData.proposal_date :
+                                formData.status === 'active' ? formData.contract_date :
+                                formData.status === 'rejected' ? formData.rejection_date :
+                                formData.status === 'probono' ? formData.probono_date : ''
+                            )} 
+                            onChange={e => {
+                                const val = e.target.value;
+                                if(formData.status === 'analysis') setFormData({...formData, prospect_date: val});
+                                else if(formData.status === 'proposal') setFormData({...formData, proposal_date: val});
+                                else if(formData.status === 'active') setFormData({...formData, contract_date: val});
+                                else if(formData.status === 'rejected') setFormData({...formData, rejection_date: val});
+                                else if(formData.status === 'probono') setFormData({...formData, probono_date: val});
+                            }} 
+                        />
+                    </div>
+                 )}
+             </div>
+
+             {/* BLOCOS ESPECÍFICOS DE CADA STATUS (MOVIDOS PARA CÁ) */}
+             {formData.status === 'analysis' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
+                    {/* Data removida daqui */}
+                    <div>
+                        <CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
+                    </div>
+                </div>
+             )}
+
+             {formData.status === 'rejected' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 animate-in fade-in slide-in-from-top-2">
+                    {/* Data removida daqui */}
+                    <div>
+                        <CustomSelect label="Analisado por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
+                    </div>
+                    <div>
+                        <CustomSelect label="Quem rejeitou" value={formData.rejection_by || ''} onChange={(val: string) => setFormData({...formData, rejection_by: val})} options={rejectionByOptions} />
+                    </div>
+                    <div>
+                        <CustomSelect label="Motivo da Rejeição" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
+                    </div>
+                </div>
+             )}
+
+             {formData.status === 'probono' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
+                    {/* Data removida daqui */}
+                    <div>
+                        <CustomSelect label="Enviado Por" value={formData.partner_id || ''} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} />
+                    </div>
+                </div>
+             )}
+
+             {(formData.status === 'proposal' || formData.status === 'active') && (
+              <div className="space-y-6 animate-in slide-in-from-top-2 pt-4 border-t border-gray-100">
+                {/* Data removida daqui */}
+
+                {/* Linha 2: Pró-Labore | Outros Honorários | Fixo Mensal */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+                    {/* Pró-Labore */}
+                    <div>
+                      <FinancialInputWithInstallments 
+                        label="Pró-Labore (R$)" 
+                        value={formatForInput(formData.pro_labore)} 
+                        onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
+                        installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
+                        onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore')}
+                        clause={(formData as any).pro_labore_clause}
+                        onChangeClause={(v: any) => setFormData({...formData, pro_labore_clause: v} as any)}
+                      />
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => {
+                           const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
+                           return (
+                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                  {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              </span>
+                           );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Outros Honorários */}
+                    <div>
+                        <FinancialInputWithInstallments 
+                          label="Outros Honorários (R$)" 
+                          value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
+                          installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
+                          onAdd={() => handleAddToList('other_fees_extras', 'other_fees')}
+                          clause={(formData as any).other_fees_clause}
+                          onChangeClause={(v: any) => setFormData({...formData, other_fees_clause: v} as any)}
+                        />
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {(formData as any).other_fees_extras?.map((val: string, idx: number) => {
+                               const clauses = ensureArray((formData as any).other_fees_extras_clauses);
+                               return (
+                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                    {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  </span>
+                               );
+                            })}
+                          </div>
+                    </div>
+
+                    {/* Fixo Mensal */}
+                    <div>
+                        <FinancialInputWithInstallments 
+                          label="Fixo Mensal (R$)" 
+                          value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
+                          installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
+                          onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee')}
+                          clause={(formData as any).fixed_monthly_fee_clause}
+                          onChangeClause={(v: any) => setFormData({...formData, fixed_monthly_fee_clause: v} as any)}
+                        />
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => {
+                               const clauses = ensureArray((formData as any).fixed_monthly_extras_clauses);
+                               return (
+                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                    {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  </span>
+                               );
+                            })}
+                          </div>
+                    </div>
+                </div>
+
+                {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+                    {/* Êxito Intermediário */}
+                    <div>
+                      <FinancialInputWithInstallments 
+                        label="Êxito Intermediário" 
+                        value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
+                        installments={interimInstallments} onChangeInstallments={setInterimInstallments}
+                        onAdd={handleAddIntermediateFee}
+                        clause={interimClause}
+                        onChangeClause={setInterimClause}
+                      />
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {formData.intermediate_fees?.map((fee, idx) => {
+                          const clauses = ensureArray((formData as any).intermediate_fees_clauses);
+                          return (
+                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                  {fee}<button onClick={() => handleRemoveIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Êxito Final */}
+                    <div>
+                      <FinancialInputWithInstallments 
+                        label="Êxito Final (R$)" 
+                        value={formatForInput(formData.final_success_fee)} 
+                        onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
+                        installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
+                        onAdd={() => handleAddToList('final_success_extras', 'final_success_fee')}
+                        clause={(formData as any).final_success_fee_clause}
+                        onChangeClause={(v: any) => setFormData({...formData, final_success_fee_clause: v} as any)}
+                      />
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {(formData as any).final_success_extras?.map((val: string, idx: number) => {
+                           const clauses = ensureArray((formData as any).final_success_extras_clauses);
+                           return (
+                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              </span>
+                           );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Êxito % */}
+                    <div>
+                        <label className="text-xs font-medium block mb-1">Êxito %</label>
+                        <div className="flex rounded-lg shadow-sm">
+                          <input 
+                            type="text" 
+                            className="w-14 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-gray-50 focus:border-salomao-blue outline-none border-r-0 placeholder-gray-400 text-center"
+                            value={(formData as any).final_success_percent_clause || ''} 
+                            onChange={(e) => setFormData({...formData, final_success_percent_clause: e.target.value} as any)}
+                            placeholder="Cl."
+                            title="Cláusula (ex: 2.1)"
+                          />
+                          <input type="text" className="flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
+                          <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {(formData as any).percent_extras?.map((val: string, idx: number) => {
+                               const clauses = ensureArray((formData as any).percent_extras_clauses);
+                               return (
+                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                    {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  </span>
+                               );
+                            })}
+                          </div>
+                    </div>
+                </div>
+                  
+                {/* Linha 4: Timesheet */}
+                <div>
+                      <label className="text-xs font-medium block mb-1">Timesheet</label>
+                      <div className="flex items-center h-[42px] border border-gray-300 rounded-lg px-3 bg-white">
+                        <input
+                            type="checkbox"
+                            id="timesheet_check"
+                            checked={(formData as any).timesheet || false}
+                            onChange={(e) => setFormData({...formData, timesheet: e.target.checked} as any)}
+                            className="w-4 h-4 text-salomao-blue rounded focus:ring-salomao-blue"
+                        />
+                        <label htmlFor="timesheet_check" className="ml-2 text-sm text-gray-700">Utilizar Timesheet</label>
+                      </div>
+                </div>
+              </div>
+             )}
+           </div>
 
           <section className="space-y-5">
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
@@ -1366,7 +1605,7 @@ export function ContractFormModal(props: Props) {
                                       className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
                                       title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
                                   >
-                                      {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                        {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                   </button>
                               </div>
                             )}
@@ -1599,268 +1838,44 @@ export function ContractFormModal(props: Props) {
 
            <section className="border-t border-black/5 pt-6">
 
-            {/* Campos Condicionais por Status (Restaurados) */}
-            {formData.status === 'analysis' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 animate-in fade-in slide-in-from-top-2">
-                    <div>
-                        <label className="text-xs font-medium block mb-1">Data do Prospect</label>
-                        <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.prospect_date)} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
-                    </div>
-                    <div>
-                        {/* TASK 1: Botão de gerenciar adicionado */}
-                        <CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
-                    </div>
-                </div>
-            )}
-
-            {formData.status === 'rejected' && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6 animate-in fade-in slide-in-from-top-2">
-                    <div>
-                        <label className="text-xs font-medium block mb-1">Data da Rejeição</label>
-                        <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.rejection_date)} onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
-                    </div>
-                    <div>
-                        <CustomSelect label="Analisado por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
-                    </div>
-                    <div>
-                        <CustomSelect label="Quem rejeitou" value={formData.rejection_by || ''} onChange={(val: string) => setFormData({...formData, rejection_by: val})} options={rejectionByOptions} />
-                    </div>
-                    <div>
-                        <CustomSelect label="Motivo da Rejeição" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
-                    </div>
-                </div>
-            )}
-
-            {formData.status === 'probono' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6 animate-in fade-in slide-in-from-top-2">
-                    <div>
-                        <label className="text-xs font-medium block mb-1">Data Probono</label>
-                        <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.probono_date)} onChange={e => setFormData({...formData, probono_date: e.target.value})} />
-                    </div>
-                    <div>
-                        <CustomSelect label="Enviado Por" value={formData.partner_id || ''} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} />
-                    </div>
-                </div>
-            )}
-
-            {(formData.status === 'proposal' || formData.status === 'active') && (
-              <div className="space-y-6 animate-in slide-in-from-top-2">
-                
-                {/* Linha 1: Data */}
-                <div>
-                    <label className="text-xs font-medium block mb-1">{formData.status === 'proposal' ? 'Data Proposta *' : 'Data Assinatura *'}</label>
-                    <input type="date" className="w-full md:w-1/3 border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.status === 'proposal' ? formData.proposal_date : formData.contract_date)} onChange={e => setFormData({...formData, [formData.status === 'proposal' ? 'proposal_date' : 'contract_date']: e.target.value})} />
-                </div>
-
-                {/* Linha 2: Pró-Labore | Outros Honorários | Fixo Mensal */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
-                    {/* Pró-Labore */}
-                    <div>
-                      <FinancialInputWithInstallments 
-                        label="Pró-Labore (R$)" 
-                        value={formatForInput(formData.pro_labore)} 
-                        onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
-                        installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
-                        onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore')}
-                        clause={(formData as any).pro_labore_clause}
-                        onChangeClause={(v: any) => setFormData({...formData, pro_labore_clause: v} as any)}
-                      />
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => {
-                           // CORREÇÃO: Leitura segura do array de cláusulas
-                           const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
-                           return (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                  {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                              </span>
-                           );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Outros Honorários */}
-                    <div>
-                        <FinancialInputWithInstallments 
-                          label="Outros Honorários (R$)" 
-                          value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
-                          installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
-                          onAdd={() => handleAddToList('other_fees_extras', 'other_fees')}
-                          clause={(formData as any).other_fees_clause}
-                          onChangeClause={(v: any) => setFormData({...formData, other_fees_clause: v} as any)}
-                        />
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {(formData as any).other_fees_extras?.map((val: string, idx: number) => {
-                               // CORREÇÃO: Leitura segura do array de cláusulas
-                               const clauses = ensureArray((formData as any).other_fees_extras_clauses);
-                               return (
-                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                    {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                                  </span>
-                               );
-                            })}
-                          </div>
-                    </div>
-
-                    {/* Fixo Mensal */}
-                    <div>
-                        <FinancialInputWithInstallments 
-                          label="Fixo Mensal (R$)" 
-                          value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
-                          installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
-                          onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee')}
-                          clause={(formData as any).fixed_monthly_fee_clause}
-                          onChangeClause={(v: any) => setFormData({...formData, fixed_monthly_fee_clause: v} as any)}
-                        />
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => {
-                               // CORREÇÃO: Leitura segura do array de cláusulas
-                               const clauses = ensureArray((formData as any).fixed_monthly_extras_clauses);
-                               return (
-                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                    {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                                  </span>
-                               );
-                            })}
-                          </div>
-                    </div>
-                </div>
-
-                {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
-                    {/* Êxito Intermediário */}
-                    <div>
-                      <FinancialInputWithInstallments 
-                        label="Êxito Intermediário" 
-                        value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
-                        installments={interimInstallments} onChangeInstallments={setInterimInstallments}
-                        onAdd={handleAddIntermediateFee}
-                        clause={interimClause}
-                        onChangeClause={setInterimClause}
-                      />
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.intermediate_fees?.map((fee, idx) => {
-                          // CORREÇÃO: Leitura segura do array de cláusulas
-                          const clauses = ensureArray((formData as any).intermediate_fees_clauses);
-                          return (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                  {fee}<button onClick={() => handleRemoveIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                              </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Êxito Final */}
-                    <div>
-                      <FinancialInputWithInstallments 
-                        label="Êxito Final (R$)" 
-                        value={formatForInput(formData.final_success_fee)} 
-                        onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
-                        installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
-                        onAdd={() => handleAddToList('final_success_extras', 'final_success_fee')}
-                        clause={(formData as any).final_success_fee_clause}
-                        onChangeClause={(v: any) => setFormData({...formData, final_success_fee_clause: v} as any)}
-                      />
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).final_success_extras?.map((val: string, idx: number) => {
-                           // CORREÇÃO: Leitura segura do array de cláusulas
-                           const clauses = ensureArray((formData as any).final_success_extras_clauses);
-                           return (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                              </span>
-                           );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Êxito % */}
-                    <div>
-                        <label className="text-xs font-medium block mb-1">Êxito %</label>
-                        <div className="flex rounded-lg shadow-sm">
-                          <input 
-                            type="text" 
-                            className="w-14 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-gray-50 focus:border-salomao-blue outline-none border-r-0 placeholder-gray-400 text-center"
-                            value={(formData as any).final_success_percent_clause || ''} 
-                            onChange={(e) => setFormData({...formData, final_success_percent_clause: e.target.value} as any)}
-                            placeholder="Cl."
-                            title="Cláusula (ex: 2.1)"
-                          />
-                          <input type="text" className="flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
-                          <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {(formData as any).percent_extras?.map((val: string, idx: number) => {
-                               // CORREÇÃO: Leitura segura do array de cláusulas
-                               const clauses = ensureArray((formData as any).percent_extras_clauses);
-                               return (
-                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                    {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                                  </span>
-                               );
-                            })}
-                          </div>
-                    </div>
-                </div>
-                  
-                {/* Linha 4: Timesheet */}
-                <div>
-                      <label className="text-xs font-medium block mb-1">Timesheet</label>
-                      <div className="flex items-center h-[42px] border border-gray-300 rounded-lg px-3 bg-white">
-                        <input
-                            type="checkbox"
-                            id="timesheet_check"
-                            checked={(formData as any).timesheet || false}
-                            onChange={(e) => setFormData({...formData, timesheet: e.target.checked} as any)}
-                            className="w-4 h-4 text-salomao-blue rounded focus:ring-salomao-blue"
-                        />
-                        <label htmlFor="timesheet_check" className="ml-2 text-sm text-gray-700">Utilizar Timesheet</label>
-                      </div>
-                </div>
-              </div>
-            )}
-           </section>
-
             {/* SEÇÃO DE DOCUMENTOS E REFERÊNCIA (DO SEGUNDO CÓDIGO) */}
-           {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
-             <>
-               {/* BLOCO HON MOVIDO PARA CÁ (ACIMA DA REFERENCIA) */}
-               {formData.status === 'active' && (
+            {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
+              <>
+                {/* BLOCO HON MOVIDO PARA CÁ (ACIMA DA REFERENCIA) */}
+                {formData.status === 'active' && (
                 <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
-                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                       <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                       <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Adicionar Local" /></div>
-                       <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
-                   </div>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                        <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
+                        <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Adicionar Local" /></div>
+                        <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
+                    </div>
                 </div>
-               )}
+                )}
 
-               <div className="mt-6 mb-2">
-                   <label className="text-xs font-medium block mb-1">Referência</label>
-                   <textarea 
-                       className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none h-24 resize-none" 
-                       value={(formData as any).reference || ''} 
-                       onChange={e => setFormData({...formData, reference: e.target.value} as any)} 
-                       placeholder="Ex: Proposta 123/2025" 
-                   />
-               </div>
+                {/* Exibe Referência APENAS se NÃO for Análise */}
+                {(formData.status === 'proposal' || formData.status === 'active') && (
+                    <div className="mt-6 mb-2">
+                        <label className="text-xs font-medium block mb-1">Referência</label>
+                        <textarea 
+                            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none h-24 resize-none" 
+                            value={(formData as any).reference || ''} 
+                            onChange={e => setFormData({...formData, reference: e.target.value} as any)} 
+                            placeholder="Ex: Proposta 123/2025" 
+                        />
+                    </div>
+                )}
 
-               <div className="mb-8 mt-6">
-                   <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
-                   {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
-               </div>
-             </>
-           )}
+                <div className="mb-8 mt-6">
+                    <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
+                    {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
+                </div>
+              </>
+            )}
 
-           {/* OBSERVAÇÕES NO FINAL (MOVIDO ANTES DOS BOTOES) */}
-           <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
+            {/* OBSERVAÇÕES NO FINAL (MOVIDO ANTES DOS BOTOES) */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
 
+           </section>
         </div>
 
         {/* BOTOES NO FINAL (MOVIDO DEPOIS DAS OBSERVACOES) */}
