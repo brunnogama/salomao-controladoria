@@ -81,39 +81,72 @@ export function Settings() {
   const [loading, setLoading] = useState(false);
 
   // --- ESTADOS DE USUÁRIOS ---
-  const [users, setUsers] = useState<UserProfile[]>([
-    { id: '1', name: 'Marcio Gama', email: 'marcio@flowmetrics.com', role: 'admin', active: true, last_login: '11/01/2026' },
-    { id: '2', name: 'Analista Jurídico', email: 'analista@salomao.adv.br', role: 'editor', active: true, last_login: '10/01/2026' },
-  ]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [userForm, setUserForm] = useState({ name: '', email: '', role: 'editor', active: true });
 
-  // --- LÓGICA DE USUÁRIOS ---
+  // --- LÓGICA DE USUÁRIOS (SUPABASE) ---
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      if (data) setUsers(data as any);
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   const handleSaveUser = async () => {
     setLoading(true);
-    setTimeout(() => {
-        if (editingUser) {
-            setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...userForm } as UserProfile : u));
-        } else {
-            const newUser: UserProfile = { 
-                id: Math.random().toString(), 
-                ...userForm, 
-                role: userForm.role as any,
-                last_login: '-' 
-            };
-            setUsers([...users, newUser]);
-        }
-        setLoading(false);
-        setIsUserModalOpen(false);
-        setEditingUser(null);
-    }, 500);
+    try {
+      const userData = {
+        name: userForm.name,
+        email: userForm.email,
+        role: userForm.role,
+        active: userForm.active,
+        // Mantém last_login se existir, senão define padrão ou deixa nulo
+        last_login: editingUser?.last_login || '-' 
+      };
+
+      if (editingUser) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(userData)
+          .eq('id', editingUser.id);
+        
+        if (error) throw error;
+      } else {
+        // Novo usuário
+        const { error } = await supabase
+          .from('profiles')
+          .insert([userData]);
+        
+        if (error) throw error;
+      }
+
+      await fetchUsers();
+      setIsUserModalOpen(false);
+      setEditingUser(null);
+    } catch (error: any) {
+      alert('Erro ao salvar usuário: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openUserModal = (user?: UserProfile) => {
       if (user) {
           setEditingUser(user);
-          setUserForm({ name: user.name, email: user.email, role: user.role, active: user.active });
+          setUserForm({ name: user.name, email: user.email, role: user.role as any, active: user.active });
       } else {
           setEditingUser(null);
           setUserForm({ name: '', email: '', role: 'editor', active: true });
@@ -121,9 +154,15 @@ export function Settings() {
       setIsUserModalOpen(true);
   };
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUser = async (id: string) => {
       if(confirm("Tem certeza que deseja remover este usuário?")) {
-          setUsers(users.filter(u => u.id !== id));
+        try {
+          const { error } = await supabase.from('profiles').delete().eq('id', id);
+          if (error) throw error;
+          await fetchUsers();
+        } catch (error: any) {
+          alert('Erro ao excluir usuário: ' + error.message);
+        }
       }
   };
 
@@ -318,10 +357,10 @@ export function Settings() {
           {activeTab === 'about' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 col-span-2 text-center">
-                    <div className="w-20 h-20 bg-salomao-blue rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg transform rotate-3">
-                        <span className="text-white text-3xl font-black">FM</span>
+                    <div className="w-20 h-20 bg-salomao-blue rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg transform rotate-3 overflow-hidden">
+                        <img src="/logo.fm.png" alt="FlowMetrics" className="w-full h-full object-cover" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800">FlowMetrics System</h2>
+                    <h2 className="text-2xl font-bold text-gray-800">FlowMetrics</h2>
                     <p className="text-gray-500 mt-2">Versão 1.2.0 (Build 2026.01)</p>
                     <div className="mt-8 flex justify-center gap-8">
                         <div className="text-center">
