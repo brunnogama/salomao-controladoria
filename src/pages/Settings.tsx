@@ -368,8 +368,8 @@ export function Settings() {
                         </div>
                         <div className="w-px bg-gray-200"></div>
                         <div className="text-center">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Empresa</p>
-                            <p className="text-lg font-bold text-salomao-gold">FlowMetrics</p>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Todos os direitos reservados</p>
+                            <p className="text-lg font-bold text-salomao-gold">Copyright © 2026</p>
                         </div>
                     </div>
                 </div>
