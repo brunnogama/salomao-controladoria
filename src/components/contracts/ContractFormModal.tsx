@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye, AlertTriangle, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -172,25 +172,46 @@ const OptionManager = ({
   options, 
   onAdd, 
   onRemove, 
+  onEdit,
   onClose,
   placeholder = "Digite o nome"
 }: { 
   title: string, 
   options: string[], 
   onAdd: (val: string) => Promise<boolean>, 
-  onRemove: (val: string) => void, 
+  onRemove: (val: string) => void,
+  onEdit: (oldVal: string, newVal: string) => Promise<boolean>,
   onClose: () => void,
   placeholder?: string
 }) => {
     const [inputValue, setInputValue] = useState('');
     const [loading, setLoading] = useState(false);
+    const [editingItem, setEditingItem] = useState<string | null>(null);
 
-    const handleAdd = async () => {
+    const handleSubmit = async () => {
         if (!inputValue.trim()) return;
         setLoading(true);
-        const success = await onAdd(inputValue.trim());
+        let success = false;
+        
+        if (editingItem) {
+            success = await onEdit(editingItem, inputValue.trim());
+            if (success) setEditingItem(null);
+        } else {
+            success = await onAdd(inputValue.trim());
+        }
+        
         setLoading(false);
         if (success) setInputValue('');
+    };
+
+    const handleEditClick = (item: string) => {
+        setEditingItem(item);
+        setInputValue(item);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingItem(null);
+        setInputValue('');
     };
 
     return (
@@ -209,28 +230,46 @@ const OptionManager = ({
                   placeholder={placeholder}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
                 />
+                {editingItem && (
+                    <button 
+                        onClick={handleCancelEdit}
+                        className="bg-gray-200 text-gray-600 p-2 rounded-lg hover:bg-gray-300"
+                        title="Cancelar edição"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                )}
                 <button 
-                  onClick={handleAdd}
+                  onClick={handleSubmit}
                   disabled={loading}
-                  className="bg-salomao-blue text-white p-2 rounded-lg disabled:opacity-50"
+                  className={`${editingItem ? 'bg-green-600 hover:bg-green-700' : 'bg-salomao-blue'} text-white p-2 rounded-lg disabled:opacity-50 transition-colors`}
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin"/> : <Plus className="w-5 h-5" />}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin"/> : (editingItem ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />)}
                 </button>
               </div>
 
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {options.map((opt, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
-                    <span className="text-sm text-gray-700">{opt}</span>
-                    <button 
-                        onClick={() => onRemove(opt)} 
-                        className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remover (Apenas localmente se não houver backend)"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div key={idx} className={`flex items-center justify-between p-2 rounded-lg group ${editingItem === opt ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                    <span className="text-sm text-gray-700 truncate flex-1 mr-2">{opt}</span>
+                    <div className="flex items-center gap-1">
+                        <button 
+                            onClick={() => handleEditClick(opt)} 
+                            className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-100 rounded"
+                            title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button 
+                            onClick={() => onRemove(opt)} 
+                            className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded"
+                            title="Remover"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
                   </div>
                 ))}
                 {options.length === 0 && <p className="text-xs text-center text-gray-400 py-4">Nenhum item cadastrado.</p>}
@@ -268,7 +307,7 @@ export function ContractFormModal(props: Props) {
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   
   // Estado Unificado de Gerenciamento
-  const [activeManager, setActiveManager] = useState<string | null>(null); // 'area', 'position', 'court', 'vara', 'comarca', 'class', 'subject', 'justice', 'magistrate', 'opponent', 'location'
+  const [activeManager, setActiveManager] = useState<string | null>(null); // 'area', 'position', 'court', 'vara', 'comarca', 'class', 'subject', 'justice', 'magistrate', 'opponent', 'location', 'client'
   
   const [initialFormData, setInitialFormData] = useState<Contract | null>(null);
     
@@ -296,6 +335,7 @@ export function ContractFormModal(props: Props) {
   const [positionsList, setPositionsList] = useState<string[]>(DEFAULT_POSITIONS);
   const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
+  const [clientOptions, setClientOptions] = useState<string[]>([]);
 
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
     
@@ -424,6 +464,9 @@ export function ContractFormModal(props: Props) {
 
     const { data: opps } = await supabase.from('opponents').select('name').order('name');
     if (opps) setOpponentOptions(opps.map(o => o.name));
+
+    const { data: clients } = await supabase.from('clients').select('name').order('name');
+    if (clients) setClientOptions(clients.map(c => c.name));
 
     fetchComarcas(currentProcess.uf);
   };
@@ -718,6 +761,16 @@ export function ContractFormModal(props: Props) {
                  setFormData(prev => ({ ...prev, billing_location: cleanValue }));
              }
              break;
+        case 'client':
+             if (!clientOptions.includes(cleanValue)) {
+                 const { error: err } = await supabase.from('clients').insert({ name: cleanValue });
+                 error = err;
+                 if (!err) {
+                     setClientOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                     setFormData(prev => ({ ...prev, client_name: cleanValue }));
+                 }
+             }
+             break;
       }
 
       if (error) {
@@ -725,6 +778,105 @@ export function ContractFormModal(props: Props) {
           return false;
       }
       return true;
+  };
+
+  const handleGenericEdit = async (oldValue: string, newValue: string) => {
+        const cleanOld = oldValue;
+        const cleanNew = toTitleCase(newValue.trim());
+        if (!cleanNew || cleanNew === cleanOld) return false;
+
+        let error = null;
+
+        switch(activeManager) {
+            case 'area':
+                setLegalAreas(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                if(formData.area === cleanOld) setFormData(prev => ({...prev, area: cleanNew}));
+                break;
+            case 'position':
+                const { error: errPos } = await supabase.from('process_positions').update({ name: cleanNew }).eq('name', cleanOld);
+                error = errPos;
+                if (!errPos) {
+                    setPositionsList(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                    if(currentProcess.position === cleanOld) setCurrentProcess(prev => ({...prev, position: cleanNew}));
+                }
+                break;
+            case 'court':
+                const { error: errCrt } = await supabase.from('courts').update({ name: cleanNew.toUpperCase() }).eq('name', cleanOld);
+                error = errCrt;
+                if (!errCrt) {
+                    setCourtOptions(prev => prev.map(i => i === cleanOld ? cleanNew.toUpperCase() : i).sort((a,b)=>a.localeCompare(b)));
+                    if(currentProcess.court === cleanOld) setCurrentProcess(prev => ({...prev, court: cleanNew.toUpperCase()}));
+                }
+                break;
+            case 'vara':
+                const { error: errVar } = await supabase.from('process_varas').update({ name: cleanNew }).eq('name', cleanOld);
+                if (errVar) console.warn("Erro ao atualizar vara (banco):", errVar);
+                setVaraOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                if(currentProcess.vara === cleanOld) setCurrentProcess(prev => ({...prev, vara: cleanNew}));
+                break;
+            case 'comarca':
+                const { error: errCom } = await supabase.from('comarcas').update({ name: cleanNew }).eq('name', cleanOld).eq('uf', currentProcess.uf);
+                error = errCom;
+                if (!errCom) {
+                    setComarcaOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                    if(currentProcess.comarca === cleanOld) setCurrentProcess(prev => ({...prev, comarca: cleanNew}));
+                }
+                break;
+            case 'class':
+                const { error: errCls } = await supabase.from('process_classes').update({ name: cleanNew }).eq('name', cleanOld);
+                error = errCls;
+                if (!errCls) {
+                    setClassOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                    if(currentProcess.process_class === cleanOld) setCurrentProcess(prev => ({...prev, process_class: cleanNew}));
+                }
+                break;
+            case 'subject':
+                const { error: errSub } = await supabase.from('process_subjects').update({ name: cleanNew }).eq('name', cleanOld);
+                error = errSub;
+                if (!errSub) {
+                    setSubjectOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                }
+                break;
+            case 'justice':
+                const { error: errJus } = await supabase.from('process_justice_types').update({ name: cleanNew }).eq('name', cleanOld);
+                if (errJus) console.warn("Erro ao atualizar justiça (banco):", errJus);
+                setJusticeOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                if(currentProcess.justice_type === cleanOld) setCurrentProcess(prev => ({...prev, justice_type: cleanNew}));
+                break;
+            case 'magistrate':
+                const { error: errMag } = await supabase.from('magistrates').update({ name: cleanNew }).eq('name', cleanOld);
+                error = errMag;
+                if (!errMag) {
+                    setMagistrateOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                }
+                break;
+            case 'opponent':
+                const { error: errOpp } = await supabase.from('opponents').update({ name: cleanNew }).eq('name', cleanOld);
+                error = errOpp;
+                if (!errOpp) {
+                    setOpponentOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                    if(currentProcess.opponent === cleanOld) setCurrentProcess(prev => ({...prev, opponent: cleanNew}));
+                }
+                break;
+            case 'location':
+                setBillingLocations(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                if(formData.billing_location === cleanOld) setFormData(prev => ({...prev, billing_location: cleanNew}));
+                break;
+            case 'client':
+                const { error: errCli } = await supabase.from('clients').update({ name: cleanNew }).eq('name', cleanOld);
+                error = errCli;
+                if(!errCli) {
+                    setClientOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                    if(formData.client_name === cleanOld) setFormData(prev => ({...prev, client_name: cleanNew}));
+                }
+                break;
+        }
+
+        if (error) {
+            alert("Erro ao editar: " + error.message);
+            return false;
+        }
+        return true;
   };
 
   const handleGenericRemove = (value: string) => {
@@ -742,6 +894,7 @@ export function ContractFormModal(props: Props) {
           case 'justice': setJusticeOptions(prev => prev.filter(i => i !== value)); break;
           case 'magistrate': setMagistrateOptions(prev => prev.filter(i => i !== value)); break;
           case 'opponent': setOpponentOptions(prev => prev.filter(i => i !== value)); break;
+          case 'client': setClientOptions(prev => prev.filter(i => i !== value)); break;
       }
   };
 
@@ -1226,6 +1379,9 @@ export function ContractFormModal(props: Props) {
   const comarcaSelectOptions = [{ label: 'Selecione', value: '' }, ...comarcaOptions.map(c => ({ label: c, value: c }))];
   const classSelectOptions = [{ label: 'Selecione', value: '' }, ...classOptions.map(c => ({ label: c, value: c }))];
   const subjectSelectOptions = [{ label: 'Selecione', value: '' }, ...subjectOptions.map(s => ({ label: s, value: s }))];
+  
+  // Opções de Clientes
+  const clientSelectOptions = [{ label: 'Selecione', value: '' }, ...clientOptions.map(c => ({ label: c, value: c }))];
 
   if (!isOpen) return null;
 
@@ -1495,13 +1651,16 @@ export function ContractFormModal(props: Props) {
                 <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
               </div>
               <div className="md:col-span-9">
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nome do Cliente <span className="text-red-500">*</span></label>
-                <input 
-                    type="text" 
-                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:border-salomao-blue outline-none bg-white" 
+                <CustomSelect 
+                    label="Nome do Cliente *" 
                     value={formData.client_name} 
-                    onChange={(e) => handleTextChange('client_name', e.target.value)} 
-                    onBlur={(e) => handleTextChange('client_name', e.target.value.trim())}
+                    onChange={(val: string) => handleTextChange('client_name', val)} 
+                    onBlur={(val: string) => handleTextChange('client_name', val.trim())}
+                    options={clientSelectOptions}
+                    onAction={() => setActiveManager('client')}
+                    actionIcon={Settings}
+                    actionLabel="Gerenciar Clientes"
+                    placeholder="Selecione ou digite o nome"
                 />
                 {duplicateClientCases.length > 0 && (
                     <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex flex-col gap-1">
@@ -1645,7 +1804,8 @@ export function ContractFormModal(props: Props) {
                             onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
                             options={courtSelectOptions} 
                             onAction={() => setActiveManager('court')}
-                            actionLabel="Adicionar Tribunal"
+                            actionLabel="Gerenciar Tribunais"
+                            actionIcon={Settings}
                             placeholder="Selecione"
                             className="custom-select-small" 
                         />
@@ -1663,7 +1823,8 @@ export function ContractFormModal(props: Props) {
                             onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
                             options={opponentOptions.map(o => ({ label: o, value: o }))}
                             onAction={() => setActiveManager('opponent')}
-                            actionLabel="Adicionar Parte Oposta"
+                            actionLabel="Gerenciar Parte Oposta"
+                            actionIcon={Settings}
                             placeholder="Selecione ou adicione"
                         />
                          {duplicateOpponentCases.length > 0 && (
@@ -1694,7 +1855,8 @@ export function ContractFormModal(props: Props) {
                                     options={magistrateOptions.map(m => ({ label: m, value: m }))}
                                     placeholder="Selecione magistrado"
                                     onAction={() => setActiveManager('magistrate')}
-                                    actionLabel="Adicionar Novo Magistrado"
+                                    actionLabel="Gerenciar Magistrados"
+                                    actionIcon={Settings}
                                 />
                             </div>
                             <button onClick={() => addMagistrate(newMagistrateName)} className="text-salomao-blue hover:text-blue-700 font-bold px-2 rounded-lg bg-blue-50">+</button>
@@ -1730,7 +1892,8 @@ export function ContractFormModal(props: Props) {
                             onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
                             options={varaSelectOptions}
                             onAction={() => setActiveManager('vara')}
-                            actionLabel="Adicionar Vara"
+                            actionLabel="Gerenciar Varas"
+                            actionIcon={Settings}
                             placeholder="Selecione ou adicione"
                         />
                     </div>
@@ -1742,7 +1905,8 @@ export function ContractFormModal(props: Props) {
                             onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
                             options={comarcaSelectOptions} 
                             onAction={() => setActiveManager('comarca')}
-                            actionLabel="Adicionar Comarca"
+                            actionLabel="Gerenciar Comarcas"
+                            actionIcon={Settings}
                             placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
                             disabled={!currentProcess.uf}
                         />
@@ -1752,7 +1916,7 @@ export function ContractFormModal(props: Props) {
                   {/* Linha 4: Data Distribuição, Justiça, Valor da Causa */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={ensureDateValue(currentProcess.distribution_date)} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
-                    <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={() => setActiveManager('justice')} actionLabel="Adicionar Justiça" /></div>
+                    <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={() => setActiveManager('justice')} actionLabel="Gerenciar Justiças" actionIcon={Settings} /></div>
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                   </div>
 
@@ -1766,7 +1930,8 @@ export function ContractFormModal(props: Props) {
                             onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
                             options={classSelectOptions}
                             onAction={() => setActiveManager('class')}
-                            actionLabel="Adicionar Classe"
+                            actionLabel="Gerenciar Classes"
+                            actionIcon={Settings}
                             placeholder="Selecione a Classe"
                         />
                     </div>
@@ -1782,7 +1947,8 @@ export function ContractFormModal(props: Props) {
                                     options={subjectSelectOptions}
                                     placeholder="Selecione ou digite novo"
                                     onAction={() => setActiveManager('subject')}
-                                    actionLabel="Criar Novo Assunto no Banco"
+                                    actionLabel="Gerenciar Assuntos"
+                                    actionIcon={Settings}
                                 />
                              </div>
                             <button onClick={addSubjectToProcess} className="text-salomao-blue hover:text-blue-700 font-bold px-3 rounded-lg bg-blue-50">+</button>
@@ -1846,7 +2012,7 @@ export function ContractFormModal(props: Props) {
                 <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                        <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Adicionar Local" /></div>
+                        <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Gerenciar Locais" actionIcon={Settings} /></div>
                         <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
                     </div>
                 </div>
@@ -1897,9 +2063,10 @@ export function ContractFormModal(props: Props) {
                 activeManager === 'class' ? "Gerenciar Classes" :
                 activeManager === 'subject' ? "Gerenciar Assuntos" :
                 activeManager === 'justice' ? "Gerenciar Justiças" :
-                activeManager === 'magistrate' ? "Adicionar Magistrado" :
-                activeManager === 'opponent' ? "Adicionar Parte Oposta" :
+                activeManager === 'magistrate' ? "Gerenciar Magistrados" :
+                activeManager === 'opponent' ? "Gerenciar Parte Oposta" :
                 activeManager === 'location' ? "Gerenciar Locais de Faturamento" :
+                activeManager === 'client' ? "Gerenciar Clientes" :
                 "Gerenciar"
             }
             options={
@@ -1914,10 +2081,12 @@ export function ContractFormModal(props: Props) {
                 activeManager === 'magistrate' ? magistrateOptions :
                 activeManager === 'opponent' ? opponentOptions :
                 activeManager === 'location' ? billingLocations :
+                activeManager === 'client' ? clientOptions :
                 []
             }
             onAdd={handleGenericAdd}
             onRemove={handleGenericRemove}
+            onEdit={handleGenericEdit}
             onClose={() => setActiveManager(null)}
             placeholder={
                 activeManager === 'comarca' && !currentProcess.uf ? "Selecione a UF primeiro" : "Digite o nome"
