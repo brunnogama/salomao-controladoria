@@ -300,7 +300,14 @@ export function Dashboard() {
       // ---------------------------------------------------------------------
 
       // Contagem de Contratos por Sócio DETALHADA
-      const pName = (c as any)['Responsável (Sócio) *'] || (c as any).owner || (c as any).partner || 'Não Informado';
+      // Tenta múltiplas variações de nome de campo para evitar "Não Informado"
+      const pName = (c as any).responsavel_socio || 
+                    (c as any).responsavel || 
+                    (c as any).socio || 
+                    (c as any).partner || 
+                    (c as any).owner || 
+                    (c as any)['Responsável (Sócio) *'] || 
+                    'Não Informado';
       
       if (!partnerCounts[pName]) {
           partnerCounts[pName] = { total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0 };
