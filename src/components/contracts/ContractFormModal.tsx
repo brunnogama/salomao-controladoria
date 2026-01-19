@@ -52,6 +52,18 @@ const safeParseFloat = (value: string | number | undefined | null): number => {
     return isNaN(floatVal) ? 0 : floatVal;
 };
 
+// HELPER ESSENCIAL: Garante que o valor seja um array, mesmo que venha como string JSON do banco
+const ensureArray = (val: any): string[] => {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('[')) {
+            try { return JSON.parse(trimmed); } catch { return []; }
+        }
+    }
+    return [];
+};
+
 const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => {
     return (
         <div className="relative h-full w-full">
@@ -520,9 +532,9 @@ export function ContractFormModal(props: Props) {
     if (!value || value === 'R$ 0,00' || value === '') return;
     
     const currentList = (formData as any)[listField] || [];
-    // CORREÇÃO: Garantir que é um array para evitar stringificação incorreta
+    // CORREÇÃO: Usar ensureArray para garantir que sempre seja array
     const rawClauses = (formData as any)[listField + '_clauses'];
-    const currentClausesList = Array.isArray(rawClauses) ? rawClauses : [];
+    const currentClausesList = ensureArray(rawClauses);
 
     setFormData(prev => ({ 
         ...prev, 
@@ -536,9 +548,9 @@ export function ContractFormModal(props: Props) {
   const removeExtra = (field: string, index: number) => {
     setFormData((prev: any) => {
       const newList = [...(prev[field] || [])];
-      // CORREÇÃO: Garantir que é um array
+      // CORREÇÃO: Usar ensureArray
       const rawClauses = prev[field + '_clauses'];
-      const newClausesList = [...(Array.isArray(rawClauses) ? rawClauses : [])];
+      const newClausesList = [...ensureArray(rawClauses)];
       
       newList.splice(index, 1);
       if(newClausesList.length > index) newClausesList.splice(index, 1);
@@ -551,9 +563,9 @@ export function ContractFormModal(props: Props) {
       if(!newIntermediateFee) return;
       addIntermediateFee(); 
       
-      // CORREÇÃO: Garantir que é um array
+      // CORREÇÃO: Usar ensureArray
       const raw = (formData as any).intermediate_fees_clauses;
-      const currentClauses = Array.isArray(raw) ? raw : [];
+      const currentClauses = ensureArray(raw);
       
       setFormData(prev => ({
           ...prev,
@@ -562,12 +574,12 @@ export function ContractFormModal(props: Props) {
       setInterimClause('');
       setInterimInstallments('1x');
   };
-   
+    
   const handleRemoveIntermediateFee = (idx: number) => {
       removeIntermediateFee(idx);
-      // CORREÇÃO: Garantir que é um array
+      // CORREÇÃO: Usar ensureArray
       const raw = (formData as any).intermediate_fees_clauses;
-      const currentClauses = [...(Array.isArray(raw) ? raw : [])];
+      const currentClauses = [...ensureArray(raw)];
       
       currentClauses.splice(idx, 1);
       setFormData(prev => ({ ...prev, intermediate_fees_clauses: currentClauses } as any));
@@ -785,8 +797,8 @@ export function ContractFormModal(props: Props) {
 
     // Intermediate Fees Logic (Updated with Clauses and Array Check)
     if (sourceData.intermediate_fees && sourceData.intermediate_fees.length > 0) {
-      // CORREÇÃO: Garante que é array
-      const clausesList = Array.isArray((sourceData as any).intermediate_fees_clauses) ? (sourceData as any).intermediate_fees_clauses : [];
+      // CORREÇÃO: Usar ensureArray
+      const clausesList = ensureArray((sourceData as any).intermediate_fees_clauses);
       sourceData.intermediate_fees.forEach((fee, idx) => {
         const val = safeParseFloat(fee);
         const clause = clausesList[idx];
@@ -794,9 +806,9 @@ export function ContractFormModal(props: Props) {
       });
     }
 
-    // Pro Labore Extras (Replicating Intermediate Logic with Clauses and Array Check)
+    // Pro Labore Extras
     if ((sourceData as any).pro_labore_extras && (sourceData as any).pro_labore_extras.length > 0) {
-        const clausesList = Array.isArray((sourceData as any).pro_labore_extras_clauses) ? (sourceData as any).pro_labore_extras_clauses : [];
+        const clausesList = ensureArray((sourceData as any).pro_labore_extras_clauses);
         (sourceData as any).pro_labore_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
           const clause = clausesList[idx];
@@ -806,7 +818,7 @@ export function ContractFormModal(props: Props) {
 
     // Final Success Extras
     if ((sourceData as any).final_success_extras && (sourceData as any).final_success_extras.length > 0) {
-        const clausesList = Array.isArray((sourceData as any).final_success_extras_clauses) ? (sourceData as any).final_success_extras_clauses : [];
+        const clausesList = ensureArray((sourceData as any).final_success_extras_clauses);
         (sourceData as any).final_success_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
           const clause = clausesList[idx];
@@ -816,7 +828,7 @@ export function ContractFormModal(props: Props) {
 
     // Other Fees Extras
     if ((sourceData as any).other_fees_extras && (sourceData as any).other_fees_extras.length > 0) {
-        const clausesList = Array.isArray((sourceData as any).other_fees_extras_clauses) ? (sourceData as any).other_fees_extras_clauses : [];
+        const clausesList = ensureArray((sourceData as any).other_fees_extras_clauses);
         (sourceData as any).other_fees_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
           const clause = clausesList[idx];
@@ -826,7 +838,7 @@ export function ContractFormModal(props: Props) {
 
     // Fixed Monthly Extras
     if ((sourceData as any).fixed_monthly_extras && (sourceData as any).fixed_monthly_extras.length > 0) {
-        const clausesList = Array.isArray((sourceData as any).fixed_monthly_extras_clauses) ? (sourceData as any).fixed_monthly_extras_clauses : [];
+        const clausesList = ensureArray((sourceData as any).fixed_monthly_extras_clauses);
         (sourceData as any).fixed_monthly_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
           const clause = clausesList[idx];
@@ -862,12 +874,12 @@ export function ContractFormModal(props: Props) {
       fixed_monthly_fee_clause: (sourceData as any).fixed_monthly_fee_clause,
       other_fees_clause: (sourceData as any).other_fees_clause,
 
-      // Salvar arrays de cláusulas extras
-      pro_labore_extras_clauses: (sourceData as any).pro_labore_extras_clauses,
-      final_success_extras_clauses: (sourceData as any).final_success_extras_clauses,
-      fixed_monthly_extras_clauses: (sourceData as any).fixed_monthly_extras_clauses,
-      other_fees_extras_clauses: (sourceData as any).other_fees_extras_clauses,
-      intermediate_fees_clauses: (sourceData as any).intermediate_fees_clauses,
+      // Salvar arrays de cláusulas extras (com ensureArray para limpar strings)
+      pro_labore_extras_clauses: ensureArray((sourceData as any).pro_labore_extras_clauses),
+      final_success_extras_clauses: ensureArray((sourceData as any).final_success_extras_clauses),
+      fixed_monthly_extras_clauses: ensureArray((sourceData as any).fixed_monthly_extras_clauses),
+      other_fees_extras_clauses: ensureArray((sourceData as any).other_fees_extras_clauses),
+      intermediate_fees_clauses: ensureArray((sourceData as any).intermediate_fees_clauses),
 
     }).eq('id', contractId);
   };
@@ -913,12 +925,12 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_fee_clause: (formData as any).fixed_monthly_fee_clause,
             other_fees_clause: (formData as any).other_fees_clause,
             
-            // Salvar arrays de cláusulas
-            pro_labore_extras_clauses: (formData as any).pro_labore_extras_clauses,
-            final_success_extras_clauses: (formData as any).final_success_extras_clauses,
-            fixed_monthly_extras_clauses: (formData as any).fixed_monthly_extras_clauses,
-            other_fees_extras_clauses: (formData as any).other_fees_extras_clauses,
-            intermediate_fees_clauses: (formData as any).intermediate_fees_clauses,
+            // Salvar arrays de cláusulas (Limpando sujeira)
+            pro_labore_extras_clauses: ensureArray((formData as any).pro_labore_extras_clauses),
+            final_success_extras_clauses: ensureArray((formData as any).final_success_extras_clauses),
+            fixed_monthly_extras_clauses: ensureArray((formData as any).fixed_monthly_extras_clauses),
+            other_fees_extras_clauses: ensureArray((formData as any).other_fees_extras_clauses),
+            intermediate_fees_clauses: ensureArray((formData as any).intermediate_fees_clauses),
             
             // Campos de relacionamento/UI a serem ignorados
             partner_name: undefined,
@@ -1629,12 +1641,16 @@ export function ContractFormModal(props: Props) {
                         onChangeClause={(v: any) => setFormData({...formData, pro_labore_clause: v} as any)}
                       />
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => (
-                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).pro_labore_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).pro_labore_extras_clauses[idx]}` : ''}>
-                             {(formData as any).pro_labore_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).pro_labore_extras_clauses[idx]})</span>}
-                            {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                          </span>
-                        ))}
+                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => {
+                           // CORREÇÃO: Leitura segura do array de cláusulas
+                           const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
+                           return (
+                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                 {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                 {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              </span>
+                           );
+                        })}
                       </div>
                     </div>
 
@@ -1649,12 +1665,16 @@ export function ContractFormModal(props: Props) {
                           onChangeClause={(v: any) => setFormData({...formData, other_fees_clause: v} as any)}
                         />
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {(formData as any).other_fees_extras?.map((val: string, idx: number) => (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).other_fees_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).other_fees_extras_clauses[idx]}` : ''}>
-                                {(formData as any).other_fees_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).other_fees_extras_clauses[idx]})</span>}
-                                {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                              </span>
-                            ))}
+                            {(formData as any).other_fees_extras?.map((val: string, idx: number) => {
+                               // CORREÇÃO: Leitura segura do array de cláusulas
+                               const clauses = ensureArray((formData as any).other_fees_extras_clauses);
+                               return (
+                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                    {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  </span>
+                               );
+                            })}
                           </div>
                     </div>
 
@@ -1669,12 +1689,16 @@ export function ContractFormModal(props: Props) {
                           onChangeClause={(v: any) => setFormData({...formData, fixed_monthly_fee_clause: v} as any)}
                         />
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).fixed_monthly_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).fixed_monthly_extras_clauses[idx]}` : ''}>
-                                {(formData as any).fixed_monthly_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).fixed_monthly_extras_clauses[idx]})</span>}
-                                {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                              </span>
-                            ))}
+                            {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => {
+                               // CORREÇÃO: Leitura segura do array de cláusulas
+                               const clauses = ensureArray((formData as any).fixed_monthly_extras_clauses);
+                               return (
+                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                    {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  </span>
+                               );
+                            })}
                           </div>
                     </div>
                 </div>
@@ -1692,11 +1716,16 @@ export function ContractFormModal(props: Props) {
                         onChangeClause={setInterimClause}
                       />
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.intermediate_fees?.map((fee, idx) => (
-                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).intermediate_fees_clauses?.[idx] ? `Cláusula: ${(formData as any).intermediate_fees_clauses[idx]}` : ''}>
-                              {(formData as any).intermediate_fees_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).intermediate_fees_clauses[idx]})</span>}
-                              {fee}<button onClick={() => handleRemoveIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button></span>
-                        ))}
+                        {formData.intermediate_fees?.map((fee, idx) => {
+                          // CORREÇÃO: Leitura segura do array de cláusulas
+                          const clauses = ensureArray((formData as any).intermediate_fees_clauses);
+                          return (
+                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                  {fee}<button onClick={() => handleRemoveIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              </span>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -1712,12 +1741,16 @@ export function ContractFormModal(props: Props) {
                         onChangeClause={(v: any) => setFormData({...formData, final_success_fee_clause: v} as any)}
                       />
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {(formData as any).final_success_extras?.map((val: string, idx: number) => (
-                          <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).final_success_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).final_success_extras_clauses[idx]}` : ''}>
-                            {(formData as any).final_success_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).final_success_extras_clauses[idx]})</span>}
-                            {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                          </span>
-                        ))}
+                        {(formData as any).final_success_extras?.map((val: string, idx: number) => {
+                           // CORREÇÃO: Leitura segura do array de cláusulas
+                           const clauses = ensureArray((formData as any).final_success_extras_clauses);
+                           return (
+                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              </span>
+                           );
+                        })}
                       </div>
                     </div>
 
@@ -1737,12 +1770,16 @@ export function ContractFormModal(props: Props) {
                           <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {(formData as any).percent_extras?.map((val: string, idx: number) => (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={(formData as any).percent_extras_clauses?.[idx] ? `Cláusula: ${(formData as any).percent_extras_clauses[idx]}` : ''}>
-                                {(formData as any).percent_extras_clauses?.[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {(formData as any).percent_extras_clauses[idx]})</span>}
-                                {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
-                              </span>
-                            ))}
+                            {(formData as any).percent_extras?.map((val: string, idx: number) => {
+                               // CORREÇÃO: Leitura segura do array de cláusulas
+                               const clauses = ensureArray((formData as any).percent_extras_clauses);
+                               return (
+                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                    {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  </span>
+                               );
+                            })}
                           </div>
                     </div>
                 </div>
