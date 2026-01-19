@@ -125,9 +125,14 @@ export function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const { data: contratos, error } = await supabase.from('contracts').select('*');
+      // Busca contratos e sócios em paralelo para resolver os nomes
+      const [ { data: contratos, error }, { data: socios } ] = await Promise.all([
+          supabase.from('contracts').select('*'),
+          supabase.from('partners').select('id, name')
+      ]);
+
       if (error) throw error;
-      if (contratos) processarDados(contratos);
+      if (contratos) processarDados(contratos, socios || []);
     } catch (error) {
       console.error('Erro dashboard:', error);
     } finally {
@@ -196,11 +201,17 @@ export function Dashboard() {
     return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
   };
 
-  const processarDados = (contratos: Contract[]) => {
+  const processarDados = (contratos: Contract[], socios: any[] = []) => {
     const hoje = new Date();
     // Definindo data fixa de início: Junho de 2025
     const dataInicioFixo = new Date(2025, 5, 1); // Mês 5 = Junho (0-indexed)
     
+    // Mapa de ID do Sócio -> Nome do Sócio
+    const partnerMap = socios.reduce((acc: any, s: any) => {
+        acc[s.id] = s.name;
+        return acc;
+    }, {});
+
     let mSemana = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
@@ -300,8 +311,9 @@ export function Dashboard() {
       // ---------------------------------------------------------------------
 
       // Contagem de Contratos por Sócio DETALHADA
-      // Tenta múltiplas variações de nome de campo para evitar "Não Informado"
-      const pName = (c as any).responsavel_socio || 
+      // Busca pelo partner_id no mapa de sócios, ou usa outros campos como fallback
+      const pName = ((c as any).partner_id && partnerMap[(c as any).partner_id]) || 
+                    (c as any).responsavel_socio || 
                     (c as any).responsavel || 
                     (c as any).socio || 
                     (c as any).partner || 
