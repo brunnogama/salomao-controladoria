@@ -357,10 +357,9 @@ export function Settings() {
           {activeTab === 'about' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 col-span-2 text-center">
-                    <div className="w-20 h-20 bg-salomao-blue rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg transform rotate-3 overflow-hidden">
-                        <img src="/logo.fm.png" alt="FlowMetrics" className="w-full h-full object-cover" />
+                    <div className="mx-auto flex items-center justify-center mb-4">
+                        <img src="/logo.fm.png" alt="FlowMetrics" className="h-24 w-auto" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800">FlowMetrics</h2>
                     <p className="text-gray-500 mt-2">Versão 1.2.0 (Build 2026.01)</p>
                     <div className="mt-8 flex justify-center gap-8">
                         <div className="text-center">
