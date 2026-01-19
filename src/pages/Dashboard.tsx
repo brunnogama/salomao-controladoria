@@ -899,12 +899,14 @@ export function Dashboard() {
                      <p className='text-xs text-gray-500'>Distribuição detalhada por status.</p>
                  </div>
              </div>
-             <div className="space-y-6">
-                 {contractsByPartner.length === 0 ? <p className="text-sm text-gray-400">Nenhum dado.</p> : contractsByPartner.map((item, idx) => (
-                    <div key={idx} className="group border-b border-gray-50 pb-4 last:border-0 last:pb-0">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-gray-800 text-sm">{item.name}</span>
-                            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{item.total} Casos</span>
+             {/* Changed space-y-6 to grid with 3 columns */}
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> 
+                 {contractsByPartner.length === 0 ? <p className="text-sm text-gray-400 col-span-3">Nenhum dado.</p> : contractsByPartner.map((item, idx) => (
+                    // Changed to card style block
+                    <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="font-bold text-gray-800 text-sm truncate" title={item.name}>{item.name}</span>
+                            <span className="text-[10px] font-bold text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full">{item.total} Casos</span>
                         </div>
                         
                         <div className="space-y-1.5">
@@ -912,7 +914,7 @@ export function Dashboard() {
                             {item.analysis > 0 && (
                                 <div className="flex items-center text-[10px]">
                                     <span className="w-16 text-yellow-600 font-medium">Análise</span>
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full mx-2 overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
                                         <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(item.analysis / item.total) * 100}%` }}></div>
                                     </div>
                                     <span className="w-8 text-right text-gray-500">{item.analysis}</span>
@@ -923,7 +925,7 @@ export function Dashboard() {
                             {item.proposal > 0 && (
                                 <div className="flex items-center text-[10px]">
                                     <span className="w-16 text-blue-600 font-medium">Proposta</span>
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full mx-2 overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
                                         <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(item.proposal / item.total) * 100}%` }}></div>
                                     </div>
                                     <span className="w-8 text-right text-gray-500">{item.proposal}</span>
@@ -934,7 +936,7 @@ export function Dashboard() {
                             {item.active > 0 && (
                                 <div className="flex items-center text-[10px]">
                                     <span className="w-16 text-green-600 font-medium">Fechado</span>
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full mx-2 overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
                                         <div className="h-full bg-green-500 rounded-full" style={{ width: `${(item.active / item.total) * 100}%` }}></div>
                                     </div>
                                     <span className="w-8 text-right text-gray-500">{item.active}</span>
@@ -945,7 +947,7 @@ export function Dashboard() {
                             {item.rejected > 0 && (
                                 <div className="flex items-center text-[10px]">
                                     <span className="w-16 text-red-600 font-medium">Rejeitado</span>
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full mx-2 overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
                                         <div className="h-full bg-red-400 rounded-full" style={{ width: `${(item.rejected / item.total) * 100}%` }}></div>
                                     </div>
                                     <span className="w-8 text-right text-gray-500">{item.rejected}</span>
@@ -956,7 +958,7 @@ export function Dashboard() {
                             {item.probono > 0 && (
                                 <div className="flex items-center text-[10px]">
                                     <span className="w-16 text-purple-600 font-medium">Probono</span>
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full mx-2 overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
                                         <div className="h-full bg-purple-400 rounded-full" style={{ width: `${(item.probono / item.total) * 100}%` }}></div>
                                     </div>
                                     <span className="w-8 text-right text-gray-500">{item.probono}</span>
