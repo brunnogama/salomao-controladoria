@@ -103,6 +103,9 @@ export function Dashboard() {
     sources: { label: string, value: number, percent: number }[]
   }>({ reasons: [], sources: [] });
 
+  // Novo estado para Contratos por Sócio
+  const [contractsByPartner, setContractsByPartner] = useState<{name: string, value: number}[]>([]);
+
   useEffect(() => {
     fetchDashboardData();
 
@@ -234,6 +237,9 @@ export function Dashboard() {
     const sourceCounts: Record<string, number> = {};
     let totalRejected = 0;
 
+    // Contador para Sócios
+    const partnerCounts: Record<string, number> = {};
+
     // Gera as chaves dinamicamente a partir de Junho de 2025 até o mês ATUAL (hoje)
     let iteradorMeses = new Date(dataInicioFixo);
     while (iteradorMeses <= hoje) {
@@ -316,6 +322,10 @@ export function Dashboard() {
             financeiroMap[key].exito += exito;
           }
         }
+
+        // Contagem de Contratos por Sócio
+        const pName = (c as any).owner || (c as any).partner || 'Não Informado';
+        partnerCounts[pName] = (partnerCounts[pName] || 0) + 1;
       }
 
       // --- POPULA GRÁFICO DE PROPOSTAS (Esquerda) ---
@@ -529,6 +539,11 @@ export function Dashboard() {
         reasons: formatRejection(reasonCounts),
         sources: formatRejection(sourceCounts)
     });
+
+    // Formatação dos Dados de Sócios
+    setContractsByPartner(Object.entries(partnerCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value));
   };
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -710,12 +725,12 @@ export function Dashboard() {
                             {propostas12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados de propostas</p>) : (propostas12Meses.map((item, index) => {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
-                                <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
+                                <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
                                     {totalMes > 0 && (<span className='text-[8px] font-bold text-gray-600 mb-1 tracking-tighter whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
                                     <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
-                                    <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
-                                    <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
-                                    <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
+                                    <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
+                                    <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
+                                    <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
                                     </div>
                                     <span className='text-[8px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
                                 </div>
@@ -757,12 +772,12 @@ export function Dashboard() {
                             {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (financeiro12Meses.map((item, index) => {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
-                                <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
+                                <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
                                     {totalMes > 0 && (<span className='text-[8px] font-bold text-gray-600 mb-1 tracking-tighter whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
                                     <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
-                                    <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
-                                    <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
-                                    <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
+                                    <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hPl, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.pl)}</span></div>
+                                    <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hFixo, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.fixo)}</span></div>
+                                    <div className='w-2 bg-green-400 rounded-t hover:bg-green-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hExito, 1)}%` }}><span className='absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[10px] p-1 rounded z-50 whitespace-nowrap'>{formatMoney(item.exito)}</span></div>
                                     </div>
                                     <span className='text-[8px] text-gray-500 font-medium uppercase mt-2'>{item.mes}</span>
                                 </div>
@@ -843,6 +858,30 @@ export function Dashboard() {
                     </div>
                 </div>
             </div>
+        </div>
+
+        {/* CONTRACTS BY PARTNER - NEW BLOCK */}
+        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
+             <div className='flex items-center gap-2 mb-6 border-b pb-4'>
+                 <Briefcase className='text-blue-600' size={24} />
+                 <div>
+                     <h2 className='text-xl font-bold text-gray-800'>Contratos por Sócio</h2>
+                     <p className='text-xs text-gray-500'>Distribuição de contratos fechados.</p>
+                 </div>
+             </div>
+             <div className="space-y-4">
+                 {contractsByPartner.length === 0 ? <p className="text-sm text-gray-400">Nenhum dado.</p> : contractsByPartner.map((item, idx) => (
+                    <div key={idx} className="group">
+                        <div className="flex justify-between text-xs mb-1">
+                            <span className="font-medium text-gray-700">{item.name}</span>
+                            <span className="text-gray-500">{item.value}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5">
+                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(item.value / (contractsByPartner[0]?.value || 1)) * 100}%` }}></div>
+                        </div>
+                    </div>
+                 ))}
+             </div>
         </div>
 
         {/* ANALISE DE REJEIÇÕES - NOVO BLOCO */}
