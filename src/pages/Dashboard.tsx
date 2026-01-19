@@ -631,32 +631,36 @@ export function Dashboard() {
          <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão e tempo médio.</p></div></div>
             <div className='grid grid-cols-1 md:grid-cols-5 gap-4 items-center'>
-            <div className='md:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative'><p className='text-xs font-bold text-gray-500 uppercase'>1. Prospects</p><p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div></div>
-            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
-                <div className='bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoProposta}% Avançam</div>
-                <div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaAnalise} Rejeitados</div>
-                <div className='mt-3 bg-gray-50 border border-gray-200 p-2 rounded-lg w-full text-center'>
-                    <p className='text-[9px] text-gray-500 uppercase font-bold'>Tempo Médio</p>
-                    <p className='text-sm font-bold text-gray-700 flex items-center justify-center gap-1'><Clock size={12} /> {funil.tempoMedioProspectProposta} dias</p>
+            <div className='md:col-span-1 bg-gray-50 p-4 rounded-xl border border-gray-200 text-center relative'><p className='text-xs font-bold text-gray-500 uppercase tracking-wider'>1. Prospects</p><p className='text-3xl font-bold text-gray-800 mt-2'>{funil.totalEntrada}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-gray-300' /></div></div>
+            
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-3'>
+                <div className='bg-blue-50 text-blue-700 border border-blue-100 text-xs font-bold px-3 py-1 rounded-full shadow-sm'>{funil.taxaConversaoProposta}% Avançam</div>
+                <div className='text-[10px] text-red-400 flex items-center gap-1 opacity-80'><XCircle size={10} /> {funil.perdaAnalise} Rejeitados</div>
+                <div className='flex flex-col items-center mt-1'>
+                    <span className='text-[9px] text-gray-400 uppercase font-bold mb-1'>Tempo Médio</span>
+                    <span className='text-xs font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-md border border-gray-200 flex items-center gap-1'><Clock size={10} /> {funil.tempoMedioProspectProposta} dias</span>
                 </div>
             </div>
-            <div className='md:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative'><p className='text-xs font-bold text-blue-600 uppercase'>2. Propostas</p><p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div></div>
-            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-2'>
-                <div className='bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full'>{funil.taxaConversaoFechamento}% Fecham</div>
-                <div className='text-xs text-red-400 flex items-center gap-1 bg-red-50 px-2 py-1 rounded border border-red-100 mt-2'><XCircle size={12} /> {funil.perdaNegociacao} Rejeitados</div>
-                <div className='mt-3 bg-blue-50 border border-blue-100 p-2 rounded-lg w-full text-center'>
-                    <p className='text-[9px] text-blue-600 uppercase font-bold'>Tempo Médio</p>
-                    <p className='text-sm font-bold text-blue-900 flex items-center justify-center gap-1'><Clock size={12} /> {funil.tempoMedioPropostaFechamento} dias</p>
+
+            <div className='md:col-span-1 bg-blue-50 p-4 rounded-xl border border-blue-100 text-center relative'><p className='text-xs font-bold text-blue-600 uppercase tracking-wider'>2. Propostas</p><p className='text-3xl font-bold text-blue-900 mt-2'>{funil.qualificadosProposta}</p><div className='hidden md:block absolute -right-6 top-1/2 -translate-y-1/2 z-10'><ArrowRight className='text-blue-200' /></div></div>
+            
+            <div className='md:col-span-1 flex flex-col items-center justify-center space-y-3'>
+                <div className='bg-green-50 text-green-700 border border-green-100 text-xs font-bold px-3 py-1 rounded-full shadow-sm'>{funil.taxaConversaoFechamento}% Fecham</div>
+                <div className='text-[10px] text-red-400 flex items-center gap-1 opacity-80'><XCircle size={10} /> {funil.perdaNegociacao} Rejeitados</div>
+                <div className='flex flex-col items-center mt-1'>
+                    <span className='text-[9px] text-blue-300 uppercase font-bold mb-1'>Tempo Médio</span>
+                    <span className='text-xs font-bold text-blue-800 bg-blue-50/50 px-2 py-1 rounded-md border border-blue-100 flex items-center gap-1'><Clock size={10} /> {funil.tempoMedioPropostaFechamento} dias</span>
                 </div>
             </div>
-            <div className='md:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center'><p className='text-xs font-bold text-green-600 uppercase'>3. Fechados</p><p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p></div>
+
+            <div className='md:col-span-1 bg-green-50 p-4 rounded-xl border border-green-100 text-center'><p className='text-xs font-bold text-green-600 uppercase tracking-wider'>3. Fechados</p><p className='text-3xl font-bold text-green-900 mt-2'>{funil.fechados}</p></div>
             </div>
             <div className='mt-6 pt-4 border-t border-gray-100 flex items-start gap-3'>
                 <div className='p-2 bg-gray-50 rounded-full text-gray-500'><Clock size={16} /></div>
                 <div>
                     <h4 className='text-sm font-bold text-gray-800'>Análise de Ciclo (Tempo)</h4>
                     <p className='text-xs text-gray-500 mt-1'>
-                        O indicador de <strong>Tempo Médio</strong> reflete a velocidade do pipeline. 
+                        O indicador de <strong>Tempo Médio</strong> reflete a celeridade do trâmite. 
                         O tempo de <strong>Prospect → Proposta</strong> mede a agilidade na qualificação, enquanto 
                         <strong> Proposta → Fechamento</strong> mede a duração da negociação.
                     </p>
@@ -832,7 +836,7 @@ export function Dashboard() {
                             }))}
                         </div>
                     </div>
-                     {/* Analise Fechamentos */}
+                      {/* Analise Fechamentos */}
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-200">
                         <div className="flex flex-col">
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Total (12m)</span>
