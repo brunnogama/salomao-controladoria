@@ -1288,7 +1288,37 @@ export function ContractFormModal(props: Props) {
 
           {/* SESSÃO DE PROCESSOS (UI RICA DO SEGUNDO CODIGO) */}
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30">
-            <div className="flex justify-between items-center"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3><div className="flex items-center"><input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" /><label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label></div></div>
+            <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Processos Judiciais</h3>
+                <div className="flex items-center gap-3">
+                    <button 
+                        type="button" 
+                        onClick={() => {
+                            setIsStandardCNJ(false);
+                            setCurrentProcess({ ...currentProcess, process_number: 'CONSULTORIA', uf: currentProcess.uf || '' });
+                            setOtherProcessType('');
+                        }}
+                        className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded border border-blue-100 hover:bg-blue-100 font-medium transition-colors"
+                    >
+                        Consultoria
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={() => {
+                            setIsStandardCNJ(false);
+                            setCurrentProcess({ ...currentProcess, process_number: 'ASSESSORIA JURÍDICA', uf: currentProcess.uf || '' });
+                            setOtherProcessType('');
+                        }}
+                        className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded border border-blue-100 hover:bg-blue-100 font-medium transition-colors"
+                    >
+                        Assessoria Jurídica
+                    </button>
+                    <div className="flex items-center">
+                        <input type="checkbox" id="no_process" checked={!formData.has_legal_process} onChange={(e) => setFormData({...formData, has_legal_process: !e.target.checked})} className="rounded text-salomao-blue" />
+                        <label htmlFor="no_process" className="ml-2 text-xs text-gray-600">Caso sem processo judicial</label>
+                    </div>
+                </div>
+            </div>
             {formData.has_legal_process && (
               <div className="space-y-4">
                 <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
@@ -1297,33 +1327,28 @@ export function ContractFormModal(props: Props) {
                     <div className={isStandardCNJ ? "md:col-span-5" : "md:col-span-4"}>
                         <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
                             Número do Processo *
-                            {currentProcess.process_number && currentProcess.process_number !== 'CONSULTORIA' && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
+                            {currentProcess.process_number && currentProcess.process_number !== 'CONSULTORIA' && currentProcess.process_number !== 'ASSESSORIA JURÍDICA' && (<button onClick={handleOpenJusbrasil} className="text-[10px] text-blue-500 hover:underline flex items-center" title="Abrir no Jusbrasil"><LinkIcon className="w-3 h-3 mr-1" /> Ver Externo</button>)}
                         </label>
                         <div className="flex items-center">
                             <CustomSelect 
-                                value={currentProcess.process_number === 'CONSULTORIA' ? 'consultoria' : (isStandardCNJ ? 'cnj' : 'other')}
+                                value={currentProcess.process_number === 'CONSULTORIA' || currentProcess.process_number === 'ASSESSORIA JURÍDICA' ? 'other' : (isStandardCNJ ? 'cnj' : 'other')}
                                 onChange={(val: string) => {
-                                    if (val === 'consultoria') {
-                                        setIsStandardCNJ(false);
-                                        setCurrentProcess({ ...currentProcess, process_number: 'CONSULTORIA', uf: currentProcess.uf || '' });
-                                        setOtherProcessType('');
-                                    } else if (val === 'cnj') {
+                                    if (val === 'cnj') {
                                         setIsStandardCNJ(true);
                                         setCurrentProcess({ ...currentProcess, process_number: '' });
                                     } else {
                                         setIsStandardCNJ(false);
-                                        if (currentProcess.process_number === 'CONSULTORIA') setCurrentProcess({ ...currentProcess, process_number: '' });
+                                        if (currentProcess.process_number === 'CONSULTORIA' || currentProcess.process_number === 'ASSESSORIA JURÍDICA') setCurrentProcess({ ...currentProcess, process_number: '' });
                                     }
                                 }}
                                 options={[
                                     { label: 'CNJ', value: 'cnj' },
-                                    { label: 'Outro', value: 'other' },
-                                    { label: 'Consultoria', value: 'consultoria' }
+                                    { label: 'Outro', value: 'other' }
                                 ]}
                                 className="mr-2 w-28"
                             />
                             
-                            {currentProcess.process_number !== 'CONSULTORIA' && (
+                            {currentProcess.process_number !== 'CONSULTORIA' && currentProcess.process_number !== 'ASSESSORIA JURÍDICA' && (
                               <div className="flex-1 relative">
                                   <input 
                                       type="text" 
@@ -1345,9 +1370,9 @@ export function ContractFormModal(props: Props) {
                                   </button>
                               </div>
                             )}
-                            {currentProcess.process_number === 'CONSULTORIA' && (
+                            {(currentProcess.process_number === 'CONSULTORIA' || currentProcess.process_number === 'ASSESSORIA JURÍDICA') && (
                                <div className="flex-1">
-                                  <input type="text" disabled value="CONSULTORIA" className="w-full border-b border-gray-200 bg-gray-50 text-gray-500 py-1.5 text-sm font-bold" />
+                                  <input type="text" disabled value={currentProcess.process_number} className="w-full border-b border-gray-200 bg-gray-50 text-gray-500 py-1.5 text-sm font-bold" />
                                </div>
                             )}
                         </div>
@@ -1358,8 +1383,8 @@ export function ContractFormModal(props: Props) {
                         )}
                     </div>
                     
-                    {/* Campo Extra para Tipo de Processo (se não for CNJ e nem Consultoria) */}
-                    {!isStandardCNJ && currentProcess.process_number !== 'CONSULTORIA' && (
+                    {/* Campo Extra para Tipo de Processo (se não for CNJ e nem Consultoria/Assessoria) */}
+                    {!isStandardCNJ && currentProcess.process_number !== 'CONSULTORIA' && currentProcess.process_number !== 'ASSESSORIA JURÍDICA' && (
                         <div className="md:col-span-2">
                             <label className="text-[10px] text-gray-500 uppercase font-bold">Tipo (ex: AgInt)</label>
                             <input 
@@ -1646,8 +1671,8 @@ export function ContractFormModal(props: Props) {
                            const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
                            return (
                               <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                 {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                 {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
+                                  {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
                               </span>
                            );
                         })}
