@@ -154,6 +154,81 @@ const getThemeBackground = (status: string) => {
   }
 };
 
+// Componente Genérico de Gerenciamento de Opções
+const OptionManager = ({ 
+  title, 
+  options, 
+  onAdd, 
+  onRemove, 
+  onClose,
+  placeholder = "Digite o nome"
+}: { 
+  title: string, 
+  options: string[], 
+  onAdd: (val: string) => Promise<boolean>, 
+  onRemove: (val: string) => void, 
+  onClose: () => void,
+  placeholder?: string
+}) => {
+    const [inputValue, setInputValue] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleAdd = async () => {
+        if (!inputValue.trim()) return;
+        setLoading(true);
+        const success = await onAdd(inputValue.trim());
+        setLoading(false);
+        if (success) setInputValue('');
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800">{title}</h3>
+              <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            
+            <div className="p-4">
+              <div className="flex gap-2 mb-4">
+                <input 
+                  type="text" 
+                  className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
+                  placeholder={placeholder}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
+                />
+                <button 
+                  onClick={handleAdd}
+                  disabled={loading}
+                  className="bg-salomao-blue text-white p-2 rounded-lg disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin"/> : <Plus className="w-5 h-5" />}
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {options.map((opt, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
+                    <span className="text-sm text-gray-700">{opt}</span>
+                    <button 
+                        onClick={() => onRemove(opt)} 
+                        className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remover (Apenas localmente se não houver backend)"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                {options.length === 0 && <p className="text-xs text-center text-gray-400 py-4">Nenhum item cadastrado.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+    );
+};
+
 interface Props {
   isOpen: boolean; onClose: () => void; formData: Contract; setFormData: React.Dispatch<React.SetStateAction<Contract>>; onSave: () => void; loading: boolean; isEditing: boolean;
   partners: Partner[]; onOpenPartnerManager: () => void; analysts: Analyst[]; onOpenAnalystManager: () => void;
@@ -179,8 +254,10 @@ export function ContractFormModal(props: Props) {
   const [interimInstallments, setInterimInstallments] = useState('');
   const [interimClause, setInterimClause] = useState(''); // Estado local para cláusula intermediária
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
-  const [showAreaManager, setShowAreaManager] = useState(false);
-  const [showPositionManager, setShowPositionManager] = useState(false);
+  
+  // Estado Unificado de Gerenciamento
+  const [activeManager, setActiveManager] = useState<string | null>(null); // 'area', 'position', 'court', 'vara', 'comarca', 'class', 'subject', 'justice', 'magistrate', 'opponent', 'location'
+  
   const [initialFormData, setInitialFormData] = useState<Contract | null>(null);
     
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
@@ -231,6 +308,7 @@ export function ContractFormModal(props: Props) {
       setDuplicateOpponentCases([]);
       setDuplicateProcessWarning(false);
       setInitialFormData(null);
+      setActiveManager(null);
     }
   }, [isOpen, formData.id]);
 
@@ -311,16 +389,23 @@ export function ContractFormModal(props: Props) {
 
   const fetchAuxiliaryTables = async () => {
     const { data: courts } = await supabase.from('courts').select('name').order('name');
-    if (courts) setCourtOptions(prev => Array.from(new Set([...DEFAULT_COURTS, ...courts.map(c => c.name)])).sort());
+    if (courts) setCourtOptions(prev => Array.from(new Set([...DEFAULT_COURTS, ...courts.map(c => c.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: classes } = await supabase.from('process_classes').select('name').order('name');
-    if (classes) setClassOptions(prev => Array.from(new Set([...DEFAULT_CLASSES, ...classes.map(c => c.name)])).sort());
+    if (classes) setClassOptions(prev => Array.from(new Set([...DEFAULT_CLASSES, ...classes.map(c => c.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: subjects } = await supabase.from('process_subjects').select('name').order('name');
-    if (subjects) setSubjectOptions(prev => Array.from(new Set([...DEFAULT_SUBJECTS, ...subjects.map(s => s.name)])).sort());
+    if (subjects) setSubjectOptions(prev => Array.from(new Set([...DEFAULT_SUBJECTS, ...subjects.map(s => s.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: positions } = await supabase.from('process_positions').select('name').order('name');
-    if (positions) setPositionsList(prev => Array.from(new Set([...DEFAULT_POSITIONS, ...positions.map(p => p.name)])).sort());
+    if (positions) setPositionsList(prev => Array.from(new Set([...DEFAULT_POSITIONS, ...positions.map(p => p.name)])).sort((a, b) => a.localeCompare(b)));
+
+    // Correção: Buscar Varas e Justiças também se existirem as tabelas
+    const { data: varas } = await supabase.from('process_varas').select('name').order('name');
+    if (varas) setVaraOptions(prev => Array.from(new Set([...prev, ...varas.map(v => v.name)])).sort((a, b) => a.localeCompare(b)));
+
+    const { data: justices } = await supabase.from('process_justice_types').select('name').order('name');
+    if (justices) setJusticeOptions(prev => Array.from(new Set([...prev, ...justices.map(j => j.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: mags } = await supabase.from('magistrates').select('name').order('name');
     if (mags) setMagistrateOptions(mags.map(m => m.name));
@@ -335,7 +420,7 @@ export function ContractFormModal(props: Props) {
     let query = supabase.from('comarcas').select('name');
     if (uf) query = query.eq('uf', uf);
     const { data } = await query.order('name');
-    if (data) setComarcaOptions(data.map(c => c.name));
+    if (data) setComarcaOptions(data.map(c => c.name).sort((a, b) => a.localeCompare(b)));
   };
 
   useEffect(() => {
@@ -506,127 +591,145 @@ export function ContractFormModal(props: Props) {
     });
   };
 
-  const handleAddJustice = () => {
-    const newJustice = window.prompt("Digite o novo tipo de Justiça:");
-    if (newJustice && !justiceOptions.includes(newJustice.trim())) {
-      setJusticeOptions([...justiceOptions, toTitleCase(newJustice.trim())]);
-    }
-  };
+  // Funções de Gerenciamento Genérico
+  const handleGenericAdd = async (value: string) => {
+      const cleanValue = toTitleCase(value.trim());
+      if (!cleanValue) return false;
 
-  const handleAddVara = () => {
-    const newVara = window.prompt("Digite o novo tipo de Vara:");
-    if (newVara && !varaOptions.includes(newVara.trim())) {
-      setVaraOptions([...varaOptions, toTitleCase(newVara.trim())]);
-    }
-  };
-
-  const handleAddCourt = async () => {
-    const newCourt = window.prompt("Digite a sigla do novo Tribunal:");
-    if (newCourt) {
-        const cleanCourt = newCourt.trim().toUpperCase();
-        if (!courtOptions.includes(cleanCourt)) {
-            const { error } = await supabase.from('courts').insert({ name: cleanCourt });
-            if (!error) {
-                setCourtOptions([...courtOptions, cleanCourt].sort());
-                setCurrentProcess({...currentProcess, court: cleanCourt});
-            } else {
-                alert("Erro ao salvar tribunal: " + error.message);
+      let error = null;
+      
+      switch(activeManager) {
+        case 'area':
+            if (!legalAreas.includes(cleanValue)) {
+                setLegalAreas(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                setFormData(prev => ({ ...prev, area: cleanValue }));
             }
-        }
-    }
-  };
-
-  const handleAddMagistrateName = async () => {
-    const name = window.prompt("Digite o nome do Magistrado:");
-    if (name) {
-        const cleanName = toTitleCase(name.trim());
-        if (!magistrateOptions.includes(cleanName)) {
-            const { error } = await supabase
-                .from('magistrates')
-                .insert({ name: cleanName, title: newMagistrateTitle });
-            
-            if (!error) {
-                setMagistrateOptions([...magistrateOptions, cleanName].sort());
-                setNewMagistrateName(cleanName);
-            } else {
-                alert("Erro ao salvar magistrado: " + error.message);
+            break;
+        case 'position':
+            if (!positionsList.includes(cleanValue)) {
+                const { error: err } = await supabase.from('process_positions').insert({ name: cleanValue });
+                error = err;
+                if (!err) {
+                    setPositionsList(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                    setCurrentProcess(prev => ({ ...prev, position: cleanValue }));
+                }
             }
-        } else {
-           setNewMagistrateName(cleanName);
-        }
-    }
+            break;
+        case 'court':
+             if (!courtOptions.includes(cleanValue.toUpperCase())) {
+                const { error: err } = await supabase.from('courts').insert({ name: cleanValue.toUpperCase() });
+                error = err;
+                if (!err) {
+                   setCourtOptions(prev => [...prev, cleanValue.toUpperCase()].sort((a,b)=>a.localeCompare(b)));
+                   setCurrentProcess(prev => ({ ...prev, court: cleanValue.toUpperCase() }));
+                }
+             }
+             break;
+        case 'vara':
+             if (!varaOptions.includes(cleanValue)) {
+                 // Adicionada persistência no Supabase para Varas
+                 const { error: err } = await supabase.from('process_varas').insert({ name: cleanValue });
+                 // Se der erro (tabela não existir), salvamos localmente para não bloquear o usuário
+                 if (err) console.warn("Aviso: Não foi possível salvar vara no banco, usando local.", err);
+                 
+                 setVaraOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                 setCurrentProcess(prev => ({ ...prev, vara: cleanValue }));
+             }
+             break;
+        case 'comarca':
+             if (!currentProcess.uf) {
+                 alert("Selecione um Estado (UF) antes de adicionar Comarca.");
+                 return false;
+             }
+             if (!comarcaOptions.includes(cleanValue)) {
+                 const { error: err } = await supabase.from('comarcas').insert({ name: cleanValue, uf: currentProcess.uf });
+                 error = err;
+                 if (!err) {
+                    setComarcaOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                    setCurrentProcess(prev => ({ ...prev, comarca: cleanValue }));
+                 }
+             }
+             break;
+        case 'class':
+             if (!classOptions.includes(cleanValue)) {
+                 const { error: err } = await supabase.from('process_classes').insert({ name: cleanValue });
+                 error = err;
+                 if (!err) {
+                    setClassOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                    setCurrentProcess(prev => ({ ...prev, process_class: cleanValue }));
+                 }
+             }
+             break;
+        case 'subject':
+             if (!subjectOptions.includes(cleanValue)) {
+                 const { error: err } = await supabase.from('process_subjects').insert({ name: cleanValue });
+                 error = err;
+                 if (!err) {
+                    setSubjectOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                    setNewSubject(cleanValue); // Set input for adding to process
+                 }
+             }
+             break;
+        case 'justice':
+             if (!justiceOptions.includes(cleanValue)) {
+                 // Adicionada persistência para Justiça
+                 const { error: err } = await supabase.from('process_justice_types').insert({ name: cleanValue });
+                 if (err) console.warn("Aviso: Não foi possível salvar justiça no banco, usando local.", err);
+
+                 setJusticeOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                 setCurrentProcess(prev => ({ ...prev, justice_type: cleanValue }));
+             }
+             break;
+        case 'magistrate':
+             if (!magistrateOptions.includes(cleanValue)) {
+                 const { error: err } = await supabase.from('magistrates').insert({ name: cleanValue, title: newMagistrateTitle });
+                 error = err;
+                 if (!err) {
+                     setMagistrateOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                     setNewMagistrateName(cleanValue);
+                 }
+             }
+             break;
+        case 'opponent':
+             if (!opponentOptions.includes(cleanValue)) {
+                 const { error: err } = await supabase.from('opponents').insert({ name: cleanValue });
+                 error = err;
+                 if (!err) {
+                     setOpponentOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                     setCurrentProcess(prev => ({ ...prev, opponent: cleanValue }));
+                 }
+             }
+             break;
+        case 'location':
+             if (!billingLocations.includes(cleanValue)) {
+                 setBillingLocations(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                 setFormData(prev => ({ ...prev, billing_location: cleanValue }));
+             }
+             break;
+      }
+
+      if (error) {
+          alert("Erro ao salvar: " + error.message);
+          return false;
+      }
+      return true;
   };
 
-  const handleAddOpponent = async () => {
-    const newOpponent = window.prompt("Digite o nome da Parte Oposta:");
-    if (newOpponent) {
-        const cleanOpponent = toTitleCase(newOpponent.trim());
-        if (!opponentOptions.includes(cleanOpponent)) {
-            const { error } = await supabase
-                .from('opponents')
-                .insert({ name: cleanOpponent });
-            
-            if (!error) {
-                setOpponentOptions([...opponentOptions, cleanOpponent].sort());
-                setCurrentProcess({...currentProcess, opponent: cleanOpponent});
-            } else {
-                alert("Erro ao salvar oponente: " + error.message);
-            }
-        } else {
-             setCurrentProcess({...currentProcess, opponent: cleanOpponent});
-        }
-    }
-  };
-
-  const handleAddComarca = async () => {
-    if (!currentProcess.uf) return alert("Selecione um Estado (UF) antes de adicionar uma comarca.");
-    
-    const newComarca = window.prompt(`Digite a nova Comarca para ${currentProcess.uf}:`);
-    if (newComarca) {
-        const cleanComarca = toTitleCase(newComarca.trim());
-        if (!comarcaOptions.includes(cleanComarca)) {
-            const { error } = await supabase.from('comarcas').insert({ name: cleanComarca, uf: currentProcess.uf });
-            if (!error) {
-                setComarcaOptions([...comarcaOptions, cleanComarca].sort());
-                setCurrentProcess({...currentProcess, comarca: cleanComarca});
-            } else {
-                alert("Erro ao salvar comarca: " + error.message);
-            }
-        }
-    }
-  };
-
-  const handleAddClass = async () => {
-    const newClass = window.prompt("Digite a nova Classe Processual:");
-    if (newClass) {
-        const cleanClass = toTitleCase(newClass.trim());
-        if (!classOptions.includes(cleanClass)) {
-            const { error } = await supabase.from('process_classes').insert({ name: cleanClass });
-            if (!error) {
-                setClassOptions([...classOptions, cleanClass].sort());
-                setCurrentProcess({...currentProcess, process_class: cleanClass});
-            } else {
-                alert("Erro ao salvar classe: " + error.message);
-            }
-        }
-    }
-  };
-
-  const handleCreateSubjectOption = async () => {
-      const newSubjectName = window.prompt("Digite o novo Assunto:");
-      if (newSubjectName) {
-          const cleanSubject = toTitleCase(newSubjectName.trim());
-          if (!subjectOptions.includes(cleanSubject)) {
-              const { error } = await supabase.from('process_subjects').insert({ name: cleanSubject });
-              if (!error) {
-                  setSubjectOptions([...subjectOptions, cleanSubject].sort());
-                  setNewSubject(cleanSubject);
-              } else {
-                  alert("Erro ao salvar assunto: " + error.message);
-              }
-          } else {
-              setNewSubject(cleanSubject);
-          }
+  const handleGenericRemove = (value: string) => {
+      // Implementação visual de remoção (a maioria não deleta do banco para integridade)
+      switch(activeManager) {
+          case 'area': setLegalAreas(prev => prev.filter(i => i !== value)); break;
+          case 'location': setBillingLocations(prev => prev.filter(i => i !== value)); break;
+          // Para itens de banco, apenas removemos da lista visual nesta sessão
+          case 'position': setPositionsList(prev => prev.filter(i => i !== value)); break;
+          case 'court': setCourtOptions(prev => prev.filter(i => i !== value)); break;
+          case 'vara': setVaraOptions(prev => prev.filter(i => i !== value)); break;
+          case 'comarca': setComarcaOptions(prev => prev.filter(i => i !== value)); break;
+          case 'class': setClassOptions(prev => prev.filter(i => i !== value)); break;
+          case 'subject': setSubjectOptions(prev => prev.filter(i => i !== value)); break;
+          case 'justice': setJusticeOptions(prev => prev.filter(i => i !== value)); break;
+          case 'magistrate': setMagistrateOptions(prev => prev.filter(i => i !== value)); break;
+          case 'opponent': setOpponentOptions(prev => prev.filter(i => i !== value)); break;
       }
   };
 
@@ -901,13 +1004,6 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  const handleAddLocation = () => {
-    const newLocation = window.prompt("Digite o novo local de faturamento:");
-    if (newLocation && !billingLocations.includes(newLocation)) {
-      setBillingLocations([...billingLocations, newLocation]);
-    }
-  };
-
   const handleCNPJSearch = async () => {
     if (!formData.cnpj || formData.has_no_cnpj) return;
     
@@ -982,7 +1078,7 @@ export function ContractFormModal(props: Props) {
       if (!courtOptions.includes(decoded.tribunal)) {
           // Tenta inserir no Supabase (silenciosamente se falhar/já existir)
           await supabase.from('courts').insert({ name: decoded.tribunal }).select();
-          setCourtOptions([...courtOptions, decoded.tribunal].sort());
+          setCourtOptions([...courtOptions, decoded.tribunal].sort((a,b)=>a.localeCompare(b)));
       }
       
       setCurrentProcess(prev => ({ ...prev, court: decoded.tribunal, uf: uf })); // Atualiza UF do processo também
@@ -1173,7 +1269,7 @@ export function ContractFormModal(props: Props) {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setShowAreaManager(true)} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
+              <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setActiveManager('area')} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
               <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
             </div>
           </section>
@@ -1272,14 +1368,14 @@ export function ContractFormModal(props: Props) {
                             value={currentProcess.court || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, court: val})} 
                             options={courtSelectOptions} 
-                            onAction={handleAddCourt}
+                            onAction={() => setActiveManager('court')}
                             actionLabel="Adicionar Tribunal"
                             placeholder="Selecione"
                             className="custom-select-small" 
                         />
                     </div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
-                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" onAction={() => setShowPositionManager(true)} actionLabel="Gerenciar Posições" actionIcon={Settings} /></div>
+                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" onAction={() => setActiveManager('position')} actionLabel="Gerenciar Posições" actionIcon={Settings} /></div>
                   </div>
 
                   {/* Linha 2: Parte Oposta, Magistrado */}
@@ -1290,7 +1386,7 @@ export function ContractFormModal(props: Props) {
                             value={currentProcess.opponent || formData.company_name || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
                             options={opponentOptions.map(o => ({ label: o, value: o }))}
-                            onAction={handleAddOpponent}
+                            onAction={() => setActiveManager('opponent')}
                             actionLabel="Adicionar Parte Oposta"
                             placeholder="Selecione ou adicione"
                         />
@@ -1299,7 +1395,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                {c.contracts?.client_name}
+                                                    {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
@@ -1321,7 +1417,7 @@ export function ContractFormModal(props: Props) {
                                     onChange={(val: string) => setNewMagistrateName(val)}
                                     options={magistrateOptions.map(m => ({ label: m, value: m }))}
                                     placeholder="Selecione magistrado"
-                                    onAction={handleAddMagistrateName}
+                                    onAction={() => setActiveManager('magistrate')}
                                     actionLabel="Adicionar Novo Magistrado"
                                 />
                             </div>
@@ -1357,7 +1453,7 @@ export function ContractFormModal(props: Props) {
                             value={currentProcess.vara || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, vara: val})} 
                             options={varaSelectOptions}
-                            onAction={handleAddVara}
+                            onAction={() => setActiveManager('vara')}
                             actionLabel="Adicionar Vara"
                             placeholder="Selecione ou adicione"
                         />
@@ -1369,7 +1465,7 @@ export function ContractFormModal(props: Props) {
                             value={currentProcess.comarca || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, comarca: val})} 
                             options={comarcaSelectOptions} 
-                            onAction={handleAddComarca}
+                            onAction={() => setActiveManager('comarca')}
                             actionLabel="Adicionar Comarca"
                             placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
                             disabled={!currentProcess.uf}
@@ -1380,7 +1476,7 @@ export function ContractFormModal(props: Props) {
                   {/* Linha 4: Data Distribuição, Justiça, Valor da Causa */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={ensureDateValue(currentProcess.distribution_date)} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
-                    <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={handleAddJustice} actionLabel="Adicionar Justiça" /></div>
+                    <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={() => setActiveManager('justice')} actionLabel="Adicionar Justiça" /></div>
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                   </div>
 
@@ -1393,7 +1489,7 @@ export function ContractFormModal(props: Props) {
                             value={currentProcess.process_class || ''} 
                             onChange={(val: string) => setCurrentProcess({...currentProcess, process_class: val})} 
                             options={classSelectOptions}
-                            onAction={handleAddClass}
+                            onAction={() => setActiveManager('class')}
                             actionLabel="Adicionar Classe"
                             placeholder="Selecione a Classe"
                         />
@@ -1409,7 +1505,7 @@ export function ContractFormModal(props: Props) {
                                     onChange={(val: string) => setNewSubject(val)}
                                     options={subjectSelectOptions}
                                     placeholder="Selecione ou digite novo"
-                                    onAction={handleCreateSubjectOption}
+                                    onAction={() => setActiveManager('subject')}
                                     actionLabel="Criar Novo Assunto no Banco"
                                 />
                              </div>
@@ -1474,7 +1570,8 @@ export function ContractFormModal(props: Props) {
                         <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.prospect_date)} onChange={e => setFormData({...formData, prospect_date: e.target.value})} />
                     </div>
                     <div>
-                        <CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} />
+                        {/* TASK 1: Botão de gerenciar adicionado */}
+                        <CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
                     </div>
                 </div>
             )}
@@ -1486,7 +1583,7 @@ export function ContractFormModal(props: Props) {
                         <input type="date" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" value={ensureDateValue(formData.rejection_date)} onChange={e => setFormData({...formData, rejection_date: e.target.value})} />
                     </div>
                     <div>
-                        <CustomSelect label="Analisado por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} />
+                        <CustomSelect label="Analisado por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
                     </div>
                     <div>
                         <CustomSelect label="Quem rejeitou" value={formData.rejection_by || ''} onChange={(val: string) => setFormData({...formData, rejection_by: val})} options={rejectionByOptions} />
@@ -1676,7 +1773,7 @@ export function ContractFormModal(props: Props) {
                 <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                        <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                       <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={handleAddLocation} actionLabel="Adicionar Local" /></div>
+                       <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Adicionar Local" /></div>
                        <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
                    </div>
                 </div>
@@ -1711,128 +1808,45 @@ export function ContractFormModal(props: Props) {
         </div>
       </div>
 
-       {/* Modal de Gerenciamento de Áreas */}
-       {showAreaManager && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-gray-800">Gerenciar Áreas do Direito</h3>
-              <button onClick={() => setShowAreaManager(false)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            
-            <div className="p-4">
-              <div className="flex gap-2 mb-4">
-                <input 
-                  type="text" 
-                  className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
-                  placeholder="Nome da nova área"
-                  id="new-area-input"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      const input = e.target as HTMLInputElement;
-                      const value = input.value.trim();
-                      if (value && !legalAreas.includes(value)) {
-                        setLegalAreas([...legalAreas, toTitleCase(value)].sort());
-                        input.value = '';
-                      }
-                    }
-                  }}
-                />
-                <button 
-                  onClick={() => {
-                    const input = document.getElementById('new-area-input') as HTMLInputElement;
-                    const value = input.value.trim();
-                    if (value && !legalAreas.includes(value)) {
-                      setLegalAreas([...legalAreas, toTitleCase(value)].sort());
-                      input.value = '';
-                    }
-                  }}
-                  className="bg-salomao-blue text-white p-2 rounded-lg"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {legalAreas.map(area => (
-                  <div key={area} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
-                    <span className="text-sm text-gray-700">{area}</span>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => setLegalAreas(legalAreas.filter(a => a !== area))} 
-                        className="text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Gerenciamento de Posições (NOVO) */}
-       {showPositionManager && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-gray-800">Gerenciar Posições</h3>
-              <button onClick={() => setShowPositionManager(false)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            
-            <div className="p-4">
-              <div className="flex gap-2 mb-4">
-                <input 
-                  type="text" 
-                  className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
-                  placeholder="Nome da nova posição"
-                  id="new-position-input"
-                  onKeyPress={async (e) => {
-                    if (e.key === 'Enter') {
-                      const input = e.target as HTMLInputElement;
-                      const value = input.value.trim();
-                      if (value && !positionsList.includes(value)) {
-                        const { error } = await supabase.from('process_positions').insert({ name: toTitleCase(value) });
-                        if (!error) {
-                            setPositionsList([...positionsList, toTitleCase(value)].sort());
-                            input.value = '';
-                        }
-                      }
-                    }
-                  }}
-                />
-                <button 
-                  onClick={async () => {
-                    const input = document.getElementById('new-position-input') as HTMLInputElement;
-                    const value = input.value.trim();
-                    if (value && !positionsList.includes(value)) {
-                        const { error } = await supabase.from('process_positions').insert({ name: toTitleCase(value) });
-                        if (!error) {
-                            setPositionsList([...positionsList, toTitleCase(value)].sort());
-                            input.value = '';
-                        }
-                    }
-                  }}
-                  className="bg-salomao-blue text-white p-2 rounded-lg"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {positionsList.map(pos => (
-                  <div key={pos} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group">
-                    <span className="text-sm text-gray-700">{pos}</span>
-                    {/* Nota: Não implementamos delete aqui para não quebrar integridade referencial facilmente, apenas insert */}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+       {/* Modal Genérico de Gerenciamento */}
+       {activeManager && (
+         <OptionManager 
+            title={
+                activeManager === 'area' ? "Gerenciar Áreas" :
+                activeManager === 'position' ? "Gerenciar Posições" :
+                activeManager === 'court' ? "Gerenciar Tribunais" :
+                activeManager === 'vara' ? "Gerenciar Varas" :
+                activeManager === 'comarca' ? "Gerenciar Comarcas" :
+                activeManager === 'class' ? "Gerenciar Classes" :
+                activeManager === 'subject' ? "Gerenciar Assuntos" :
+                activeManager === 'justice' ? "Gerenciar Justiças" :
+                activeManager === 'magistrate' ? "Adicionar Magistrado" :
+                activeManager === 'opponent' ? "Adicionar Parte Oposta" :
+                activeManager === 'location' ? "Gerenciar Locais de Faturamento" :
+                "Gerenciar"
+            }
+            options={
+                activeManager === 'area' ? legalAreas :
+                activeManager === 'position' ? positionsList :
+                activeManager === 'court' ? courtOptions :
+                activeManager === 'vara' ? varaOptions :
+                activeManager === 'comarca' ? comarcaOptions :
+                activeManager === 'class' ? classOptions :
+                activeManager === 'subject' ? subjectOptions :
+                activeManager === 'justice' ? justiceOptions :
+                activeManager === 'magistrate' ? magistrateOptions :
+                activeManager === 'opponent' ? opponentOptions :
+                activeManager === 'location' ? billingLocations :
+                []
+            }
+            onAdd={handleGenericAdd}
+            onRemove={handleGenericRemove}
+            onClose={() => setActiveManager(null)}
+            placeholder={
+                activeManager === 'comarca' && !currentProcess.uf ? "Selecione a UF primeiro" : "Digite o nome"
+            }
+         />
+       )}
       
       {/* Modal de Visualização Detalhada do Processo */}
       {viewProcess && (
