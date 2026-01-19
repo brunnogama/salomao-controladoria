@@ -1244,7 +1244,7 @@ export function ContractFormModal(props: Props) {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                  <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
                  {/* Campo de Data Movido para o lado do Status */}
-                 {formData.status && formData.status !== '' && (
+                 {formData.status && (
                     <div className="animate-in fade-in slide-in-from-left-2">
                         <label className="text-xs font-medium block mb-1">
                              {formData.status === 'analysis' ? 'Data do Prospect' :
@@ -1605,7 +1605,7 @@ export function ContractFormModal(props: Props) {
                                       className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
                                       title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
                                   >
-                                        {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                          {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                   </button>
                               </div>
                             )}
