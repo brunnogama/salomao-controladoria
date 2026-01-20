@@ -733,23 +733,57 @@ export function Dashboard() {
             <h3 className='font-bold text-gray-700 border-b pb-2 flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={20} /> Fotografia Financeira Total</h3>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
             <div>
-              <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Valores em Negociação (Ativo)</p>
-              <div className='space-y-2'>
-                <FinItem label='Pró-labore Total' value={metrics.geral.valorEmNegociacaoPL} />
-                <FinItem label='Média Mensal (PL)' value={metrics.geral.mediaMensalNegociacaoPL} />
-                <FinItem label='Êxito Total' value={metrics.geral.valorEmNegociacaoExito} />
-                <FinItem label='Média Mensal (Êxito)' value={metrics.geral.mediaMensalNegociacaoExito} />
-                <div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span></div>
+              <p className='text-xs text-gray-500 font-medium uppercase mb-4'>Valores em Negociação (Ativo)</p>
+              <div className='space-y-4'>
+                <div>
+                    <p className='text-xs text-gray-400 font-medium'>Pró-labore</p>
+                    <div className='flex items-baseline gap-2'>
+                        <span className='text-2xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoPL)}</span>
+                        <span className='text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full'>
+                            Média: {formatMoney(metrics.geral.mediaMensalNegociacaoPL)}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <p className='text-xs text-gray-400 font-medium'>Êxito</p>
+                    <div className='flex items-baseline gap-2'>
+                        <span className='text-2xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoExito)}</span>
+                        <span className='text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full'>
+                            Média: {formatMoney(metrics.geral.mediaMensalNegociacaoExito)}
+                        </span>
+                    </div>
+                </div>
+                <div className='flex justify-between items-end border-t border-gray-200 pt-3 mt-2'>
+                    <span className='text-sm font-bold text-gray-500 uppercase tracking-wider'>TOTAL GERAL</span>
+                    <span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span>
+                </div>
               </div>
             </div>
             <div className='md:border-l md:pl-8 border-gray-100'>
-              <p className='text-xs text-gray-500 font-medium uppercase mb-2'>Carteira Ativa (Receita)</p>
-              <div className='space-y-2'>
-                <FinItem label='Pró-labore Total (Fechado)' value={metrics.geral.totalFechadoPL} colorClass='text-green-700' />
-                <FinItem label='Média Mensal (PL)' value={metrics.geral.mediaMensalCarteiraPL} colorClass='text-green-600' />
-                <FinItem label='Êxito Total (Fechado)' value={metrics.geral.totalFechadoExito} colorClass='text-green-700' />
-                <FinItem label='Média Mensal (Êxito)' value={metrics.geral.mediaMensalCarteiraExito} colorClass='text-green-600' />
-                <div className='flex justify-between items-end border-t border-gray-200 pt-2 mt-2'><span className='text-sm font-bold text-gray-700'>TOTAL GERAL</span><span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span></div>
+              <p className='text-xs text-gray-500 font-medium uppercase mb-4'>Carteira Ativa (Receita)</p>
+              <div className='space-y-4'>
+                <div>
+                    <p className='text-xs text-gray-400 font-medium'>Pró-labore (Fechado)</p>
+                    <div className='flex items-baseline gap-2'>
+                        <span className='text-2xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoPL)}</span>
+                        <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
+                            Média: {formatMoney(metrics.geral.mediaMensalCarteiraPL)}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <p className='text-xs text-gray-400 font-medium'>Êxito (Fechado)</p>
+                    <div className='flex items-baseline gap-2'>
+                        <span className='text-2xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoExito)}</span>
+                        <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
+                            Média: {formatMoney(metrics.geral.mediaMensalCarteiraExito)}
+                        </span>
+                    </div>
+                </div>
+                <div className='flex justify-between items-end border-t border-gray-200 pt-3 mt-2'>
+                    <span className='text-sm font-bold text-gray-500 uppercase tracking-wider'>TOTAL GERAL</span>
+                    <span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span>
+                </div>
               </div>
             </div>
             </div>
