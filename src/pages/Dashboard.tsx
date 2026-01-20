@@ -71,10 +71,18 @@ export function Dashboard() {
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
       totalUnico: 0, analysis: 0, rejected: 0, probono: 0
     },
-    mesAnterior: {
-      novos: 0,
-      propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
-      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0
+    // Estado dedicado para o Relatório Executivo (Dados de Fluxo/Produção)
+    executivo: {
+        mesAtual: {
+            novos: 0,
+            propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
+            fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0
+        },
+        mesAnterior: {
+            novos: 0,
+            propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
+            fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0
+        }
     },
     geral: {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
@@ -89,7 +97,7 @@ export function Dashboard() {
     totalEntrada: 0, qualificadosProposta: 0, fechados: 0,
     perdaAnalise: 0, perdaNegociacao: 0,
     taxaConversaoProposta: '0', taxaConversaoFechamento: '0',
-    tempoMedioProspectProposta: 0, tempoMedioPropostaFechamento: 0 // Novos estados para tempo médio
+    tempoMedioProspectProposta: 0, tempoMedioPropostaFechamento: 0
   });
 
   const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
@@ -111,7 +119,7 @@ export function Dashboard() {
     sources: { label: string, value: number, percent: number }[]
   }>({ reasons: [], sources: [] });
 
-  // Novo estado para Contratos por Sócio (Atualizado para conter detalhes de status)
+  // Novo estado para Contratos por Sócio
   const [contractsByPartner, setContractsByPartner] = useState<any[]>([]);
 
   useEffect(() => {
@@ -247,10 +255,13 @@ export function Dashboard() {
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
       totalUnico: 0, analysis: 0, rejected: 0, probono: 0
     };
-    let mMesAnterior = {
-        novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
-        fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0
+    
+    // Inicializa estrutura do executivo zerada
+    let mExecutivo = {
+        mesAtual: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 },
+        mesAnterior: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 }
     };
+
     let mGeral = {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
       valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0,
@@ -277,7 +288,7 @@ export function Dashboard() {
     const sourceCounts: Record<string, number> = {};
     let totalRejected = 0;
 
-    // Contador para Sócios (Agora com detalhes de status)
+    // Contador para Sócios
     const partnerCounts: Record<string, any> = {};
 
     // Gera as chaves dinamicamente a partir de Junho de 2025 até o mês ATUAL (hoje)
@@ -297,50 +308,80 @@ export function Dashboard() {
     contratos.forEach((c) => {
       const dataCriacao = new Date(c.created_at || new Date());
       
-      // --- CORREÇÃO FUNDAMENTAL: SOMA DE VALORES PRINCIPAIS E LISTAS EXTRAS ---
+      // --- CÁLCULO FINANCEIRO ---
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
       let mensal = safeParseMoney(c.fixed_monthly_fee);
       let outros = safeParseMoney((c as any).other_fees);
 
-      // Soma Arrays de Extras (Quando o valor principal é movido para lista com '+')
       if ((c as any).pro_labore_extras && Array.isArray((c as any).pro_labore_extras)) {
         pl += (c as any).pro_labore_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
-      
       if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
         exito += (c as any).final_success_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
-      
       if ((c as any).fixed_monthly_extras && Array.isArray((c as any).fixed_monthly_extras)) {
         mensal += (c as any).fixed_monthly_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
-
       if ((c as any).other_fees_extras && Array.isArray((c as any).other_fees_extras)) {
         outros += (c as any).other_fees_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
-
-      // Consolida Outros Honorários no PL (Entrada)
       pl += outros;
 
-      // Soma Êxito Intermediário ao Êxito Total
       if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
         const totalIntermediario = c.intermediate_fees.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
         exito += totalIntermediario;
       }
 
-      // Soma valores cadastrados dentro dos Casos (Pro labore e Exito Final)
       if ((c as any).cases && Array.isArray((c as any).cases)) {
         (c as any).cases.forEach((caseItem: any) => {
           pl += safeParseMoney(caseItem.pro_labore);
-          // Soma o êxito final do caso, com fallback para success_fee padrão se necessário
           exito += safeParseMoney(caseItem.final_success_fee || caseItem.success_fee);
         });
       }
-      // ---------------------------------------------------------------------
+      // --------------------------
+
+      // --- LÓGICA DO RELATÓRIO EXECUTIVO (Baseada puramente em datas para fluxo real) ---
+      // 1. Novos (Prospect Date): Conta tudo que entrou no mês, independente do status atual
+      if (c.prospect_date) {
+         if (isDateInCurrentMonth(c.prospect_date)) mExecutivo.mesAtual.novos++;
+         if (isDateInLastMonth(c.prospect_date)) mExecutivo.mesAnterior.novos++;
+      }
+
+      // 2. Propostas (Proposal Date): Conta toda proposta gerada no mês, independente se fechou/rejeitou
+      if (c.proposal_date) {
+         if (isDateInCurrentMonth(c.proposal_date)) {
+             mExecutivo.mesAtual.propQtd++;
+             mExecutivo.mesAtual.propPL += pl;
+             mExecutivo.mesAtual.propExito += exito;
+             mExecutivo.mesAtual.propMensal += mensal;
+         }
+         if (isDateInLastMonth(c.proposal_date)) {
+             mExecutivo.mesAnterior.propQtd++;
+             mExecutivo.mesAnterior.propPL += pl;
+             mExecutivo.mesAnterior.propExito += exito;
+             mExecutivo.mesAnterior.propMensal += mensal;
+         }
+      }
+
+      // 3. Fechados (Contract Date): Conta fechamentos reais no mês
+      if (c.status === 'active' && c.contract_date) {
+         if (isDateInCurrentMonth(c.contract_date)) {
+             mExecutivo.mesAtual.fechQtd++;
+             mExecutivo.mesAtual.fechPL += pl;
+             mExecutivo.mesAtual.fechExito += exito;
+             mExecutivo.mesAtual.fechMensal += mensal;
+         }
+         if (isDateInLastMonth(c.contract_date)) {
+             mExecutivo.mesAnterior.fechQtd++;
+             mExecutivo.mesAnterior.fechPL += pl;
+             mExecutivo.mesAnterior.fechExito += exito;
+             mExecutivo.mesAnterior.fechMensal += mensal;
+         }
+      }
+      // ----------------------------------------------------------------------------------
 
       // Contagem de Contratos por Sócio DETALHADA
-      // Busca pelo partner_id no mapa de sócios, ou usa outros campos como fallback
       const pName = ((c as any).partner_id && partnerMap[(c as any).partner_id]) || 
                     (c as any).responsavel_socio || 
                     (c as any).responsavel || 
@@ -354,29 +395,25 @@ export function Dashboard() {
           partnerCounts[pName] = { total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0 };
       }
       partnerCounts[pName].total++;
-      
       if (c.status === 'analysis') partnerCounts[pName].analysis++;
       else if (c.status === 'proposal') partnerCounts[pName].proposal++;
       else if (c.status === 'active') partnerCounts[pName].active++;
       else if (c.status === 'rejected') partnerCounts[pName].rejected++;
       else if (c.status === 'probono') partnerCounts[pName].probono++;
 
-
-      // Coleta dados de rejeição 
+      // Dados de Rejeição
       if (c.status === 'rejected') {
           totalRejected++;
           const reason = (c as any).rejection_reason || 'Não informado';
           const source = (c as any).rejection_source || (c as any).rejected_by || 'Não informado';
-          
           reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
       }
 
-      // --- POPULA GRÁFICO DE CONTRATOS FECHADOS (Direita) ---
+      // Gráficos (Financeiro e Propostas)
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
         dContrato.setDate(1); dContrato.setHours(0,0,0,0);
-        
         if (dContrato >= dataLimite12Meses) {
           const key = dContrato.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
           if (financeiroMap[key]) {
@@ -387,11 +424,9 @@ export function Dashboard() {
         }
       }
 
-      // --- POPULA GRÁFICO DE PROPOSTAS (Esquerda) ---
       if (c.status === 'proposal' && c.proposal_date) {
         const dProposta = new Date(c.proposal_date + 'T12:00:00');
         dProposta.setDate(1); dProposta.setHours(0,0,0,0);
-
         if (dProposta >= dataLimite12Meses) {
               const key = dProposta.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
               if (propostasMap[key]) {
@@ -402,28 +437,25 @@ export function Dashboard() {
         }
       }
 
-      // --- CÁLCULO DE DIAS ENTRE FASES ---
+      // Dias entre fases
       const dProspect = c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null;
       const dProposal = c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : null;
       const dContract = c.contract_date ? new Date(c.contract_date + 'T12:00:00') : null;
 
-      // Tempo de Prospect -> Proposta
       if (dProspect && dProposal && dProposal >= dProspect) {
           const diffTime = Math.abs(dProposal.getTime() - dProspect.getTime());
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           somaDiasProspectProposta += diffDays;
           qtdProspectProposta++;
       }
-
-      // Tempo de Proposta -> Fechamento
       if (dProposal && dContract && dContract >= dProposal) {
           const diffTime = Math.abs(dContract.getTime() - dProposal.getTime());
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           somaDiasPropostaFechamento += diffDays;
           qtdPropostaFechamento++;
       }
-      // -----------------------------------
 
+      // Métricas Gerais (Inventário Atual)
       mGeral.totalCasos++;
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
@@ -443,54 +475,27 @@ export function Dashboard() {
         c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
-      // --- Cálculos Semana ---
+      // Cálculos Semana (Mantém lógica de inventário)
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
-        mSemana.propQtd++; 
-        mSemana.propPL += pl; 
-        mSemana.propExito += exito; 
-        mSemana.propMensal += mensal;
+        mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; mSemana.propMensal += mensal;
       }
       if (c.status === 'active' && isDateInCurrentWeek(c.contract_date)) {
-        mSemana.fechQtd++; 
-        mSemana.fechPL += pl; 
-        mSemana.fechExito += exito; 
-        mSemana.fechMensal += mensal;
+        mSemana.fechQtd++; mSemana.fechPL += pl; mSemana.fechExito += exito; mSemana.fechMensal += mensal;
       }
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
-      // --- Cálculos Mês Corrente ---
+      // Cálculos Mês Corrente (Para Cards Antigos - Lógica de Inventário)
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
-        mMes.propQtd++; 
-        mMes.propPL += pl; 
-        mMes.propExito += exito; 
-        mMes.propMensal += mensal;
+        mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; mMes.propMensal += mensal;
       }
       if (c.status === 'active' && isDateInCurrentMonth(c.contract_date)) {
-        mMes.fechQtd++; 
-        mMes.fechPL += pl; 
-        mMes.fechExito += exito; 
-        mMes.fechMensal += mensal;
+        mMes.fechQtd++; mMes.fechPL += pl; mMes.fechExito += exito; mMes.fechMensal += mensal;
       }
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) mMes.rejected++;
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) mMes.probono++;
-
-      // --- Cálculos Mês Anterior (Para Comparativo) ---
-      if (c.status === 'analysis' && isDateInLastMonth(c.prospect_date)) mMesAnterior.novos++;
-      if (c.status === 'proposal' && isDateInLastMonth(c.proposal_date)) {
-          mMesAnterior.propQtd++;
-          mMesAnterior.propPL += pl;
-          mMesAnterior.propExito += exito;
-          mMesAnterior.propMensal += mensal;
-      }
-      if (c.status === 'active' && isDateInLastMonth(c.contract_date)) {
-          mMesAnterior.fechQtd++;
-          mMesAnterior.fechPL += pl;
-          mMesAnterior.fechExito += exito;
-          mMesAnterior.fechMensal += mensal;
-      }
 
       const contractDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date];
       if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
@@ -598,7 +603,7 @@ export function Dashboard() {
     mGeral.mediaMensalCarteiraExito = mGeral.totalFechadoExito / monthsCount;
 
     setEvolucaoMensal(mesesGrafico);
-    setMetrics({ semana: mSemana, mes: mMes, mesAnterior: mMesAnterior, geral: mGeral });
+    setMetrics({ semana: mSemana, mes: mMes, executivo: mExecutivo, geral: mGeral });
 
     // --- FORMATAÇÃO DOS DADOS DE REJEIÇÃO ---
     const formatRejection = (counts: Record<string, number>) => {
@@ -608,7 +613,7 @@ export function Dashboard() {
                 value, 
                 percent: totalRejected > 0 ? (value / totalRejected) * 100 : 0 
             }))
-            .sort((a, b) => b.value - a.value); // Ordena do maior para o menor
+            .sort((a, b) => b.value - a.value); 
     };
 
     setRejectionData({
@@ -616,7 +621,7 @@ export function Dashboard() {
         sources: formatRejection(sourceCounts)
     });
 
-    // Formatação dos Dados de Sócios (Agora com detalhes)
+    // Formatação dos Dados de Sócios
     setContractsByPartner(Object.entries(partnerCounts)
         .map(([name, stats]: any) => ({ name, ...stats }))
         .sort((a: any, b: any) => b.total - a.total));
@@ -653,16 +658,17 @@ export function Dashboard() {
       return ((atual - anterior) / anterior) * 100;
   };
 
-  const deltaNovos = calcDelta(metrics.mes.analysis, metrics.mesAnterior.novos);
-  const deltaPropQtd = calcDelta(metrics.mes.propQtd, metrics.mesAnterior.propQtd);
-  const deltaFechQtd = calcDelta(metrics.mes.fechQtd, metrics.mesAnterior.fechQtd);
+  // Comparação de Fluxo Real (Não de Estoque)
+  const deltaNovos = calcDelta(metrics.executivo.mesAtual.novos, metrics.executivo.mesAnterior.novos);
+  const deltaPropQtd = calcDelta(metrics.executivo.mesAtual.propQtd, metrics.executivo.mesAnterior.propQtd);
+  const deltaFechQtd = calcDelta(metrics.executivo.mesAtual.fechQtd, metrics.executivo.mesAnterior.fechQtd);
   
-  const valPropMes = metrics.mes.propPL + metrics.mes.propExito + metrics.mes.propMensal;
-  const valPropAnt = metrics.mesAnterior.propPL + metrics.mesAnterior.propExito + metrics.mesAnterior.propMensal;
+  const valPropMes = metrics.executivo.mesAtual.propPL + metrics.executivo.mesAtual.propExito + metrics.executivo.mesAtual.propMensal;
+  const valPropAnt = metrics.executivo.mesAnterior.propPL + metrics.executivo.mesAnterior.propExito + metrics.executivo.mesAnterior.propMensal;
   const deltaPropVal = calcDelta(valPropMes, valPropAnt);
 
-  const valFechMes = metrics.mes.fechPL + metrics.mes.fechExito + metrics.mes.fechMensal;
-  const valFechAnt = metrics.mesAnterior.fechPL + metrics.mesAnterior.fechExito + metrics.mesAnterior.fechMensal;
+  const valFechMes = metrics.executivo.mesAtual.fechPL + metrics.executivo.mesAtual.fechExito + metrics.executivo.mesAtual.fechMensal;
+  const valFechAnt = metrics.executivo.mesAnterior.fechPL + metrics.executivo.mesAnterior.fechExito + metrics.executivo.mesAnterior.fechMensal;
   const deltaFechVal = calcDelta(valFechMes, valFechAnt);
 
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
@@ -708,7 +714,7 @@ export function Dashboard() {
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Novas Demandas Jurídicas</p>
-                            <h3 className="text-3xl font-bold text-gray-800 mt-1">{metrics.mes.analysis}</h3>
+                            <h3 className="text-3xl font-bold text-gray-800 mt-1">{metrics.executivo.mesAtual.novos}</h3>
                         </div>
                         <div className={`p-2 rounded-full ${deltaNovos >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                            {deltaNovos >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
@@ -718,7 +724,7 @@ export function Dashboard() {
                          <span className={`font-bold ${deltaNovos >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                              {deltaNovos > 0 ? '+' : ''}{deltaNovos.toFixed(1)}%
                          </span>
-                         <span className="text-gray-400">vs. mês anterior ({metrics.mesAnterior.novos})</span>
+                         <span className="text-gray-400">vs. mês anterior ({metrics.executivo.mesAnterior.novos})</span>
                     </div>
                     <div className="mt-4 pt-3 border-t border-gray-200">
                         <p className="text-[10px] text-gray-500 leading-tight">Volume de novos casos triados e submetidos à análise preliminar no período corrente.</p>
@@ -730,7 +736,7 @@ export function Dashboard() {
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Propostas de Honorários</p>
-                            <h3 className="text-3xl font-bold text-blue-900 mt-1">{metrics.mes.propQtd}</h3>
+                            <h3 className="text-3xl font-bold text-blue-900 mt-1">{metrics.executivo.mesAtual.propQtd}</h3>
                         </div>
                         <div className={`p-2 rounded-full ${deltaPropQtd >= 0 ? 'bg-blue-200 text-blue-800' : 'bg-red-100 text-red-700'}`}>
                            {deltaPropQtd >= 0 ? <Activity size={20} /> : <TrendingDown size={20} />}
@@ -750,11 +756,11 @@ export function Dashboard() {
                     <div className="mt-3 pt-3 border-t border-blue-200 flex flex-col gap-1">
                          <div className="flex justify-between text-[11px]">
                              <span className="text-gray-500">Honorários Iniciais (PL)</span>
-                             <span className="font-bold text-blue-800">{formatMoney(metrics.mes.propPL + metrics.mes.propMensal)}</span>
+                             <span className="font-bold text-blue-800">{formatMoney(metrics.executivo.mesAtual.propPL + metrics.executivo.mesAtual.propMensal)}</span>
                          </div>
                          <div className="flex justify-between text-[11px]">
                              <span className="text-gray-500">Honorários de Êxito</span>
-                             <span className="font-bold text-blue-800">{formatMoney(metrics.mes.propExito)}</span>
+                             <span className="font-bold text-blue-800">{formatMoney(metrics.executivo.mesAtual.propExito)}</span>
                          </div>
                     </div>
                 </div>
@@ -764,7 +770,7 @@ export function Dashboard() {
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <p className="text-xs text-green-600 font-bold uppercase tracking-wider">Instrumentos Contratuais</p>
-                            <h3 className="text-3xl font-bold text-green-900 mt-1">{metrics.mes.fechQtd}</h3>
+                            <h3 className="text-3xl font-bold text-green-900 mt-1">{metrics.executivo.mesAtual.fechQtd}</h3>
                         </div>
                          <div className={`p-2 rounded-full ${deltaFechQtd >= 0 ? 'bg-green-200 text-green-800' : 'bg-red-100 text-red-700'}`}>
                            {deltaFechQtd >= 0 ? <FileSignature size={20} /> : <TrendingDown size={20} />}
@@ -784,11 +790,11 @@ export function Dashboard() {
                     <div className="mt-3 pt-3 border-t border-green-200 flex flex-col gap-1">
                          <div className="flex justify-between text-[11px]">
                              <span className="text-gray-500">Honorários Iniciais (PL)</span>
-                             <span className="font-bold text-green-800">{formatMoney(metrics.mes.fechPL + metrics.mes.fechMensal)}</span>
+                             <span className="font-bold text-green-800">{formatMoney(metrics.executivo.mesAtual.fechPL + metrics.executivo.mesAtual.fechMensal)}</span>
                          </div>
                          <div className="flex justify-between text-[11px]">
                              <span className="text-gray-500">Honorários de Êxito</span>
-                             <span className="font-bold text-green-800">{formatMoney(metrics.mes.fechExito)}</span>
+                             <span className="font-bold text-green-800">{formatMoney(metrics.executivo.mesAtual.fechExito)}</span>
                          </div>
                     </div>
                 </div>
