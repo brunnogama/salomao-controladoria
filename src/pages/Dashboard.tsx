@@ -306,8 +306,6 @@ export function Dashboard() {
     const dataLimite12Meses = dataInicioFixo;
 
     contratos.forEach((c) => {
-      const dataCriacao = new Date(c.created_at || new Date());
-      
       // --- CÁLCULO FINANCEIRO ---
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
@@ -341,14 +339,46 @@ export function Dashboard() {
       }
       // --------------------------
 
-      // --- LÓGICA DO RELATÓRIO EXECUTIVO (Baseada puramente em datas para fluxo real) ---
-      // 1. Novos (Prospect Date): Conta tudo que entrou no mês, independente do status atual
+      // --- LÓGICA DE DATAS DE NEGÓCIO ---
+      // Calcula a "Data Real de Entrada" do caso no pipeline (Data mais antiga dos status)
+      // Isso define quando o caso começou a existir juridicamente/comercialmente
+      const statusDates = [
+         c.prospect_date,
+         c.proposal_date,
+         c.contract_date,
+         c.rejection_date,
+         c.probono_date
+      ].filter(d => d && d !== '').map(d => new Date(d + 'T12:00:00'));
+      
+      let dataEntradaReal = null;
+      if (statusDates.length > 0) {
+          // Pega a menor data encontrada entre os status
+          dataEntradaReal = new Date(Math.min(...statusDates.map(d => d.getTime())));
+      } else {
+          // Fallback para created_at se não houver nenhuma data de negócio
+          dataEntradaReal = c.created_at ? new Date(c.created_at) : new Date();
+      }
+
+      // --- POPULA GRÁFICO DE ENTRADA (USANDO DATA REAL DE ENTRADA) ---
+      const mesAnoEntrada = dataEntradaReal.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      // Só computa se o mês estiver dentro do range gerado (últimos 12 meses aprox)
+      if (mapaMeses[mesAnoEntrada] !== undefined) {
+         mapaMeses[mesAnoEntrada]++;
+      } else {
+         // Se for mais antigo que o range, ou futuro, mas precisamos garantir que exista no mapa caso seja chave válida
+         if (!mapaMeses[mesAnoEntrada]) mapaMeses[mesAnoEntrada] = 0;
+         mapaMeses[mesAnoEntrada]++;
+      }
+      // ----------------------------------------------------------------
+
+      // --- LÓGICA DO RELATÓRIO EXECUTIVO (Data do Negócio Específica por Fase) ---
+      // 1. Novos (Prospect Date)
       if (c.prospect_date) {
          if (isDateInCurrentMonth(c.prospect_date)) mExecutivo.mesAtual.novos++;
          if (isDateInLastMonth(c.prospect_date)) mExecutivo.mesAnterior.novos++;
       }
 
-      // 2. Propostas (Proposal Date): Conta toda proposta gerada no mês, independente se fechou/rejeitou
+      // 2. Propostas (Proposal Date)
       if (c.proposal_date) {
          if (isDateInCurrentMonth(c.proposal_date)) {
              mExecutivo.mesAtual.propQtd++;
@@ -364,7 +394,7 @@ export function Dashboard() {
          }
       }
 
-      // 3. Fechados (Contract Date): Conta fechamentos reais no mês
+      // 3. Fechados (Contract Date)
       if (c.status === 'active' && c.contract_date) {
          if (isDateInCurrentMonth(c.contract_date)) {
              mExecutivo.mesAtual.fechQtd++;
@@ -379,7 +409,6 @@ export function Dashboard() {
              mExecutivo.mesAnterior.fechMensal += mensal;
          }
       }
-      // ----------------------------------------------------------------------------------
 
       // Contagem de Contratos por Sócio DETALHADA
       const pName = ((c as any).partner_id && partnerMap[(c as any).partner_id]) || 
@@ -410,7 +439,7 @@ export function Dashboard() {
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
       }
 
-      // Gráficos (Financeiro e Propostas)
+      // Gráficos (Financeiro e Propostas - Usa datas de negócio)
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
         dContrato.setDate(1); dContrato.setHours(0,0,0,0);
@@ -455,7 +484,7 @@ export function Dashboard() {
           qtdPropostaFechamento++;
       }
 
-      // Métricas Gerais (Inventário Atual)
+      // Métricas Gerais (Inventário Atual) - Independente de data, é status atual
       mGeral.totalCasos++;
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
@@ -475,7 +504,7 @@ export function Dashboard() {
         c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
-      // Cálculos Semana (Mantém lógica de inventário)
+      // Cálculos Semana (Usa Datas de Negócio)
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
         mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; mSemana.propMensal += mensal;
@@ -486,7 +515,7 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
-      // Cálculos Mês Corrente (Para Cards Antigos - Lógica de Inventário)
+      // Cálculos Mês Corrente (Usa Datas de Negócio)
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
         mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; mMes.propMensal += mensal;
@@ -506,21 +535,6 @@ export function Dashboard() {
       if (chegouEmProposta) fQualificados++;
       if (c.status === 'active') fFechados++;
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
-
-      const datasDisponiveis = [
-        c.created_at ? new Date(c.created_at) : null,
-        c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null,
-        c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : null,
-        c.contract_date ? new Date(c.contract_date + 'T12:00:00') : null,
-        c.rejection_date ? new Date(c.rejection_date + 'T12:00:00') : null,
-        c.probono_date ? new Date(c.probono_date + 'T12:00:00') : null
-      ].filter((d): d is Date => d !== null && !isNaN(d.getTime()));
-
-      let dataMaisAntiga = dataCriacao;
-      if (datasDisponiveis.length > 0) dataMaisAntiga = new Date(Math.min(...datasDisponiveis.map(d => d.getTime())));
-      const mesAno = dataMaisAntiga.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-      if (!mapaMeses[mesAno]) mapaMeses[mesAno] = 0;
-      mapaMeses[mesAno]++;
     });
 
     // --- PROCESSAMENTO FINAL GRÁFICO FECHADOS (DIREITA) ---
