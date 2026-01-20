@@ -31,15 +31,18 @@ export function Finance() {
   const fetchData = async () => {
     setLoading(true);
     
+    // Busca parceiros
     const { data: partnersData } = await supabase.from('partners').select('*').order('name');
     if (partnersData) setPartners(partnersData);
 
+    // Busca parcelas trazendo o ID fixo (seq_id) do contrato
     const { data: installmentsData } = await supabase
       .from('financial_installments')
       .select(`
         *,
         contracts (
           id,
+          seq_id,
           hon_number,
           client_name,
           partner_id,
@@ -54,7 +57,9 @@ export function Finance() {
         ...i,
         contract: {
           ...i.contracts,
-          partner_name: i.contracts?.partners?.name
+          partner_name: i.contracts?.partners?.name,
+          // Usa o ID fixo do banco para gerar o display_id
+          display_id: i.contracts?.seq_id ? String(i.contracts.seq_id).padStart(6, '0') : '-'
         }
       }));
       setInstallments(formatted);
@@ -107,7 +112,7 @@ export function Finance() {
       case 'success_fee': return 'Êxito (Geral)';
       case 'final_success_fee': return 'Êxito Final';
       case 'intermediate_fee': return 'Êxito Intermediário';
-      case 'fixed': return 'Valor Fixo'; // MUDANÇA PARA REFLETIR NOVO TIPO
+      case 'fixed': return 'Valor Fixo';
       case 'other': return 'Outros';
       default: return type;
     }
@@ -115,9 +120,10 @@ export function Finance() {
 
   const exportToExcel = () => {
     const data = filteredInstallments.map(i => ({
+      'ID': (i.contract as any)?.display_id,
       'Cliente': i.contract?.client_name,
       'HON': i.contract?.hon_number,
-      'Cláusula': (i as any).clause || '', // Adicionado no Excel
+      'Cláusula': (i as any).clause || '',
       'Tipo': getTypeLabel(i.type),
       'Parcela': `${i.installment_number}/${i.total_installments}`,
       'Valor': i.amount,
@@ -132,7 +138,9 @@ export function Finance() {
   };
 
   const filteredInstallments = installments.filter(i => {
-    const matchesSearch = i.contract?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || i.contract?.hon_number?.includes(searchTerm);
+    const matchesSearch = i.contract?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          i.contract?.hon_number?.includes(searchTerm) ||
+                          (i.contract as any)?.display_id?.includes(searchTerm);
     const matchesPartner = selectedPartner ? i.contract?.partner_id === selectedPartner : true;
     const matchesLocation = selectedLocation ? i.contract?.billing_location === selectedLocation : true;
     return matchesSearch && matchesPartner && matchesLocation;
@@ -148,11 +156,6 @@ export function Finance() {
     const pendingTotal = partnerInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
     const paidTotal = partnerInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
 
-    // Subtotais (independente se pago ou não, para visão geral, ou podemos filtrar)
-    // Aqui vou somar TUDO (pago + pendente) por categoria para o resumo, ou apenas pendente?
-    // O pedido foi "total de valores por socio (valor a faturar e valor faturado), separado por..."
-    // Vou separar os subtotais globais (pago + pendente) para simplificar a visualização no card
-    
     const pendingProLabore = partnerInstallments.filter(i => i.status === 'pending' && i.type === 'pro_labore').reduce((acc, curr) => acc + curr.amount, 0);
     const pendingExitos = partnerInstallments.filter(i => i.status === 'pending' && ['success_fee', 'final_success_fee', 'intermediate_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
     const pendingFixed = partnerInstallments.filter(i => i.status === 'pending' && i.type === 'fixed').reduce((acc, curr) => acc + curr.amount, 0);
@@ -231,7 +234,7 @@ export function Finance() {
       </div>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-4 items-center">
-        <div className="flex-1 w-full relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Buscar por cliente, HON..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+        <div className="flex-1 w-full relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Buscar por cliente, HON, ID..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
           <div className="w-full sm:w-48"><CustomSelect value={selectedPartner} onChange={setSelectedPartner} options={[{ label: 'Todos Sócios', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))]} placeholder="Sócio" /></div>
           <div className="w-full sm:w-48"><CustomSelect value={selectedLocation} onChange={setSelectedLocation} options={[{ label: 'Todos Locais', value: '' }, ...locations.map(l => ({ label: l, value: l }))]} placeholder="Local Faturamento" /></div>
@@ -246,11 +249,12 @@ export function Finance() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left text-gray-600">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase font-bold border-b border-gray-100">
-                <tr><th className="px-6 py-4">Status / HON</th><th className="px-6 py-4">Vencimento</th><th className="px-6 py-4">Cláusula</th><th className="px-6 py-4">Cliente</th><th className="px-6 py-4">Tipo / Parcela</th><th className="px-6 py-4">Sócio / Local</th><th className="px-6 py-4 text-right">Valor</th><th className="px-6 py-4 text-right">Ação</th></tr>
+                <tr><th className="px-6 py-4">ID</th><th className="px-6 py-4">Status / HON</th><th className="px-6 py-4">Vencimento</th><th className="px-6 py-4">Cláusula</th><th className="px-6 py-4">Cliente</th><th className="px-6 py-4">Tipo / Parcela</th><th className="px-6 py-4">Sócio / Local</th><th className="px-6 py-4 text-right">Valor</th><th className="px-6 py-4 text-right">Ação</th></tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredInstallments.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs text-gray-500">{(item.contract as any)?.display_id}</td>
                     <td className="px-6 py-4">
                       {item.status === 'paid' ? <span className="flex items-center text-green-600 font-bold text-xs uppercase mb-1"><CheckCircle2 className="w-4 h-4 mr-1" /> Faturado</span> : <span className="flex items-center text-orange-500 font-bold text-xs uppercase mb-1"><Circle className="w-4 h-4 mr-1" /> Pendente</span>}
                       <div className="text-xs font-mono text-gray-500">HON: {item.contract?.hon_number || '-'}</div>

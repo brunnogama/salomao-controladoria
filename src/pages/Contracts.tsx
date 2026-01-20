@@ -46,7 +46,6 @@ const formatMoney = (val: number | string | undefined) => {
 const calculateTotalSuccess = (c: Contract) => {
   let total = parseCurrency(c.final_success_fee);
   
-  // CORREÇÃO: Adicionando extras do êxito final
   if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
     (c as any).final_success_extras.forEach((fee: string) => total += parseCurrency(fee));
   }
@@ -57,7 +56,7 @@ const calculateTotalSuccess = (c: Contract) => {
   return total;
 };
 
-// Componente Local de Filtro Padronizado (Sem busca interna, apenas UI de select)
+// Componente Local de Filtro Padronizado
 const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: React.ElementType, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -143,7 +142,6 @@ export function Contracts() {
     fetchData();
     fetchNotifications();
 
-    // Listener para atualização em tempo real
     const subscription = supabase
       .channel('contracts_list_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contracts' }, () => {
@@ -158,6 +156,7 @@ export function Contracts() {
 
   const fetchData = async () => {
     setLoading(true);
+    // Adicionado seq_id na query
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
       supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
       supabase.from('partners').select('*').eq('active', true).order('name'),
@@ -169,13 +168,29 @@ export function Contracts() {
         ...c,
         partner_name: c.partner?.name,
         analyzed_by_name: c.analyst?.name,
-        process_count: c.processes?.length || 0
+        process_count: c.processes?.length || 0,
+        // ID FIXO VINDO DO BANCO
+        display_id: String(c.seq_id || 0).padStart(6, '0') 
       }));
       setContracts(formatted);
     }
     if (partnersRes.data) setPartners(partnersRes.data);
     if (analystsRes.data) setAnalysts(analystsRes.data);
     setLoading(false);
+  };
+
+  const handlePartnerUpdate = async (newId?: string) => {
+    await fetchData();
+    if (newId && typeof newId === 'string') {
+      setFormData(prev => ({ ...prev, partner_id: newId }));
+    }
+  };
+
+  const handleAnalystUpdate = async (newId?: string) => {
+    await fetchData();
+    if (newId && typeof newId === 'string') {
+      setFormData(prev => ({ ...prev, analyst_id: newId } as Contract));
+    }
   };
 
   const fetchNotifications = async () => {
@@ -281,6 +296,7 @@ export function Contracts() {
 
   const exportToExcel = () => {
     const data = filteredContracts.map(c => ({
+      'ID': (c as any).display_id,
       'Status': getStatusLabel(c.status),
       'Cliente': c.client_name,
       'CNPJ/CPF': c.cnpj || '-',
@@ -316,7 +332,8 @@ export function Contracts() {
   const filteredContracts = contracts.filter((c: Contract) => {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.hon_number?.includes(searchTerm) ||
-      c.cnpj?.includes(searchTerm);
+      c.cnpj?.includes(searchTerm) ||
+      (c as any).display_id?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
     return matchesSearch && matchesStatus && matchesPartner;
@@ -332,7 +349,6 @@ export function Contracts() {
     }
   });
 
-  // Funções para resetar filtros
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
@@ -341,7 +357,6 @@ export function Contracts() {
 
   const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '';
 
-  // Opções para os filtros
   const statusOptions = [
     { label: 'Todos Status', value: 'all' },
     { label: 'Sob Análise', value: 'analysis' },
@@ -426,7 +441,7 @@ export function Contracts() {
           <Search className="w-5 h-5 text-gray-400 mr-2" />
           <input
             type="text"
-            placeholder="Buscar por cliente, HON ou CNPJ..."
+            placeholder="Buscar por cliente, HON, ID ou CNPJ..."
             className="flex-1 bg-transparent outline-none text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -501,6 +516,7 @@ export function Contracts() {
                   <div key={contract.id} onClick={() => handleView(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0 pr-8">
+                        <span className="text-xs text-gray-400 font-mono mb-1 block">{(contract as any).display_id}</span>
                         <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
                         <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mt-1 border ${getStatusColor(contract.status)}`}>
                           {getStatusLabel(contract.status)}
@@ -556,6 +572,7 @@ export function Contracts() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
                   <tr>
+                    <th className="p-3">ID</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">Cliente</th>
                     <th className="p-3">Processos</th>
@@ -568,6 +585,7 @@ export function Contracts() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredContracts.map(contract => (
                     <tr key={contract.id} onClick={() => handleView(contract)} className="hover:bg-gray-50 cursor-pointer group">
+                      <td className="p-3 font-mono text-gray-500">{(contract as any).display_id}</td>
                       <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
                       <td className="p-3 font-medium text-gray-800">{contract.client_name}</td>
                       <td className="p-3 text-gray-600 max-w-[200px] truncate" title={(contract as any).processes?.map((p: any) => p.process_number).join(', ')}>
@@ -631,8 +649,8 @@ export function Contracts() {
         getStatusLabel={getStatusLabel}
       />
 
-      <PartnerManagerModal isOpen={isPartnerModalOpen} onClose={() => setIsPartnerModalOpen(false)} onUpdate={fetchData} />
-      <AnalystManagerModal isOpen={isAnalystModalOpen} onClose={() => setIsAnalystModalOpen(false)} onUpdate={fetchData} />
+      <PartnerManagerModal isOpen={isPartnerModalOpen} onClose={() => setIsPartnerModalOpen(false)} onUpdate={handlePartnerUpdate} />
+      <AnalystManagerModal isOpen={isAnalystModalOpen} onClose={() => setIsAnalystModalOpen(false)} onUpdate={handleAnalystUpdate} />
     </div>
   );
 }

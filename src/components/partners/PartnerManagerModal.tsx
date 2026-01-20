@@ -6,7 +6,7 @@ import { Partner } from '../../types';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onUpdate?: () => void;
+  onUpdate?: (newId?: string) => void;
 }
 
 export function PartnerManagerModal({ isOpen, onClose, onUpdate }: Props) {
@@ -43,22 +43,32 @@ export function PartnerManagerModal({ isOpen, onClose, onUpdate }: Props) {
                 })
                 .eq('id', editingId);
             if (error) throw error;
+
+            setFormData({ name: '', email: '' });
+            setEditingId(null);
+            fetchPartners();
+            if (onUpdate) onUpdate();
         } else {
             // Criar novo
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('partners')
                 .insert([{ 
                     name: formData.name.trim(), 
                     email: formData.email.trim(),
                     active: true 
-                }]);
+                }])
+                .select()
+                .single();
+            
             if (error) throw error;
-        }
 
-        setFormData({ name: '', email: '' });
-        setEditingId(null);
-        fetchPartners();
-        if (onUpdate) onUpdate();
+            // Limpa formulário
+            setFormData({ name: '', email: '' });
+            
+            // Passa o ID do novo item e fecha o modal
+            if (onUpdate) onUpdate(data.id);
+            onClose();
+        }
     } catch (error: any) {
         console.error('Erro ao salvar sócio:', error);
         alert('Erro ao salvar: ' + error.message);

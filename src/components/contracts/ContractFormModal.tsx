@@ -201,6 +201,8 @@ const OptionManager = ({
             if (success) setEditingItem(null);
         } else {
             success = await onAdd(inputValue.trim());
+            // Fechar janela se adicionou com sucesso (não fechar se estiver editando)
+            if (success) onClose();
         }
         
         setLoading(false);
@@ -1416,7 +1418,14 @@ export function ContractFormModal(props: Props) {
       <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
         {/* Header */}
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-2xl">
-          <div><h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2></div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2>
+            {(formData as any).display_id && (
+                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-sm font-mono font-bold border border-gray-200">
+                    ID: {(formData as any).display_id}
+                </span>
+            )}
+          </div>
           <button onClick={onClose}><X className="w-6 h-6 text-gray-400" /></button>
         </div>
 
@@ -1797,7 +1806,7 @@ export function ContractFormModal(props: Props) {
                                       className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
                                       title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
                                   >
-                                          {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                              {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                   </button>
                               </div>
                             )}

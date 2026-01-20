@@ -6,7 +6,7 @@ import { Analyst } from '../../types';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onUpdate: () => void;
+  onUpdate: (newId?: string) => void;
 }
 
 export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
@@ -50,22 +50,29 @@ export function AnalystManagerModal({ isOpen, onClose, onUpdate }: Props) {
           .eq('id', editingId);
         
         if (error) throw error;
+
+        setFormData({ name: '', email: '' });
+        setEditingId(null);
+        fetchAnalysts();
+        onUpdate();
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('analysts')
           .insert([{ 
             name: formData.name.trim(),
             email: formData.email.trim(),
             active: true
-          }]);
+          }])
+          .select()
+          .single();
         
         if (error) throw error;
+
+        setFormData({ name: '', email: '' });
+        // Passa o ID do novo item e fecha o modal
+        onUpdate(data.id);
+        onClose();
       }
-      
-      setFormData({ name: '', email: '' });
-      setEditingId(null);
-      fetchAnalysts();
-      onUpdate();
     } catch (error: any) {
       console.error('Erro ao salvar analista:', error);
       alert('Erro ao salvar: ' + error.message);

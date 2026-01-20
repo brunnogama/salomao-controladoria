@@ -1,124 +1,25 @@
-export interface Client {
-  id?: string;
-  name: string;
-  cnpj: string;
-  is_person: boolean;
-  uf?: string;
-  address?: string;
-  number?: string;
-  complement?: string;
-  city?: string;
-  email?: string;
-  website?: string;
-  partner_id?: string;
-  created_at?: string;
-  active_contracts_count?: number;
-  contracts_hon?: string[];
-  partner_name?: string;
-}
-
-export interface Partner {
-  id: string;
-  name: string;
-  email?: string;
-  active?: boolean;
-}
-
-export interface Analyst {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-}
-
-export interface Magistrate {
-  title: string; 
-  name: string;
-}
-
-export interface ContractProcess {
-  id?: string;
-  contract_id?: string;
-  process_number: string;
-  cause_value?: string;
-  
-  court?: string;
-  link?: string;
-  uf?: string;
-  position?: string;
-  opponent?: string;
-  
-  magistrates?: Magistrate[];
-  
-  vara?: string;
-  numeral?: string; // Novo campo adicionado
-  comarca?: string;
-  
-  action_type?: string;
-  distribution_date?: string;
-  
-  justice_type?: string;
-  nature?: string;
-  instance?: string;
-  
-  process_class?: string;
-  subject?: string;
-}
-
-export interface ContractDocument {
-  id: string;
-  contract_id: string;
-  file_name: string;
-  file_path: string;
-  file_type: 'proposal' | 'contract';
-  uploaded_at: string;
-  hon_number_ref?: string;
-}
-
-export interface TimelineEvent {
-  id: string;
-  contract_id: string;
-  previous_status: string | null;
-  new_status: string;
-  changed_by: string;
-  changed_at: string;
-}
-
-export interface FinancialInstallment {
-  id: string;
-  contract_id: string;
-  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'other' | 'fixed';
-  installment_number: number;
-  total_installments: number;
-  amount: number;
-  due_date?: string;
-  status: 'pending' | 'paid';
-  paid_at?: string;
-  contract?: Contract; 
-}
-
 export interface Contract {
   id?: string;
-  client_id?: string;
+  seq_id?: number; // Campo do Banco (ID Fixo)
+  display_id?: string; // Campo Visual (000001)
+  created_at?: string;
   client_name: string;
+  client_id?: string;
+  client_position: string;
+  has_no_cnpj: boolean;
   cnpj?: string;
-  has_no_cnpj?: boolean;
-  client_position?: string;
-  area?: string;
-  uf?: string;
-  company_name?: string;
-  
+  area: string;
+  sector?: string;
+  uf: string;
   partner_id: string;
   partner_name?: string;
   analyst_id?: string;
   analyzed_by_name?: string;
   
   has_legal_process: boolean;
-  process_count?: number;
   status: 'analysis' | 'proposal' | 'active' | 'rejected' | 'probono';
   
   // Datas
-  created_at?: string;
   prospect_date?: string;
   proposal_date?: string;
   contract_date?: string;
@@ -128,52 +29,158 @@ export interface Contract {
   // Financeiro
   pro_labore?: string;
   pro_labore_installments?: string;
-  pro_labore_extras?: string[];
-
+  pro_labore_clause?: string;
+  
   final_success_fee?: string;
   final_success_fee_installments?: string;
+  final_success_fee_clause?: string;
   final_success_percent?: string;
-  final_success_extras?: string[];
-
-  intermediate_fees?: string[];
-
+  final_success_percent_clause?: string;
+  
   fixed_monthly_fee?: string;
   fixed_monthly_fee_installments?: string;
-  fixed_monthly_extras?: string[];
-
+  fixed_monthly_fee_clause?: string;
+  
   other_fees?: string;
   other_fees_installments?: string;
-  other_fees_extras?: string[];
-  
-  percent_extras?: string[];
-  
-  timesheet?: boolean;
+  other_fees_clause?: string;
 
-  // Dados do Contrato
-  hon_number?: string;
-  billing_location?: string;
-  physical_signature?: boolean;
+  // Arrays de Valores Extras
+  pro_labore_extras?: string[];
+  final_success_extras?: string[];
+  fixed_monthly_extras?: string[];
+  other_fees_extras?: string[];
+  intermediate_fees?: string[];
+  percent_extras?: string[];
+
+  // Arrays de Cláusulas Extras
+  pro_labore_extras_clauses?: string[];
+  final_success_extras_clauses?: string[];
+  fixed_monthly_extras_clauses?: string[];
+  other_fees_extras_clauses?: string[];
+  intermediate_fees_clauses?: string[];
+  percent_extras_clauses?: string[];
+
+  // Outros
+  company_name?: string; // Parte contrária ou empresa
+  reference?: string;
   observations?: string;
   
-  // Campos de Rejeição/Probono
-  rejected_by?: string;
-  rejection_by?: string; // Adicionado para compatibilidade com o modal
-  rejection_source?: string;
+  // Rejeição
   rejection_reason?: string;
-  probono_source?: string;
-  reference_text?: string; 
+  rejection_by?: string;
+
+  // Assinatura
+  physical_signature?: boolean;
+  
+  // Timesheet
+  timesheet?: boolean;
+
+  // Específico para visualização
+  process_count?: number;
+  hon_number?: string;
+}
+
+export interface Partner {
+  id: string;
+  name: string;
+  email?: string;
+  active: boolean;
+}
+
+export interface Analyst {
+  id: string;
+  name: string;
+  email?: string;
+  active: boolean;
+}
+
+export interface ContractProcess {
+  id?: string;
+  contract_id?: string;
+  process_number: string;
+  court?: string; // Tribunal
+  uf?: string;
+  vara?: string;
+  comarca?: string;
+  numeral?: string; // 1º, 2º...
+  instance?: string;
+  position?: string; // Autor, Réu...
+  opponent?: string; // Parte Contrária
+  process_class?: string; // Classe Judicial
+  subject?: string; // Assunto
+  action_type?: string; // Tipo de Ação
+  distribution_date?: string;
+  cause_value?: string;
+  justice_type?: string; // Estadual, Federal...
+  magistrates?: Magistrate[]; // Lista JSON de magistrados
+}
+
+export interface Magistrate {
+  title: string; // Juiz, Desembargador...
+  name: string;
+}
+
+export interface TimelineEvent {
+  id: string;
+  contract_id: string;
+  old_status: string;
+  new_status: string;
+  changed_by: string;
+  changed_at: string;
+}
+
+export interface ContractDocument {
+  id: string;
+  contract_id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  uploaded_at: string;
+  file_size?: number; // Opcional, para exibição no GED
+  hon_number_ref?: string; // Opcional, vindo do join
+}
+
+export interface FinancialInstallment {
+  id: string;
+  contract_id: string;
+  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'fixed' | 'other';
+  installment_number: number;
+  total_installments: number;
+  amount: number;
+  due_date?: string;
+  status: 'pending' | 'paid' | 'cancelled';
+  paid_at?: string;
+  clause?: string;
+  
+  // Join
+  contract?: {
+    id: string;
+    seq_id?: number;
+    client_name: string;
+    hon_number?: string;
+    partner_id?: string;
+    partner_name?: string;
+    billing_location?: string;
+    display_id?: string; // Para UI
+  };
 }
 
 export interface KanbanTask {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'doing' | 'done' | 'signature';
+  status: string; // 'todo', 'doing', 'done', 'signature'
   priority: 'Baixa' | 'Média' | 'Alta';
   due_date?: string;
-  assignee?: string;
   contract_id?: string;
   position: number;
-  contract?: Contract;
-  observation?: string;
+  tags?: string[];
+  
+  // Join
+  contract?: {
+    client_name: string;
+    hon_number?: string;
+    seq_id?: number;
+  };
 }

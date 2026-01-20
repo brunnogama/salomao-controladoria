@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { FolderOpen, FileText, Download, Search, HardDrive, Clock, FileCheck } from 'lucide-react';
+import { FolderOpen, FileText, Download, Search, HardDrive, Clock, FileCheck, Hash } from 'lucide-react';
 import { maskHon } from '../utils/masks';
 
 interface GEDDocument {
@@ -13,7 +13,9 @@ interface GEDDocument {
   hon_number_ref?: string;
   contract: {
     id: string;
+    seq_id?: number; // Campo do banco
     status: string;
+    display_id?: string; // Formatado para UI
     clients: {
         name: string;
     } | null;
@@ -34,13 +36,15 @@ export function GED() {
 
   const fetchDocuments = async () => {
     setLoading(true);
-    // 1. Buscamos os documentos do banco
+
+    // 1. Buscamos os documentos do banco trazendo o seq_id do contrato
     const { data, error } = await supabase
       .from('contract_documents')
       .select(`
         *,
         contract:contracts (
           id,
+          seq_id,
           status,
           clients (name)
         )
@@ -50,7 +54,12 @@ export function GED() {
     if (!error && data) {
       let formattedDocs: GEDDocument[] = data.map((doc: any) => ({
         ...doc,
-        client_name: doc.contract?.clients?.name || 'Sem Cliente'
+        client_name: doc.contract?.clients?.name || 'Sem Cliente',
+        contract: {
+            ...doc.contract,
+            // Gera o ID visual baseado no seq_id do banco
+            display_id: doc.contract?.seq_id ? String(doc.contract.seq_id).padStart(6, '0') : '-'
+        }
       }));
 
       // 2. Recuperar metadados (tamanho) do Storage se não existir no banco
@@ -122,7 +131,8 @@ export function GED() {
     const matchesFolder = selectedFolder ? doc.client_name === selectedFolder : true;
     const matchesSearch = searchTerm 
       ? doc.file_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        doc.hon_number_ref?.includes(searchTerm)
+        doc.hon_number_ref?.includes(searchTerm) ||
+        doc.contract?.display_id?.includes(searchTerm)
       : true;
     return matchesFolder && matchesSearch;
   });
@@ -187,7 +197,7 @@ export function GED() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input 
                 type="text" 
-                placeholder="Buscar arquivo ou HON..." 
+                placeholder="Buscar arquivo, ID ou HON..." 
                 className="w-full pl-9 pr-4 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-salomao-blue"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -214,15 +224,17 @@ export function GED() {
                       <div className="bg-red-50 text-red-600 p-2.5 rounded-lg">
                         <FileText className="w-6 h-6" />
                       </div>
-                      {doc.file_type === 'contract' ? (
-                        <span className="bg-green-50 text-green-700 text-[10px] uppercase font-bold px-2 py-1 rounded border border-green-100 flex items-center">
-                          <FileCheck className="w-3 h-3 mr-1" /> Contrato
-                        </span>
-                      ) : (
-                        <span className="bg-blue-50 text-blue-700 text-[10px] uppercase font-bold px-2 py-1 rounded border border-blue-100">
-                          Proposta
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {doc.file_type === 'contract' ? (
+                            <span className="bg-green-50 text-green-700 text-[10px] uppercase font-bold px-2 py-1 rounded border border-green-100 flex items-center">
+                            <FileCheck className="w-3 h-3 mr-1" /> Contrato
+                            </span>
+                        ) : (
+                            <span className="bg-blue-50 text-blue-700 text-[10px] uppercase font-bold px-2 py-1 rounded border border-blue-100">
+                            Proposta
+                            </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Content */}
@@ -241,11 +253,18 @@ export function GED() {
                         <span>{formatBytes(doc.file_size || 0)}</span>
                       </div>
                       
-                      {doc.hon_number_ref && (
-                        <div className="bg-gray-50 border border-gray-100 rounded px-2 py-1 text-[10px] font-mono text-gray-600 truncate">
-                          HON: {maskHon(doc.hon_number_ref)}
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        {doc.contract?.display_id && (
+                             <div className="bg-blue-50 border border-blue-100 rounded px-2 py-1 text-[10px] font-mono text-blue-600 truncate flex items-center">
+                                <Hash className="w-3 h-3 mr-1" /> {doc.contract.display_id}
+                             </div>
+                        )}
+                        {doc.hon_number_ref && (
+                            <div className="bg-gray-50 border border-gray-100 rounded px-2 py-1 text-[10px] font-mono text-gray-600 truncate">
+                            HON: {maskHon(doc.hon_number_ref)}
+                            </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Action: Download (Overlay) */}
