@@ -16,6 +16,9 @@ export interface Contract {
   analyst_id?: string;
   analyzed_by_name?: string;
   
+  // Campo que estava faltando e gerou erro
+  billing_location?: string;
+
   has_legal_process: boolean;
   status: 'analysis' | 'proposal' | 'active' | 'rejected' | 'probono';
   
@@ -81,6 +84,24 @@ export interface Contract {
   hon_number?: string;
 }
 
+// Interface que estava faltando e quebrou o ClientFormModal
+export interface Client {
+  id?: string;
+  name: string;
+  cnpj?: string;
+  is_person?: boolean;
+  email?: string;
+  phone?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  city?: string;
+  uf?: string;
+  active?: boolean;
+  partner_id?: string;
+  created_at?: string;
+}
+
 export interface Partner {
   id: string;
   name: string;
@@ -99,25 +120,25 @@ export interface ContractProcess {
   id?: string;
   contract_id?: string;
   process_number: string;
-  court?: string; // Tribunal
+  court?: string; 
   uf?: string;
   vara?: string;
   comarca?: string;
-  numeral?: string; // 1º, 2º...
+  numeral?: string; 
   instance?: string;
-  position?: string; // Autor, Réu...
-  opponent?: string; // Parte Contrária
-  process_class?: string; // Classe Judicial
-  subject?: string; // Assunto
-  action_type?: string; // Tipo de Ação
+  position?: string; 
+  opponent?: string; 
+  process_class?: string; 
+  subject?: string; 
+  action_type?: string; 
   distribution_date?: string;
   cause_value?: string;
-  justice_type?: string; // Estadual, Federal...
-  magistrates?: Magistrate[]; // Lista JSON de magistrados
+  justice_type?: string; 
+  magistrates?: Magistrate[]; 
 }
 
 export interface Magistrate {
-  title: string; // Juiz, Desembargador...
+  title: string; 
   name: string;
 }
 
@@ -137,8 +158,8 @@ export interface ContractDocument {
   file_path: string;
   file_type: string;
   uploaded_at: string;
-  file_size?: number; // Opcional, para exibição no GED
-  hon_number_ref?: string; // Opcional, vindo do join
+  file_size?: number; 
+  hon_number_ref?: string; 
 }
 
 export interface FinancialInstallment {
@@ -153,7 +174,6 @@ export interface FinancialInstallment {
   paid_at?: string;
   clause?: string;
   
-  // Join
   contract?: {
     id: string;
     seq_id?: number;
@@ -162,7 +182,7 @@ export interface FinancialInstallment {
     partner_id?: string;
     partner_name?: string;
     billing_location?: string;
-    display_id?: string; // Para UI
+    display_id?: string; 
   };
 }
 
@@ -170,14 +190,16 @@ export interface KanbanTask {
   id: string;
   title: string;
   description?: string;
-  status: string; // 'todo', 'doing', 'done', 'signature'
+  status: string; 
   priority: 'Baixa' | 'Média' | 'Alta';
   due_date?: string;
   contract_id?: string;
   position: number;
   tags?: string[];
   
-  // Join
+  // Campo que estava faltando
+  observation?: string;
+  
   contract?: {
     client_name: string;
     hon_number?: string;
