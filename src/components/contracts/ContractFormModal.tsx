@@ -1101,6 +1101,7 @@ export function ContractFormModal(props: Props) {
             processes: undefined,
             partners: undefined,
             id: undefined,
+            display_id: undefined, // <--- ADD THIS
         };
 
         // LÓGICA DE SNAPSHOT (PROPOSTA -> ATIVO)
