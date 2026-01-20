@@ -29,7 +29,9 @@ import {
   Ban,
   Scale,
   Activity,
-  DollarSign
+  DollarSign,
+  ArrowUpRight,
+  GitCommit
 } from 'lucide-react';
 import { Contract } from '../types';
 
@@ -64,6 +66,10 @@ export function Dashboard() {
       propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
       rejeitados: 0, probono: 0, totalUnico: 0,
+    },
+    semanaAnterior: {
+        propPL: 0, propExito: 0, propMensal: 0,
+        fechPL: 0, fechExito: 0, fechMensal: 0
     },
     mes: {
       novos: 0,
@@ -210,6 +216,29 @@ export function Dashboard() {
     return date >= startOfWeek && date <= endOfWeek;
   };
 
+  const isDateInPreviousWeek = (dateString?: string) => {
+    if (!dateString) return false;
+    const date = new Date(dateString + 'T12:00:00');
+    const today = new Date();
+    const currentDay = today.getDay();
+    
+    // Calculate start of current week
+    const startOfCurrentWeek = new Date(today);
+    startOfCurrentWeek.setDate(today.getDate() - currentDay);
+    startOfCurrentWeek.setHours(0, 0, 0, 0);
+
+    // Calculate start of previous week (7 days before start of current)
+    const startOfPrevWeek = new Date(startOfCurrentWeek);
+    startOfPrevWeek.setDate(startOfCurrentWeek.getDate() - 7);
+
+    // Calculate end of previous week
+    const endOfPrevWeek = new Date(startOfPrevWeek);
+    endOfPrevWeek.setDate(startOfPrevWeek.getDate() + 6);
+    endOfPrevWeek.setHours(23, 59, 59, 999);
+
+    return date >= startOfPrevWeek && date <= endOfPrevWeek;
+  };
+
   const isDateInCurrentMonth = (dateString?: string) => {
     if (!dateString) return false;
     const date = new Date(dateString + 'T12:00:00');
@@ -250,6 +279,12 @@ export function Dashboard() {
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
       rejeitados: 0, probono: 0, totalUnico: 0
     };
+    // Estrutura para comparar semana
+    let mSemanaAnterior = {
+        propPL: 0, propExito: 0, propMensal: 0,
+        fechPL: 0, fechExito: 0, fechMensal: 0
+    };
+
     let mMes = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
@@ -515,6 +550,14 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
+      // Cálculos Semana ANTERIOR (Usa Datas de Negócio) - Para o Gráfico Comparativo
+      if (c.status === 'proposal' && isDateInPreviousWeek(c.proposal_date)) {
+          mSemanaAnterior.propPL += pl; mSemanaAnterior.propExito += exito; mSemanaAnterior.propMensal += mensal;
+      }
+      if (c.status === 'active' && isDateInPreviousWeek(c.contract_date)) {
+          mSemanaAnterior.fechPL += pl; mSemanaAnterior.fechExito += exito; mSemanaAnterior.fechMensal += mensal;
+      }
+
       // Cálculos Mês Corrente (Usa Datas de Negócio)
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
@@ -617,7 +660,7 @@ export function Dashboard() {
     mGeral.mediaMensalCarteiraExito = mGeral.totalFechadoExito / monthsCount;
 
     setEvolucaoMensal(mesesGrafico);
-    setMetrics({ semana: mSemana, mes: mMes, executivo: mExecutivo, geral: mGeral });
+    setMetrics({ semana: mSemana, semanaAnterior: mSemanaAnterior, mes: mMes, executivo: mExecutivo, geral: mGeral });
 
     // --- FORMATAÇÃO DOS DADOS DE REJEIÇÃO ---
     const formatRejection = (counts: Record<string, number>) => {
@@ -650,40 +693,45 @@ export function Dashboard() {
   const totalNegociacao = metrics.geral.valorEmNegociacaoPL + metrics.geral.valorEmNegociacaoExito;
   const totalCarteira = metrics.geral.totalFechadoPL + metrics.geral.totalFechadoExito + metrics.geral.receitaRecorrenteAtiva;
 
-  // Calculos para Gráficos
-  const totalPropSemana = metrics.semana.propPL + metrics.semana.propExito + metrics.semana.propMensal;
-  const totalFechSemana = metrics.semana.fechPL + metrics.semana.fechExito + metrics.semana.fechMensal;
-  const maxSemana = Math.max(totalPropSemana, totalFechSemana, 1);
+  // Calculos para Gráficos e Deltas
+  const calcDelta = (atual: number, anterior: number) => {
+      if (anterior === 0) return atual > 0 ? 100 : 0;
+      return ((atual - anterior) / anterior) * 100;
+  };
 
-  const totalPropMes = metrics.mes.propPL + metrics.mes.propExito + metrics.mes.propMensal;
-  const totalFechMes = metrics.mes.fechPL + metrics.mes.fechExito + metrics.mes.fechMensal;
-  const maxMes = Math.max(totalPropMes, totalFechMes, 1);
+  // Comparação Semana
+  const valPropSemana = metrics.semana.propPL + metrics.semana.propExito + metrics.semana.propMensal;
+  const valPropSemanaAnt = metrics.semanaAnterior.propPL + metrics.semanaAnterior.propExito + metrics.semanaAnterior.propMensal;
+  const deltaPropSemana = calcDelta(valPropSemana, valPropSemanaAnt);
 
+  const valFechSemana = metrics.semana.fechPL + metrics.semana.fechExito + metrics.semana.fechMensal;
+  const valFechSemanaAnt = metrics.semanaAnterior.fechPL + metrics.semanaAnterior.fechExito + metrics.semanaAnterior.fechMensal;
+  const deltaFechSemana = calcDelta(valFechSemana, valFechSemanaAnt);
+
+  const maxSemanaChart = Math.max(valPropSemana, valPropSemanaAnt, valFechSemana, valFechSemanaAnt, 1);
+
+  // Comparação Mês (Usa dados do Executivo para comparativo real de fluxo)
+  const valPropMes = metrics.executivo.mesAtual.propPL + metrics.executivo.mesAtual.propExito + metrics.executivo.mesAtual.propMensal;
+  const valPropMesAnt = metrics.executivo.mesAnterior.propPL + metrics.executivo.mesAnterior.propExito + metrics.executivo.mesAnterior.propMensal;
+  const deltaPropMes = calcDelta(valPropMes, valPropMesAnt);
+
+  const valFechMes = metrics.executivo.mesAtual.fechPL + metrics.executivo.mesAtual.fechExito + metrics.executivo.mesAtual.fechMensal;
+  const valFechMesAnt = metrics.executivo.mesAnterior.fechPL + metrics.executivo.mesAnterior.fechExito + metrics.executivo.mesAnterior.fechMensal;
+  const deltaFechMes = calcDelta(valFechMes, valFechMesAnt);
+
+  const maxMesChart = Math.max(valPropMes, valPropMesAnt, valFechMes, valFechMesAnt, 1);
+
+  // Comparação de Fluxo Real (Não de Estoque) para o Topo
+  const deltaNovos = calcDelta(metrics.executivo.mesAtual.novos, metrics.executivo.mesAnterior.novos);
+  const deltaPropQtd = calcDelta(metrics.executivo.mesAtual.propQtd, metrics.executivo.mesAnterior.propQtd);
+  const deltaFechQtd = calcDelta(metrics.executivo.mesAtual.fechQtd, metrics.executivo.mesAnterior.fechQtd);
+  
   // Cálculos para Análise de Entrada (Estatísticas para o card)
   const totalEntrada12 = evolucaoMensal.reduce((acc, curr) => acc + curr.qtd, 0);
   const mediaEntrada = evolucaoMensal.length > 0 ? (totalEntrada12 / evolucaoMensal.length).toFixed(1) : '0';
   const ultimoQtd = evolucaoMensal.length > 0 ? evolucaoMensal[evolucaoMensal.length - 1].qtd : 0;
   const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
   const diffEntrada = ultimoQtd - penultimoQtd;
-
-  // Cálculos para o Relatório Executivo (Novo Bloco)
-  const calcDelta = (atual: number, anterior: number) => {
-      if (anterior === 0) return atual > 0 ? 100 : 0;
-      return ((atual - anterior) / anterior) * 100;
-  };
-
-  // Comparação de Fluxo Real (Não de Estoque)
-  const deltaNovos = calcDelta(metrics.executivo.mesAtual.novos, metrics.executivo.mesAnterior.novos);
-  const deltaPropQtd = calcDelta(metrics.executivo.mesAtual.propQtd, metrics.executivo.mesAnterior.propQtd);
-  const deltaFechQtd = calcDelta(metrics.executivo.mesAtual.fechQtd, metrics.executivo.mesAnterior.fechQtd);
-  
-  const valPropMes = metrics.executivo.mesAtual.propPL + metrics.executivo.mesAtual.propExito + metrics.executivo.mesAtual.propMensal;
-  const valPropAnt = metrics.executivo.mesAnterior.propPL + metrics.executivo.mesAnterior.propExito + metrics.executivo.mesAnterior.propMensal;
-  const deltaPropVal = calcDelta(valPropMes, valPropAnt);
-
-  const valFechMes = metrics.executivo.mesAtual.fechPL + metrics.executivo.mesAtual.fechExito + metrics.executivo.mesAtual.fechMensal;
-  const valFechAnt = metrics.executivo.mesAnterior.fechPL + metrics.executivo.mesAnterior.fechExito + metrics.executivo.mesAnterior.fechMensal;
-  const deltaFechVal = calcDelta(valFechMes, valFechAnt);
 
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
@@ -741,7 +789,7 @@ export function Dashboard() {
                          <span className="text-gray-400">vs. mês anterior ({metrics.executivo.mesAnterior.novos})</span>
                     </div>
                     <div className="mt-4 pt-3 border-t border-gray-200">
-                        <p className="text-[10px] text-gray-500 leading-tight">Volume de novos casos triados e submetidos à análise preliminar no período corrente.</p>
+                        <p className="text-[10px] text-gray-500 leading-tight">Volume de novos casos triados e submetidos à análise preliminar no período corrente (Safra do mês).</p>
                     </div>
                 </div>
 
@@ -763,8 +811,8 @@ export function Dashboard() {
                          <span className="text-gray-400">vs. mês anterior</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
-                        <span className={`font-bold ${deltaPropVal >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
-                             {deltaPropVal > 0 ? '+' : ''}{deltaPropVal.toFixed(1)}% (Valor)
+                        <span className={`font-bold ${deltaPropMes >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
+                             {deltaPropMes > 0 ? '+' : ''}{deltaPropMes.toFixed(1)}% (Valor)
                         </span>
                     </div>
                     <div className="mt-3 pt-3 border-t border-blue-200 flex flex-col gap-1">
@@ -797,8 +845,8 @@ export function Dashboard() {
                          <span className="text-gray-400">vs. mês anterior</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
-                        <span className={`font-bold ${deltaFechVal >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                             {deltaFechVal > 0 ? '+' : ''}{deltaFechVal.toFixed(1)}% (Valor)
+                        <span className={`font-bold ${deltaFechMes >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                             {deltaFechMes > 0 ? '+' : ''}{deltaFechMes.toFixed(1)}% (Valor)
                         </span>
                     </div>
                     <div className="mt-3 pt-3 border-t border-green-200 flex flex-col gap-1">
@@ -883,27 +931,130 @@ export function Dashboard() {
         <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
             <div className='flex items-center gap-2 mb-4'><CalendarDays className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo da Semana</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Total Casos da Semana</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.semana.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Casos com Atividade</p>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1"><Layers size={8} /> Geral</span>
+                        </div>
+                        <p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-blue-400 flex items-center'>Movimentados na semana</div>
+                </div>
+                
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p>
+                            <span className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded flex items-center gap-1"><ArrowUpRight size={8} /> Entrada (Novo)</span>
+                        </div>
+                        <p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.semana.novos}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-gray-400 flex items-center'>Novas Oportunidades</div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
+                    <div className='mb-3'>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização de Status</span>
+                        </div>
+                        <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p>
+                    </div>
+                    <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
+                    <div className='mb-3'>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p>
+                            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização de Status</span>
+                        </div>
+                        <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p>
+                    </div>
+                    <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p>
+                            <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização</span>
+                        </div>
+                        <p className='text-3xl font-bold text-red-700 mt-2'>{metrics.semana.rejeitados}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-red-300 flex items-center'>Casos declinados</div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p>
+                            <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização</span>
+                        </div>
+                        <p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.semana.probono}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-purple-300 flex items-center'>Atuação social</div>
+                </div>
             </div>
             
             {/* Gráfico Semana */}
             <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100">
-                <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2">Comparativo Financeiro (Semana)</p>
-                <div className="flex items-end gap-4 h-24">
-                    <div className="flex-1 flex flex-col justify-end items-center group">
-                        {totalPropSemana > 0 && <span className="text-[10px] font-bold text-blue-600 mb-1">{formatMoney(totalPropSemana)}</span>}
-                        <div className="w-full max-w-[60px] bg-blue-400 rounded-t hover:bg-blue-500 transition-all" style={{ height: `${totalPropSemana > 0 ? (totalPropSemana / maxSemana) * 100 : 2}%` }}></div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Propostas</span>
+                <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2 flex justify-between">
+                    <span>Comparativo Financeiro Visual (Semana Atual vs Anterior)</span>
+                    <span className="text-gray-400 font-normal normal-case">Valores totais</span>
+                </p>
+                <div className="grid grid-cols-2 gap-8 h-32">
+                    {/* Propostas */}
+                    <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
+                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
+                        <div className="flex items-end justify-center gap-3 h-full">
+                            {/* Anterior */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className="text-[9px] text-gray-400 mb-1 font-bold">{formatMoney(valPropSemanaAnt)}</span>
+                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropSemanaAnt > 0 ? (valPropSemanaAnt / maxSemanaChart) * 80 : 2}%` }}></div>
+                                <span className="text-[9px] text-gray-400 mt-1">Anterior</span>
+                            </div>
+                            {/* Atual */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className={`text-[9px] mb-1 font-bold ${deltaPropSemana >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                                    {formatMoney(valPropSemana)}
+                                </span>
+                                <div className="w-full bg-blue-500 rounded-t transition-all relative" style={{ height: `${valPropSemana > 0 ? (valPropSemana / maxSemanaChart) * 80 : 2}%` }}>
+                                     {/* Delta Badge */}
+                                     <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1 rounded ${deltaPropSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaPropSemana > 0 ? '+' : ''}{deltaPropSemana.toFixed(0)}%
+                                     </div>
+                                </div>
+                                <span className="text-[9px] text-blue-600 font-bold mt-1">Atual</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex-1 flex flex-col justify-end items-center group">
-                        {totalFechSemana > 0 && <span className="text-[10px] font-bold text-green-600 mb-1">{formatMoney(totalFechSemana)}</span>}
-                        <div className="w-full max-w-[60px] bg-green-400 rounded-t hover:bg-green-500 transition-all" style={{ height: `${totalFechSemana > 0 ? (totalFechSemana / maxSemana) * 100 : 2}%` }}></div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Fechados</span>
+
+                    {/* Fechados */}
+                    <div className="flex flex-col justify-end relative">
+                        <p className="text-[10px] font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
+                        <div className="flex items-end justify-center gap-3 h-full">
+                            {/* Anterior */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className="text-[9px] text-gray-400 mb-1 font-bold">{formatMoney(valFechSemanaAnt)}</span>
+                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechSemanaAnt > 0 ? (valFechSemanaAnt / maxSemanaChart) * 80 : 2}%` }}></div>
+                                <span className="text-[9px] text-gray-400 mt-1">Anterior</span>
+                            </div>
+                            {/* Atual */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className={`text-[9px] mb-1 font-bold ${deltaFechSemana >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {formatMoney(valFechSemana)}
+                                </span>
+                                <div className="w-full bg-green-500 rounded-t transition-all relative" style={{ height: `${valFechSemana > 0 ? (valFechSemana / maxSemanaChart) * 80 : 2}%` }}>
+                                     {/* Delta Badge */}
+                                     <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1 rounded ${deltaFechSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaFechSemana > 0 ? '+' : ''}{deltaFechSemana.toFixed(0)}%
+                                     </div>
+                                </div>
+                                <span className="text-[9px] text-green-600 font-bold mt-1">Atual</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -913,27 +1064,130 @@ export function Dashboard() {
         <div className='bg-blue-50/50 p-6 rounded-2xl border border-blue-100'>
             <div className='flex items-center gap-2 mb-4'><CalendarRange className='text-blue-700' size={24} /><h2 className='text-xl font-bold text-blue-900'>Resumo do Mês</h2></div>
             <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'><div><p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Casos com Atividade</p><p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p></div><div className='mt-2 text-[10px] text-blue-400 flex items-center'><Layers className="w-3 h-3 mr-1" /> Casos Movimentados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'><div><p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p><p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p></div><div className='mt-2 text-[10px] text-gray-400 flex items-center'><FileText className="w-3 h-3 mr-1" />Novas Oportunidades</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p></div><div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'><div className='mb-3'><p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p><p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p></div><div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'><div><p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p><p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p></div><div className='mt-2 text-[10px] text-red-300 flex items-center'><XCircle className="w-3 h-3 mr-1" /> Casos declinados</div></div>
-                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'><div><p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p><p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p></div><div className='mt-2 text-[10px] text-purple-300 flex items-center'><HeartHandshake className="w-3 h-3 mr-1" /> Atuação social</div></div>
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-200 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-blue-800 font-bold uppercase tracking-wider'>Casos com Atividade</p>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1"><Layers size={8} /> Geral</span>
+                        </div>
+                        <p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-blue-400 flex items-center'>Movimentados no mês</div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-gray-500 font-bold uppercase tracking-wider'>Sob Análise</p>
+                            <span className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded flex items-center gap-1"><ArrowUpRight size={8} /> Entrada (Novo)</span>
+                        </div>
+                        <p className='text-3xl font-bold text-gray-800 mt-2'>{metrics.mes.analysis}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-gray-400 flex items-center'>Novas Oportunidades</div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
+                    <div className='mb-3'>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-blue-600 font-bold uppercase tracking-wider'>Propostas Enviadas</p>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização de Status</span>
+                        </div>
+                        <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p>
+                    </div>
+                    <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
+                    <div className='mb-3'>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-green-600 font-bold uppercase tracking-wider'>Contratos Fechados</p>
+                            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização de Status</span>
+                        </div>
+                        <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p>
+                    </div>
+                    <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-red-500 font-bold uppercase tracking-wider'>Rejeitados</p>
+                            <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização</span>
+                        </div>
+                        <p className='text-3xl font-bold text-red-700 mt-2'>{metrics.mes.rejected}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-red-300 flex items-center'>Casos declinados</div>
+                </div>
+
+                <div className='bg-white p-5 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between'>
+                    <div>
+                        <div className='flex justify-between items-start'>
+                            <p className='text-[10px] text-purple-500 font-bold uppercase tracking-wider'>Probono</p>
+                            <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex items-center gap-1"><GitCommit size={8} /> Atualização</span>
+                        </div>
+                        <p className='text-3xl font-bold text-purple-700 mt-2'>{metrics.mes.probono}</p>
+                    </div>
+                    <div className='mt-2 text-[10px] text-purple-300 flex items-center'>Atuação social</div>
+                </div>
             </div>
 
             {/* Gráfico Mês */}
             <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100">
-                <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2">Comparativo Financeiro (Mês)</p>
-                <div className="flex items-end gap-4 h-24">
-                    <div className="flex-1 flex flex-col justify-end items-center group">
-                        {totalPropMes > 0 && <span className="text-[10px] font-bold text-blue-600 mb-1">{formatMoney(totalPropMes)}</span>}
-                        <div className="w-full max-w-[60px] bg-blue-400 rounded-t hover:bg-blue-500 transition-all" style={{ height: `${totalPropMes > 0 ? (totalPropMes / maxMes) * 100 : 2}%` }}></div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Propostas</span>
+                <p className="text-xs font-bold text-gray-500 uppercase mb-3 border-b border-gray-100 pb-2 flex justify-between">
+                    <span>Comparativo Financeiro Visual (Mês Atual vs Anterior)</span>
+                    <span className="text-gray-400 font-normal normal-case">Valores totais</span>
+                </p>
+                <div className="grid grid-cols-2 gap-8 h-32">
+                    {/* Propostas */}
+                    <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
+                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
+                        <div className="flex items-end justify-center gap-3 h-full">
+                            {/* Anterior */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className="text-[9px] text-gray-400 mb-1 font-bold">{formatMoney(valPropMesAnt)}</span>
+                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropMesAnt > 0 ? (valPropMesAnt / maxMesChart) * 80 : 2}%` }}></div>
+                                <span className="text-[9px] text-gray-400 mt-1">Anterior</span>
+                            </div>
+                            {/* Atual */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className={`text-[9px] mb-1 font-bold ${deltaPropMes >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                                    {formatMoney(valPropMes)}
+                                </span>
+                                <div className="w-full bg-blue-500 rounded-t transition-all relative" style={{ height: `${valPropMes > 0 ? (valPropMes / maxMesChart) * 80 : 2}%` }}>
+                                     {/* Delta Badge */}
+                                     <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1 rounded ${deltaPropMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaPropMes > 0 ? '+' : ''}{deltaPropMes.toFixed(0)}%
+                                     </div>
+                                </div>
+                                <span className="text-[9px] text-blue-600 font-bold mt-1">Atual</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex-1 flex flex-col justify-end items-center group">
-                        {totalFechMes > 0 && <span className="text-[10px] font-bold text-green-600 mb-1">{formatMoney(totalFechMes)}</span>}
-                        <div className="w-full max-w-[60px] bg-green-400 rounded-t hover:bg-green-500 transition-all" style={{ height: `${totalFechMes > 0 ? (totalFechMes / maxMes) * 100 : 2}%` }}></div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase mt-1">Fechados</span>
+
+                    {/* Fechados */}
+                    <div className="flex flex-col justify-end relative">
+                        <p className="text-[10px] font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
+                        <div className="flex items-end justify-center gap-3 h-full">
+                            {/* Anterior */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className="text-[9px] text-gray-400 mb-1 font-bold">{formatMoney(valFechMesAnt)}</span>
+                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechMesAnt > 0 ? (valFechMesAnt / maxMesChart) * 80 : 2}%` }}></div>
+                                <span className="text-[9px] text-gray-400 mt-1">Anterior</span>
+                            </div>
+                            {/* Atual */}
+                            <div className="flex flex-col items-center justify-end h-full w-12 group">
+                                <span className={`text-[9px] mb-1 font-bold ${deltaFechMes >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {formatMoney(valFechMes)}
+                                </span>
+                                <div className="w-full bg-green-500 rounded-t transition-all relative" style={{ height: `${valFechMes > 0 ? (valFechMes / maxMesChart) * 80 : 2}%` }}>
+                                     {/* Delta Badge */}
+                                     <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1 rounded ${deltaFechMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaFechMes > 0 ? '+' : ''}{deltaFechMes.toFixed(0)}%
+                                     </div>
+                                </div>
+                                <span className="text-[9px] text-green-600 font-bold mt-1">Atual</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
