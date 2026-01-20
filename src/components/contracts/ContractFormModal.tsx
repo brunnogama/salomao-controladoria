@@ -14,6 +14,9 @@ const DEFAULT_COURTS = ['STF', 'STJ', 'TST', 'TRF1', 'TRF2', 'TRF3', 'TRF4', 'TR
 const DEFAULT_CLASSES = ['Procedimento Comum', 'Execução de Título Extrajudicial', 'Monitória', 'Mandado de Segurança', 'Ação Trabalhista - Rito Ordinário', 'Ação Trabalhista - Rito Sumaríssimo', 'Recurso Ordinário', 'Agravo de Instrumento', 'Apelação'];
 const DEFAULT_SUBJECTS = ['Dano Moral', 'Dano Material', 'Inadimplemento', 'Rescisão Indireta', 'Verbas Rescisórias', 'Acidente de Trabalho', 'Doença Ocupacional', 'Horas Extras', 'Assédio Moral'];
 const DEFAULT_POSITIONS = ['Autor', 'Réu', 'Terceiro Interessado', 'Exequente', 'Executado', 'Reclamante', 'Reclamado', 'Apelante', 'Apelado', 'Agravante', 'Agravado', 'Impetrante', 'Impetrado'];
+// Novos Defaults para garantir persistência visual correta
+const DEFAULT_VARAS = ['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais'];
+const DEFAULT_JUSTICES = ['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar'];
 
 const formatForInput = (val: string | number | undefined) => {
   if (val === undefined || val === null) return '';
@@ -326,8 +329,8 @@ export function ContractFormModal(props: Props) {
   const [viewProcess, setViewProcess] = useState<ContractProcess | null>(null);
   const [viewProcessIndex, setViewProcessIndex] = useState<number | null>(null);
 
-  const [justiceOptions, setJusticeOptions] = useState<string[]>(['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar']);
-  const [varaOptions, setVaraOptions] = useState<string[]>(['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais']);
+  const [justiceOptions, setJusticeOptions] = useState<string[]>(DEFAULT_JUSTICES);
+  const [varaOptions, setVaraOptions] = useState<string[]>(DEFAULT_VARAS);
   const [courtOptions, setCourtOptions] = useState<string[]>(DEFAULT_COURTS);
   const [comarcaOptions, setComarcaOptions] = useState<string[]>([]); 
   const [classOptions, setClassOptions] = useState<string[]>(DEFAULT_CLASSES);
@@ -441,23 +444,23 @@ export function ContractFormModal(props: Props) {
 
   const fetchAuxiliaryTables = async () => {
     const { data: courts } = await supabase.from('courts').select('name').order('name');
-    if (courts) setCourtOptions(prev => Array.from(new Set([...DEFAULT_COURTS, ...courts.map(c => c.name)])).sort((a, b) => a.localeCompare(b)));
+    if (courts) setCourtOptions(Array.from(new Set([...DEFAULT_COURTS, ...courts.map(c => c.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: classes } = await supabase.from('process_classes').select('name').order('name');
-    if (classes) setClassOptions(prev => Array.from(new Set([...DEFAULT_CLASSES, ...classes.map(c => c.name)])).sort((a, b) => a.localeCompare(b)));
+    if (classes) setClassOptions(Array.from(new Set([...DEFAULT_CLASSES, ...classes.map(c => c.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: subjects } = await supabase.from('process_subjects').select('name').order('name');
-    if (subjects) setSubjectOptions(prev => Array.from(new Set([...DEFAULT_SUBJECTS, ...subjects.map(s => s.name)])).sort((a, b) => a.localeCompare(b)));
+    if (subjects) setSubjectOptions(Array.from(new Set([...DEFAULT_SUBJECTS, ...subjects.map(s => s.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: positions } = await supabase.from('process_positions').select('name').order('name');
-    if (positions) setPositionsList(prev => Array.from(new Set([...DEFAULT_POSITIONS, ...positions.map(p => p.name)])).sort((a, b) => a.localeCompare(b)));
+    if (positions) setPositionsList(Array.from(new Set([...DEFAULT_POSITIONS, ...positions.map(p => p.name)])).sort((a, b) => a.localeCompare(b)));
 
-    // Correção: Buscar Varas e Justiças também se existirem as tabelas
+    // Correção: Buscar Varas e Justiças também se existirem as tabelas e MERGE com defaults
     const { data: varas } = await supabase.from('process_varas').select('name').order('name');
-    if (varas) setVaraOptions(prev => Array.from(new Set([...prev, ...varas.map(v => v.name)])).sort((a, b) => a.localeCompare(b)));
+    if (varas) setVaraOptions(Array.from(new Set([...DEFAULT_VARAS, ...varas.map(v => v.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: justices } = await supabase.from('process_justice_types').select('name').order('name');
-    if (justices) setJusticeOptions(prev => Array.from(new Set([...prev, ...justices.map(j => j.name)])).sort((a, b) => a.localeCompare(b)));
+    if (justices) setJusticeOptions(Array.from(new Set([...DEFAULT_JUSTICES, ...justices.map(j => j.name)])).sort((a, b) => a.localeCompare(b)));
 
     const { data: mags } = await supabase.from('magistrates').select('name').order('name');
     if (mags) setMagistrateOptions(mags.map(m => m.name));
@@ -1468,7 +1471,15 @@ export function ContractFormModal(props: Props) {
 
              {(formData.status === 'proposal' || formData.status === 'active') && (
               <div className="space-y-6 animate-in slide-in-from-top-2 pt-4 border-t border-gray-100">
-                {/* Data removida daqui */}
+                
+                {/* BLOCO HON MOVIDO PARA CÁ (TOPO DA SEÇÃO DE VALORES) */}
+                {formData.status === 'active' && (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4 animate-in fade-in">
+                        <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
+                        <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Gerenciar Locais" actionIcon={Settings} /></div>
+                        <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
+                    </div>
+                )}
 
                 {/* Linha 2: Pró-Labore | Outros Honorários | Fixo Mensal */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
@@ -1669,7 +1680,7 @@ export function ContractFormModal(props: Props) {
                         <div className="flex flex-wrap gap-2">
                             {duplicateClientCases.map(c => (
                                 <a key={c.id} href={`/contracts/${c.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline bg-white px-2 py-0.5 rounded border border-blue-100 flex items-center">
-                                    <LinkIcon className="w-2.5 h-2.5 mr-1"/> {c.hon_number || 'Sem HON'} ({c.status})
+                                    <LinkIcon className="w-2.5 h-2.5 mr-1"/> {c.hon_number || 'Sem HON'} ({getStatusLabel(c.status)})
                                 </a>
                             ))}
                         </div>
@@ -2006,17 +2017,7 @@ export function ContractFormModal(props: Props) {
             {/* SEÇÃO DE DOCUMENTOS E REFERÊNCIA (DO SEGUNDO CÓDIGO) */}
             {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
               <>
-                {/* BLOCO HON MOVIDO PARA CÁ (ACIMA DA REFERENCIA) */}
-                {formData.status === 'active' && (
-                <div className="mt-6 p-4 bg-white/70 border border-green-200 rounded-xl animate-in fade-in">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                        <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                        <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Gerenciar Locais" actionIcon={Settings} /></div>
-                        <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
-                    </div>
-                </div>
-                )}
-
+                
                 {/* Exibe Referência APENAS se NÃO for Análise */}
                 {(formData.status === 'proposal' || formData.status === 'active') && (
                     <div className="mt-6 mb-2">
