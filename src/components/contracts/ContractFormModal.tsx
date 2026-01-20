@@ -1363,6 +1363,29 @@ export function ContractFormModal(props: Props) {
 
   const handleTextChange = (field: keyof Contract, value: string) => { setFormData({ ...formData, [field]: toTitleCase(value) }); };
 
+  const handleClientChange = async (name: string) => {
+    const newName = toTitleCase(name);
+    setFormData(prev => ({ ...prev, client_name: newName }));
+    
+    if (!newName) return;
+
+    // Busca automática do CNPJ
+    const { data } = await supabase
+        .from('clients')
+        .select('cnpj, id')
+        .eq('name', newName)
+        .single();
+    
+    if (data && data.cnpj) {
+        setFormData(prev => ({
+            ...prev,
+            client_name: newName,
+            client_id: data.id,
+            cnpj: maskCNPJ(data.cnpj)
+        }));
+    }
+  };
+
   // PREPENDED SELECIONE OPTION TO ALL GENERATED OPTIONS
   const partnerSelectOptions = [{ label: 'Selecione', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))];
   const analystSelectOptions = [{ label: 'Selecione', value: '' }, ...(analysts ? analysts.map(a => ({ label: a.name, value: a.id })) : [])];
@@ -1377,7 +1400,7 @@ export function ContractFormModal(props: Props) {
     
   // Opções formatadas para CustomSelect
   const justiceSelectOptions = [{ label: 'Selecione', value: '' }, ...justiceOptions.map(j => ({ label: j, value: j }))];
-  const varaSelectOptions = [{ label: 'Selecione', value: '' }, ...varaOptions.map(v => ({ label: v, value: v }))];
+  const varaSelectOptions = [{ label: 'Selecione', value: '' }, ...[...varaOptions].sort((a, b) => a.localeCompare(b)).map(v => ({ label: v, value: v }))];
   const courtSelectOptions = [{ label: 'Selecione', value: '' }, ...courtOptions.map(c => ({ label: c, value: c }))];
   const comarcaSelectOptions = [{ label: 'Selecione', value: '' }, ...comarcaOptions.map(c => ({ label: c, value: c }))];
   const classSelectOptions = [{ label: 'Selecione', value: '' }, ...classOptions.map(c => ({ label: c, value: c }))];
@@ -1665,7 +1688,7 @@ export function ContractFormModal(props: Props) {
                 <CustomSelect 
                     label="Nome do Cliente *" 
                     value={formData.client_name} 
-                    onChange={(val: string) => handleTextChange('client_name', val)} 
+                    onChange={handleClientChange} 
                     options={clientSelectOptions}
                     onAction={() => setActiveManager('client')}
                     actionIcon={Settings}
@@ -2093,7 +2116,7 @@ export function ContractFormModal(props: Props) {
             }
          />
        )}
-      
+       
       {/* Modal de Visualização Detalhada do Processo */}
       {viewProcess && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
