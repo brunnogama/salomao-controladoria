@@ -1,7 +1,7 @@
 export interface Contract {
   id?: string;
-  seq_id?: number; // Campo do Banco (ID Fixo)
-  display_id?: string; // Campo Visual (000001)
+  seq_id?: number; 
+  display_id?: string; 
   created_at?: string;
   client_name: string;
   client_id?: string;
@@ -15,40 +15,31 @@ export interface Contract {
   partner_name?: string;
   analyst_id?: string;
   analyzed_by_name?: string;
-  
-  // Campo que estava faltando e gerou erro
   billing_location?: string;
-
   has_legal_process: boolean;
   status: 'analysis' | 'proposal' | 'active' | 'rejected' | 'probono';
   
-  // Datas
   prospect_date?: string;
   proposal_date?: string;
   contract_date?: string;
   rejection_date?: string;
   probono_date?: string;
   
-  // Financeiro
   pro_labore?: string;
   pro_labore_installments?: string;
   pro_labore_clause?: string;
-  
   final_success_fee?: string;
   final_success_fee_installments?: string;
   final_success_fee_clause?: string;
   final_success_percent?: string;
   final_success_percent_clause?: string;
-  
   fixed_monthly_fee?: string;
   fixed_monthly_fee_installments?: string;
   fixed_monthly_fee_clause?: string;
-  
   other_fees?: string;
   other_fees_installments?: string;
   other_fees_clause?: string;
 
-  // Arrays de Valores Extras
   pro_labore_extras?: string[];
   final_success_extras?: string[];
   fixed_monthly_extras?: string[];
@@ -56,7 +47,6 @@ export interface Contract {
   intermediate_fees?: string[];
   percent_extras?: string[];
 
-  // Arrays de Cláusulas Extras
   pro_labore_extras_clauses?: string[];
   final_success_extras_clauses?: string[];
   fixed_monthly_extras_clauses?: string[];
@@ -64,27 +54,17 @@ export interface Contract {
   intermediate_fees_clauses?: string[];
   percent_extras_clauses?: string[];
 
-  // Outros
-  company_name?: string; // Parte contrária ou empresa
+  company_name?: string; 
   reference?: string;
   observations?: string;
-  
-  // Rejeição
   rejection_reason?: string;
   rejection_by?: string;
-
-  // Assinatura
   physical_signature?: boolean;
-  
-  // Timesheet
   timesheet?: boolean;
-
-  // Específico para visualização
   process_count?: number;
   hon_number?: string;
 }
 
-// Interface que estava faltando e quebrou o ClientFormModal
 export interface Client {
   id?: string;
   name: string;
@@ -100,6 +80,10 @@ export interface Client {
   active?: boolean;
   partner_id?: string;
   created_at?: string;
+  
+  // Campos visuais (Join/Count)
+  partner_name?: string;
+  active_contracts_count?: number;
 }
 
 export interface Partner {
@@ -196,8 +180,6 @@ export interface KanbanTask {
   contract_id?: string;
   position: number;
   tags?: string[];
-  
-  // Campo que estava faltando
   observation?: string;
   
   contract?: {
