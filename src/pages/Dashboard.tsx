@@ -26,7 +26,10 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Ban
+  Ban,
+  Scale,
+  Activity,
+  DollarSign
 } from 'lucide-react';
 import { Contract } from '../types';
 
@@ -67,6 +70,11 @@ export function Dashboard() {
       propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
       totalUnico: 0, analysis: 0, rejected: 0, probono: 0
+    },
+    mesAnterior: {
+      novos: 0,
+      propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
+      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0
     },
     geral: {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
@@ -201,6 +209,23 @@ export function Dashboard() {
     return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
   };
 
+  const isDateInLastMonth = (dateString?: string) => {
+    if (!dateString) return false;
+    const date = new Date(dateString + 'T12:00:00');
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    let lastMonth = currentMonth - 1;
+    let lastYear = currentYear;
+    if (lastMonth < 0) {
+      lastMonth = 11;
+      lastYear = currentYear - 1;
+    }
+    
+    return date.getMonth() === lastMonth && date.getFullYear() === lastYear;
+  };
+
   const processarDados = (contratos: Contract[], socios: any[] = []) => {
     const hoje = new Date();
     // Definindo data fixa de início: Junho de 2025
@@ -221,6 +246,10 @@ export function Dashboard() {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
       totalUnico: 0, analysis: 0, rejected: 0, probono: 0
+    };
+    let mMesAnterior = {
+        novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
+        fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0
     };
     let mGeral = {
       totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
@@ -414,6 +443,7 @@ export function Dashboard() {
         c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
+      // --- Cálculos Semana ---
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
         mSemana.propQtd++; 
@@ -430,6 +460,7 @@ export function Dashboard() {
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
+      // --- Cálculos Mês Corrente ---
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
         mMes.propQtd++; 
@@ -445,6 +476,21 @@ export function Dashboard() {
       }
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) mMes.rejected++;
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) mMes.probono++;
+
+      // --- Cálculos Mês Anterior (Para Comparativo) ---
+      if (c.status === 'analysis' && isDateInLastMonth(c.prospect_date)) mMesAnterior.novos++;
+      if (c.status === 'proposal' && isDateInLastMonth(c.proposal_date)) {
+          mMesAnterior.propQtd++;
+          mMesAnterior.propPL += pl;
+          mMesAnterior.propExito += exito;
+          mMesAnterior.propMensal += mensal;
+      }
+      if (c.status === 'active' && isDateInLastMonth(c.contract_date)) {
+          mMesAnterior.fechQtd++;
+          mMesAnterior.fechPL += pl;
+          mMesAnterior.fechExito += exito;
+          mMesAnterior.fechMensal += mensal;
+      }
 
       const contractDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date];
       if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
@@ -552,7 +598,7 @@ export function Dashboard() {
     mGeral.mediaMensalCarteiraExito = mGeral.totalFechadoExito / monthsCount;
 
     setEvolucaoMensal(mesesGrafico);
-    setMetrics({ semana: mSemana, mes: mMes, geral: mGeral });
+    setMetrics({ semana: mSemana, mes: mMes, mesAnterior: mMesAnterior, geral: mGeral });
 
     // --- FORMATAÇÃO DOS DADOS DE REJEIÇÃO ---
     const formatRejection = (counts: Record<string, number>) => {
@@ -601,6 +647,24 @@ export function Dashboard() {
   const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
   const diffEntrada = ultimoQtd - penultimoQtd;
 
+  // Cálculos para o Relatório Executivo (Novo Bloco)
+  const calcDelta = (atual: number, anterior: number) => {
+      if (anterior === 0) return atual > 0 ? 100 : 0;
+      return ((atual - anterior) / anterior) * 100;
+  };
+
+  const deltaNovos = calcDelta(metrics.mes.analysis, metrics.mesAnterior.novos);
+  const deltaPropQtd = calcDelta(metrics.mes.propQtd, metrics.mesAnterior.propQtd);
+  const deltaFechQtd = calcDelta(metrics.mes.fechQtd, metrics.mesAnterior.fechQtd);
+  
+  const valPropMes = metrics.mes.propPL + metrics.mes.propExito + metrics.mes.propMensal;
+  const valPropAnt = metrics.mesAnterior.propPL + metrics.mesAnterior.propExito + metrics.mesAnterior.propMensal;
+  const deltaPropVal = calcDelta(valPropMes, valPropAnt);
+
+  const valFechMes = metrics.mes.fechPL + metrics.mes.fechExito + metrics.mes.fechMensal;
+  const valFechAnt = metrics.mesAnterior.fechPL + metrics.mesAnterior.fechExito + metrics.mesAnterior.fechMensal;
+  const deltaFechVal = calcDelta(valFechMes, valFechAnt);
+
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
   return (
@@ -627,6 +691,133 @@ export function Dashboard() {
       </div>
 
       <div ref={dashboardRef} className="space-y-8 bg-[#F8FAFC] p-2">
+
+        {/* RELATÓRIO EXECUTIVO E PANORAMA JURÍDICO - NOVO BLOCO */}
+        <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
+            <div className='flex items-center gap-2 mb-6 border-b pb-4'>
+                <Scale className='text-[#0F2C4C]' size={24} />
+                <div>
+                    <h2 className='text-xl font-bold text-gray-800'>Relatório Executivo & Panorama Jurídico</h2>
+                    <p className='text-xs text-gray-500'>Indicadores de performance e evolução mensal dos instrumentos contratuais.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                {/* Card 1 - Novas Demandas */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-2">
+                        <div>
+                            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Novas Demandas Jurídicas</p>
+                            <h3 className="text-3xl font-bold text-gray-800 mt-1">{metrics.mes.analysis}</h3>
+                        </div>
+                        <div className={`p-2 rounded-full ${deltaNovos >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                           {deltaNovos >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                         <span className={`font-bold ${deltaNovos >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                             {deltaNovos > 0 ? '+' : ''}{deltaNovos.toFixed(1)}%
+                         </span>
+                         <span className="text-gray-400">vs. mês anterior ({metrics.mesAnterior.novos})</span>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                        <p className="text-[10px] text-gray-500 leading-tight">Volume de novos casos triados e submetidos à análise preliminar no período corrente.</p>
+                    </div>
+                </div>
+
+                {/* Card 2 - Propostas de Honorários */}
+                <div className="bg-blue-50/50 rounded-xl p-5 border border-blue-100 relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-2">
+                        <div>
+                            <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Propostas de Honorários</p>
+                            <h3 className="text-3xl font-bold text-blue-900 mt-1">{metrics.mes.propQtd}</h3>
+                        </div>
+                        <div className={`p-2 rounded-full ${deltaPropQtd >= 0 ? 'bg-blue-200 text-blue-800' : 'bg-red-100 text-red-700'}`}>
+                           {deltaPropQtd >= 0 ? <Activity size={20} /> : <TrendingDown size={20} />}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs mb-1">
+                         <span className={`font-bold ${deltaPropQtd >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
+                             {deltaPropQtd > 0 ? '+' : ''}{deltaPropQtd.toFixed(1)}% (Qtd)
+                         </span>
+                         <span className="text-gray-400">vs. mês anterior</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className={`font-bold ${deltaPropVal >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
+                             {deltaPropVal > 0 ? '+' : ''}{deltaPropVal.toFixed(1)}% (Valor)
+                        </span>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-blue-200 flex flex-col gap-1">
+                         <div className="flex justify-between text-[11px]">
+                             <span className="text-gray-500">Honorários Iniciais (PL)</span>
+                             <span className="font-bold text-blue-800">{formatMoney(metrics.mes.propPL + metrics.mes.propMensal)}</span>
+                         </div>
+                         <div className="flex justify-between text-[11px]">
+                             <span className="text-gray-500">Honorários de Êxito</span>
+                             <span className="font-bold text-blue-800">{formatMoney(metrics.mes.propExito)}</span>
+                         </div>
+                    </div>
+                </div>
+
+                {/* Card 3 - Instrumentos Contratuais Firmados */}
+                <div className="bg-green-50/50 rounded-xl p-5 border border-green-100 relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-2">
+                        <div>
+                            <p className="text-xs text-green-600 font-bold uppercase tracking-wider">Instrumentos Contratuais</p>
+                            <h3 className="text-3xl font-bold text-green-900 mt-1">{metrics.mes.fechQtd}</h3>
+                        </div>
+                         <div className={`p-2 rounded-full ${deltaFechQtd >= 0 ? 'bg-green-200 text-green-800' : 'bg-red-100 text-red-700'}`}>
+                           {deltaFechQtd >= 0 ? <FileSignature size={20} /> : <TrendingDown size={20} />}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs mb-1">
+                         <span className={`font-bold ${deltaFechQtd >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                             {deltaFechQtd > 0 ? '+' : ''}{deltaFechQtd.toFixed(1)}% (Qtd)
+                         </span>
+                         <span className="text-gray-400">vs. mês anterior</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                        <span className={`font-bold ${deltaFechVal >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                             {deltaFechVal > 0 ? '+' : ''}{deltaFechVal.toFixed(1)}% (Valor)
+                        </span>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-green-200 flex flex-col gap-1">
+                         <div className="flex justify-between text-[11px]">
+                             <span className="text-gray-500">Honorários Iniciais (PL)</span>
+                             <span className="font-bold text-green-800">{formatMoney(metrics.mes.fechPL + metrics.mes.fechMensal)}</span>
+                         </div>
+                         <div className="flex justify-between text-[11px]">
+                             <span className="text-gray-500">Honorários de Êxito</span>
+                             <span className="font-bold text-green-800">{formatMoney(metrics.mes.fechExito)}</span>
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-50 rounded-lg text-blue-700 border border-blue-100">
+                        <DollarSign size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 uppercase font-bold">Total em Potencial (Negociação)</p>
+                        <p className="text-xl font-bold text-gray-800">{formatMoney(totalNegociacao)}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Soma de honorários em fase de proposta ativa.</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4 border-l border-gray-100 pl-6">
+                    <div className="p-3 bg-green-50 rounded-lg text-green-700 border border-green-100">
+                        <Briefcase size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 uppercase font-bold">Total em Carteira (Contratado)</p>
+                        <p className="text-xl font-bold text-gray-800">{formatMoney(totalCarteira)}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Receita recorrente e êxitos acumulados.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {/* FUNIL */}
          <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-500'>Taxa de conversão e tempo médio.</p></div></div>
