@@ -1,109 +1,88 @@
 export const maskCNPJ = (value: string) => {
-  return value
-    .replace(/\D/g, '')
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2')
-    .replace(/(-\d{2})\d+?$/, '$1');
-};
-
-export const maskCPF = (value: string) => {
-  return value
-    .replace(/\D/g, '')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})/, '$1-$2')
-    .replace(/(-\d{2})\d+?$/, '$1');
+  // Máscara mista para CPF e CNPJ
+  const cleanValue = value.replace(/\D/g, '');
+  
+  if (cleanValue.length <= 11) {
+    // CPF
+    return cleanValue
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  } else {
+    // CNPJ
+    return cleanValue
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
+  }
 };
 
 export const maskMoney = (value: string) => {
-  if (!value) return '';
-  const numericValue = value.replace(/\D/g, '');
-  const floatValue = parseFloat(numericValue) / 100;
-  return floatValue.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
+  const onlyDigits = value.replace(/\D/g, "");
+  if (!onlyDigits) return "";
+  const number = parseFloat(onlyDigits) / 100;
+  return number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+export const maskHon = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .replace(/^(\d{7})(\d)/, '$1/$2')
+    .replace(/(\/\d{3})\d+?$/, '$1');
+};
+
+export const maskCNJ = (value: string) => {
+  // Formato: 0000000-00.0000.0.00.0000
+  let v = value.replace(/\D/g, "");
+  v = v.replace(/^(\d{7})(\d)/, "$1-$2");
+  v = v.replace(/-(\d{2})(\d)/, "-$1.$2");
+  v = v.replace(/\.(\d{4})(\d)/, ".$1.$2");
+  v = v.replace(/\.(\d)(\d)/, ".$1.$2");
+  v = v.replace(/\.(\d{2})(\d)/, ".$1.$2");
+  return v.slice(0, 25);
 };
 
 export const parseCurrency = (value: string | undefined): number => {
   if (!value) return 0;
-  const numericString = value.replace(/[^\d,]/g, '').replace(',', '.');
-  return parseFloat(numericString) || 0;
-};
-
-export const maskPhone = (value: string) => {
-  return value
-    .replace(/\D/g, '')
-    .replace(/(\d{2})(\d)/, '($1) $2')
-    .replace(/(\d{5})(\d)/, '$1-$2')
-    .replace(/(-\d{4})\d+?$/, '$1');
-};
-
-export const maskZipCode = (value: string) => {
-  return value
-    .replace(/\D/g, '')
-    .replace(/(\d{5})(\d)/, '$1-$2')
-    .replace(/(-\d{3})\d+?$/, '$1');
+  if (typeof value === 'number') return value;
+  // Remove R$, pontos e espaços, troca vírgula por ponto
+  const clean = value.replace(/[R$\s.]/g, '').replace(',', '.');
+  const parsed = parseFloat(clean);
+  return isNaN(parsed) ? 0 : parsed;
 };
 
 export const toTitleCase = (str: string) => {
   if (!str) return '';
-  return str.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
+  return str.replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  );
 };
 
-export const maskHon = (value: string) => {
-  let v = value.replace(/\D/g, '');
-  if (v.length > 11) v = v.substring(0, 11);
-  return v
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2');
-};
+// --- MÁSCARAS ADICIONADAS PARA CORRIGIR O ERRO ---
 
-export const formatForInput = (val: string | number | undefined) => {
-  if (val === undefined || val === null) return '';
-  if (typeof val === 'number') return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  if (typeof val === 'string' && !val.includes('R$') && !isNaN(parseFloat(val)) && val.trim() !== '') {
-      return parseFloat(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export const maskPhone = (value: string) => {
+  const v = value.replace(/\D/g, "");
+  // (11) 99999-9999
+  if (v.length > 10) {
+    return v
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .slice(0, 15);
   }
-  return val;
+  // (11) 9999-9999
+  return v
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{4})(\d)/, '$1-$2')
+    .slice(0, 14);
 };
 
-export const safeParseFloat = (value: string | number | undefined | null): number => {
-    if (value === undefined || value === null || value === '') return 0;
-    if (typeof value === 'number') return value;
-    const cleanStr = value.toString().replace(/[^\d,-]/g, '').replace(',', '.');
-    const floatVal = parseFloat(cleanStr);
-    return isNaN(floatVal) ? 0 : floatVal;
+export const maskCEP = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .replace(/^(\d{5})(\d)/, '$1-$2')
+    .slice(0, 9);
 };
-
-export const ensureArray = (val: any): string[] => {
-    if (Array.isArray(val)) return val;
-    if (typeof val === 'string') {
-        const trimmed = val.trim();
-        if (trimmed.startsWith('[')) {
-            try { return JSON.parse(trimmed); } catch { return []; }
-        }
-    }
-    return [];
-};
-
-export const ensureDateValue = (dateStr?: string | null) => {
-    if (!dateStr) return '';
-    return dateStr.split('T')[0];
-};
-
-export const localMaskCNJ = (value: string) => {
-    const cleanValue = value.replace(/\D/g, '');
-    return cleanValue
-        .replace(/^(\d{7})(\d)/, '$1-$2')
-        .replace(/^(\d{7}-\d{2})(\d)/, '$1.$2')
-        .replace(/^(\d{7}-\d{2}\.\d{4})(\d)/, '$1.$2')
-        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d)(\d)/, '$1.$2')
-        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d\.\d{2})(\d)/, '$1.$2')
-        .substring(0, 25);
-};
-
-export const maskCNJ = localMaskCNJ; // Alias
