@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Contract } from '../types';
+import { Contract, ContractCase } from '../types';
 
 // --- Funções Auxiliares (Movidas para fora do componente) ---
 
@@ -228,19 +228,19 @@ export function useDashboardData() {
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
       let mensal = safeParseMoney(c.fixed_monthly_fee);
-      let outros = safeParseMoney((c as any).other_fees);
+      let outros = safeParseMoney(c.other_fees);
 
-      if ((c as any).pro_labore_extras && Array.isArray((c as any).pro_labore_extras)) {
-        pl += (c as any).pro_labore_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      if (c.pro_labore_extras && Array.isArray(c.pro_labore_extras)) {
+        pl += c.pro_labore_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
-      if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
-        exito += (c as any).final_success_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      if (c.final_success_extras && Array.isArray(c.final_success_extras)) {
+        exito += c.final_success_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
-      if ((c as any).fixed_monthly_extras && Array.isArray((c as any).fixed_monthly_extras)) {
-        mensal += (c as any).fixed_monthly_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) {
+        mensal += c.fixed_monthly_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
-      if ((c as any).other_fees_extras && Array.isArray((c as any).other_fees_extras)) {
-        outros += (c as any).other_fees_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
+      if (c.other_fees_extras && Array.isArray(c.other_fees_extras)) {
+        outros += c.other_fees_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
       pl += outros;
 
@@ -249,8 +249,8 @@ export function useDashboardData() {
         exito += totalIntermediario;
       }
 
-      if ((c as any).cases && Array.isArray((c as any).cases)) {
-        (c as any).cases.forEach((caseItem: any) => {
+      if (c.cases && Array.isArray(c.cases)) {
+        c.cases.forEach((caseItem: ContractCase) => {
           pl += safeParseMoney(caseItem.pro_labore);
           exito += safeParseMoney(caseItem.final_success_fee || caseItem.success_fee);
         });
@@ -313,8 +313,8 @@ export function useDashboardData() {
          }
       }
 
-      const pName = ((c as any).partner_id && partnerMap[(c as any).partner_id]) || 
-                    (c as any).responsavel_socio || 'Não Informado';
+      const pName = (c.partner_id && partnerMap[c.partner_id]) || 
+                    c.responsavel_socio || 'Não Informado';
       
       if (!partnerCounts[pName]) {
           partnerCounts[pName] = { total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0 };
@@ -328,8 +328,8 @@ export function useDashboardData() {
 
       if (c.status === 'rejected') {
           totalRejected++;
-          const reason = (c as any).rejection_reason || 'Não informado';
-          const source = (c as any).rejection_source || (c as any).rejected_by || 'Não informado';
+          const reason = c.rejection_reason || 'Não informado';
+          const source = c.rejection_source || c.rejection_by || 'Não informado';
           reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
       }

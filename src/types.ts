@@ -1,3 +1,11 @@
+export interface ContractCase {
+  id?: string;
+  contract_id?: string;
+  pro_labore?: string;
+  success_fee?: string;
+  final_success_fee?: string;
+}
+
 export interface Contract {
   id?: string;
   seq_id?: number; 
@@ -58,11 +66,15 @@ export interface Contract {
   reference?: string;
   observations?: string;
   rejection_reason?: string;
+  rejection_source?: string; // Adicionado
   rejection_by?: string;
   physical_signature?: boolean;
   timesheet?: boolean;
   process_count?: number;
   hon_number?: string;
+  
+  cases?: ContractCase[]; // Adicionado
+  responsavel_socio?: string; // Adicionado
 }
 
 export interface Client {
@@ -81,7 +93,6 @@ export interface Client {
   partner_id?: string;
   created_at?: string;
   
-  // Campos visuais (Join/Count)
   partner_name?: string;
   active_contracts_count?: number;
 }
