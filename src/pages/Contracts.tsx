@@ -117,6 +117,10 @@ export function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [partnerFilter, setPartnerFilter] = useState('');
+  // NOVOS ESTADOS DE DATA
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -156,7 +160,6 @@ export function Contracts() {
 
   const fetchData = async () => {
     setLoading(true);
-    // Adicionado seq_id na query
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
       supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
       supabase.from('partners').select('*').eq('active', true).order('name'),
@@ -169,7 +172,6 @@ export function Contracts() {
         partner_name: c.partner?.name,
         analyzed_by_name: c.analyst?.name,
         process_count: c.processes?.length || 0,
-        // ID FIXO VINDO DO BANCO
         display_id: String(c.seq_id || 0).padStart(6, '0') 
       }));
       setContracts(formatted);
@@ -294,6 +296,62 @@ export function Contracts() {
     }));
   };
 
+  const getRelevantDate = (c: Contract) => {
+    switch (c.status) {
+      case 'analysis': return c.prospect_date || c.created_at;
+      case 'proposal': return c.proposal_date || c.created_at;
+      case 'active': return c.contract_date || c.created_at;
+      case 'rejected': return c.rejection_date || c.created_at;
+      case 'probono': return c.probono_date || c.contract_date || c.created_at;
+      default: return c.created_at;
+    }
+  };
+
+  const filteredContracts = contracts.filter((c: Contract) => {
+    const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.hon_number?.includes(searchTerm) ||
+      c.cnpj?.includes(searchTerm) ||
+      (c as any).display_id?.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+    const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
+
+    // --- LÓGICA DE FILTRO DE DATA ---
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const relevantDateStr = getRelevantDate(c);
+      if (relevantDateStr) {
+        const relevantDate = new Date(relevantDateStr);
+        relevantDate.setHours(0, 0, 0, 0); // Normalizar para comparar apenas o dia
+
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          if (relevantDate < start) matchesDate = false;
+        }
+
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999); // Final do dia
+          if (relevantDate > end) matchesDate = false;
+        }
+      } else {
+        matchesDate = false; // Se não tem data, não entra no filtro
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesPartner && matchesDate;
+  }).sort((a: Contract, b: Contract) => {
+    if (sortBy === 'name') {
+      const nameA = a.client_name || '';
+      const nameB = b.client_name || '';
+      return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    } else {
+      const dateA = new Date(getRelevantDate(a) || 0).getTime();
+      const dateB = new Date(getRelevantDate(b) || 0).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    }
+  });
+
   const exportToExcel = () => {
     const data = filteredContracts.map(c => ({
       'ID': (c as any).display_id,
@@ -318,44 +376,15 @@ export function Contracts() {
     XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
   };
 
-  const getRelevantDate = (c: Contract) => {
-    switch (c.status) {
-      case 'analysis': return c.prospect_date || c.created_at;
-      case 'proposal': return c.proposal_date || c.created_at;
-      case 'active': return c.contract_date || c.created_at;
-      case 'rejected': return c.rejection_date || c.created_at;
-      case 'probono': return c.probono_date || c.contract_date || c.created_at;
-      default: return c.created_at;
-    }
-  };
-
-  const filteredContracts = contracts.filter((c: Contract) => {
-    const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.hon_number?.includes(searchTerm) ||
-      c.cnpj?.includes(searchTerm) ||
-      (c as any).display_id?.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-    const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
-    return matchesSearch && matchesStatus && matchesPartner;
-  }).sort((a: Contract, b: Contract) => {
-    if (sortBy === 'name') {
-      const nameA = a.client_name || '';
-      const nameB = b.client_name || '';
-      return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-    } else {
-      const dateA = new Date(getRelevantDate(a) || 0).getTime();
-      const dateB = new Date(getRelevantDate(b) || 0).getTime();
-      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-    }
-  });
-
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setPartnerFilter('');
+    setStartDate('');
+    setEndDate('');
   };
 
-  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '';
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '' || startDate !== '' || endDate !== '';
 
   const statusOptions = [
     { label: 'Todos Status', value: 'all' },
@@ -436,71 +465,101 @@ export function Contracts() {
         </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-4 mb-6 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-        <div className="flex-1 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-          <Search className="w-5 h-5 text-gray-400 mr-2" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, HON, ID ou CNPJ..."
-            className="flex-1 bg-transparent outline-none text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="flex flex-col gap-4 mb-6 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+        {/* Linha Superior: Busca e Datas */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex-1 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+            <Search className="w-5 h-5 text-gray-400 mr-2" />
+            <input
+              type="text"
+              placeholder="Buscar por cliente, HON, ID ou CNPJ..."
+              className="flex-1 bg-transparent outline-none text-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+               <span className="text-xs text-gray-400 mr-2">De</span>
+               <input 
+                 type="date" 
+                 value={startDate} 
+                 onChange={(e) => setStartDate(e.target.value)}
+                 className="bg-transparent text-sm text-gray-700 outline-none"
+               />
+            </div>
+            <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+               <span className="text-xs text-gray-400 mr-2">Até</span>
+               <input 
+                 type="date" 
+                 value={endDate} 
+                 onChange={(e) => setEndDate(e.target.value)}
+                 className="bg-transparent text-sm text-gray-700 outline-none"
+               />
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap items-center">
-          <FilterSelect
-            icon={Filter}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={statusOptions}
-            placeholder="Status"
-          />
 
-          <FilterSelect
-            icon={User}
-            value={partnerFilter}
-            onChange={setPartnerFilter}
-            options={partnerOptions}
-            placeholder="Sócios"
-          />
+        {/* Linha Inferior: Filtros de Select e Botões */}
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+            <div className="flex gap-2 flex-wrap">
+              <FilterSelect
+                icon={Filter}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={statusOptions}
+                placeholder="Status"
+              />
 
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
-              title="Limpar todos os filtros"
-            >
-              <X className="w-4 h-4 mr-2" /> Limpar
-            </button>
-          )}
+              <FilterSelect
+                icon={User}
+                value={partnerFilter}
+                onChange={setPartnerFilter}
+                options={partnerOptions}
+                placeholder="Sócios"
+              />
+            </div>
 
-          <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
-            <button
-              onClick={() => { if(sortBy !== 'name') { setSortBy('name'); setSortOrder('asc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
-              className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
-              title="Ordenar por Nome"
-            >
-              Nome
-              {sortBy === 'name' && (sortOrder === 'asc' ? <ArrowDownAZ className="w-3 h-3 ml-1" /> : <ArrowUpAZ className="w-3 h-3 ml-1" />)}
-            </button>
-            <button
-              onClick={() => { if(sortBy !== 'date') { setSortBy('date'); setSortOrder('desc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
-              className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
-              title="Ordenar por Data do Status Atual"
-            >
-              Data
-              {sortBy === 'date' && <ArrowUpDown className="w-3 h-3 ml-1" />}
-            </button>
-          </div>
+            <div className="flex gap-2 items-center">
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
+                  title="Limpar todos os filtros"
+                >
+                  <X className="w-4 h-4 mr-2" /> Limpar
+                </button>
+              )}
 
-          <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
-            <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
-            <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
-          </div>
+              <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
+                <button
+                  onClick={() => { if(sortBy !== 'name') { setSortBy('name'); setSortOrder('asc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
+                  className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="Ordenar por Nome"
+                >
+                  Nome
+                  {sortBy === 'name' && (sortOrder === 'asc' ? <ArrowDownAZ className="w-3 h-3 ml-1" /> : <ArrowUpAZ className="w-3 h-3 ml-1" />)}
+                </button>
+                <button
+                  onClick={() => { if(sortBy !== 'date') { setSortBy('date'); setSortOrder('desc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
+                  className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="Ordenar por Data do Status Atual"
+                >
+                  Data
+                  {sortBy === 'date' && <ArrowUpDown className="w-3 h-3 ml-1" />}
+                </button>
+              </div>
 
-          <button onClick={exportToExcel} className="flex items-center px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium whitespace-nowrap">
-            <Download className="w-4 h-4 mr-2" /> XLS
-          </button>
+              <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
+                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
+                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
+              </div>
+
+              <button onClick={exportToExcel} className="flex items-center px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium whitespace-nowrap">
+                <Download className="w-4 h-4 mr-2" /> XLS
+              </button>
+            </div>
         </div>
       </div>
 
