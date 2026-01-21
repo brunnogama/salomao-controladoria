@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase,
-  Clock, Scale, Tag, Loader2, LayoutGrid, List, Download, 
-  ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
+  CheckCircle2, Clock, Scale, Tag, Loader2,
+  LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
   FileSignature, ChevronDown, X, FileSearch
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'sonner';
-import { z } from 'zod'; // Zod adicionado
+import { useNavigate, useLocation } from 'react-router-dom'; // Importação do useLocation adicionada
+import { toast } from 'sonner'; 
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
@@ -18,35 +17,6 @@ import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal'
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { EmptyState } from '../components/ui/EmptyState';
 import { parseCurrency } from '../utils/masks';
-
-// --- SCHEMA DE VALIDAÇÃO (ZOD) ---
-export const contractFormSchema = z.object({
-  client_name: z.string().min(1, 'Nome do cliente é obrigatório'),
-  client_position: z.string().optional(),
-  area: z.string().optional(),
-  uf: z.string().length(2, 'UF inválida').optional(),
-  partner_id: z.string().min(1, 'Selecione um sócio responsável'),
-  analyst_id: z.string().optional(),
-  status: z.enum(['active', 'analysis', 'proposal', 'rejected', 'probono']),
-  cnpj: z.string().optional().refine((val) => {
-    if (!val) return true;
-    // Validação simples de tamanho, pode expandir para algoritmo de CNPJ real
-    return val.replace(/\D/g, '').length >= 11;
-  }, 'CNPJ/CPF parece inválido'),
-  has_no_cnpj: z.boolean().optional(),
-  has_legal_process: z.boolean().optional(),
-  physical_signature: z.boolean().optional(),
-  // Campos monetários (recebidos como string do input mask)
-  pro_labore: z.string().optional(),
-  fixed_monthly_fee: z.string().optional(),
-  final_success_fee: z.string().optional(),
-  observations: z.string().optional(),
-  contract_date: z.string().optional(),
-  proposal_date: z.string().optional(),
-});
-
-// Tipagem inferida do schema para uso no formulário
-export type ContractFormData = z.infer<typeof contractFormSchema>;
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -78,15 +48,18 @@ const formatMoney = (val: number | string | undefined) => {
 
 const calculateTotalSuccess = (c: Contract) => {
   let total = parseCurrency(c.final_success_fee);
+   
   if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
     (c as any).final_success_extras.forEach((fee: string) => total += parseCurrency(fee));
   }
+
   if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
     c.intermediate_fees.forEach((fee: string) => total += parseCurrency(fee));
   }
   return total;
 };
 
+// Componente Local de Filtro Padronizado
 const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: React.ElementType, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -136,7 +109,7 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 
 export function Contracts() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation(); // Hook de localização para receber o estado
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -150,6 +123,7 @@ export function Contracts() {
   const [partnerFilter, setPartnerFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -166,18 +140,20 @@ export function Contracts() {
     cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: true,
     status: 'analysis', physical_signature: false
   };
-
-  // Estado simplificado: armazena apenas os dados para edição/inicialização
-  const [selectedContract, setSelectedContract] = useState<Contract>(emptyContract);
-  
-  // Estado para VISUALIZAÇÃO (Details Modal) apenas
+  const [formData, setFormData] = useState<Contract>(emptyContract);
+  const [currentProcess, setCurrentProcess] = useState<ContractProcess>({ process_number: '' });
   const [processes, setProcesses] = useState<ContractProcess[]>([]);
+  const [editingProcessIndex, setEditingProcessIndex] = useState<number | null>(null);
+  const [newIntermediateFee, setNewIntermediateFee] = useState('');
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Efeito para aplicar o filtro vindo da navegação (Drill-down)
   useEffect(() => {
     if (location.state && location.state.status) {
       setStatusFilter(location.state.status);
+      // Opcional: Limpar o estado para não re-aplicar em navegações futuras indesejadas, 
+      // mas geralmente deixar no histórico é o comportamento esperado.
     }
   }, [location.state]);
 
@@ -222,10 +198,16 @@ export function Contracts() {
 
   const handlePartnerUpdate = async (newId?: string) => {
     await fetchData();
+    if (newId && typeof newId === 'string') {
+      setFormData(prev => ({ ...prev, partner_id: newId }));
+    }
   };
 
   const handleAnalystUpdate = async (newId?: string) => {
     await fetchData();
+    if (newId && typeof newId === 'string') {
+      setFormData(prev => ({ ...prev, analyst_id: newId } as Contract));
+    }
   };
 
   const fetchNotifications = async () => {
@@ -242,26 +224,22 @@ export function Contracts() {
   };
 
   const handleNew = () => {
-    setSelectedContract(emptyContract);
-    // Limpar estados de visualização
+    setFormData(emptyContract);
     setProcesses([]);
+    setCurrentProcess({ process_number: '' });
     setTimelineData([]);
-    
     setIsEditing(false);
     setIsModalOpen(true);
   };
 
   const handleView = async (contract: Contract) => {
-    setSelectedContract(contract);
-    
-    // Fetch dados apenas para o modal de DETALHES
+    setFormData(contract);
     const [procRes, timeRes] = await Promise.all([
       supabase.from('contract_processes').select('*').eq('contract_id', contract.id),
       supabase.from('contract_timeline').select('*').eq('contract_id', contract.id).order('changed_at', { ascending: false })
     ]);
     if (procRes.data) setProcesses(procRes.data);
     if (timeRes.data) setTimelineData(timeRes.data);
-    
     setIsDetailsModalOpen(true);
   };
 
@@ -271,14 +249,15 @@ export function Contracts() {
     setIsModalOpen(true);
   };
 
+  // --- DELETE MODAL HANDLERS ---
   const triggerDelete = (id: string) => {
     setDeleteTargetId(id);
     setIsConfirmModalOpen(true);
   };
 
   const handleDelete = () => {
-    if (!selectedContract.id) return;
-    triggerDelete(selectedContract.id);
+    if (!formData.id) return;
+    triggerDelete(formData.id);
   };
 
   const handleDeleteFromList = (e: React.MouseEvent, id: string) => {
@@ -288,8 +267,11 @@ export function Contracts() {
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
+     
     const toastId = toast.loading('Excluindo contrato...');
+
     const { error } = await supabase.from('contracts').delete().eq('id', deleteTargetId);
+     
     if (!error) {
       toast.success('Contrato excluído com sucesso!', { id: toastId });
       setIsDetailsModalOpen(false);
@@ -300,12 +282,50 @@ export function Contracts() {
       console.error(error);
     }
   };
+  // -----------------------------
 
   const handleSave = () => {
     fetchData();
     fetchNotifications();
     toast.success(isEditing ? 'Contrato atualizado com sucesso!' : 'Contrato criado com sucesso!');
-    setIsModalOpen(false);
+  };
+
+  const handleProcessAction = () => {
+    if (!currentProcess.process_number) return;
+    if (editingProcessIndex !== null) {
+      const updated = [...processes];
+      updated[editingProcessIndex] = currentProcess;
+      setProcesses(updated);
+      setEditingProcessIndex(null);
+    } else {
+      setProcesses([...processes, currentProcess]);
+    }
+    setCurrentProcess({ process_number: '' });
+  };
+
+  const editProcess = (idx: number) => {
+    setCurrentProcess(processes[idx]);
+    setEditingProcessIndex(idx);
+  };
+
+  const removeProcess = (idx: number) => {
+    setProcesses(processes.filter((_, i) => i !== idx));
+  };
+
+  const addIntermediateFee = () => {
+    if (!newIntermediateFee) return;
+    setFormData((prev: Contract) => ({
+      ...prev,
+      intermediate_fees: [...(prev.intermediate_fees || []), newIntermediateFee]
+    }));
+    setNewIntermediateFee('');
+  };
+
+  const removeIntermediateFee = (idx: number) => {
+    setFormData((prev: Contract) => ({
+      ...prev,
+      intermediate_fees: prev.intermediate_fees?.filter((_, i) => i !== idx)
+    }));
   };
 
   const getRelevantDate = (c: Contract) => {
@@ -349,6 +369,7 @@ export function Contracts() {
         matchesDate = false; 
       }
     }
+     
     return matchesSearch && matchesStatus && matchesPartner && matchesDate;
   }).sort((a: Contract, b: Contract) => {
     if (sortBy === 'name') {
@@ -477,6 +498,7 @@ export function Contracts() {
       </div>
 
       <div className="flex flex-col gap-4 mb-6 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+        {/* Linha Superior: Busca e Datas */}
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
             <Search className="w-5 h-5 text-gray-400 mr-2" />
@@ -511,6 +533,7 @@ export function Contracts() {
           </div>
         </div>
 
+        {/* Linha Inferior: Filtros de Select e Botões */}
         <div className="flex flex-wrap gap-2 items-center justify-between">
             <div className="flex gap-2 flex-wrap">
               <FilterSelect
@@ -575,6 +598,7 @@ export function Contracts() {
       {loading ? (
         <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : filteredContracts.length === 0 ? (
+         // --- AQUI ENTRA O EMPTY STATE ---
          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
               <EmptyState
                 icon={FileSearch}
@@ -693,6 +717,7 @@ export function Contracts() {
         </>
       )}
 
+      {/* --- CONFIRMATION MODAL --- */}
       <ConfirmModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
@@ -704,20 +729,17 @@ export function Contracts() {
       <ContractDetailsModal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
-        contract={selectedContract}
+        contract={formData}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onDelete={handleDelete} // Agora usa a função que abre o modal de confirmação
         processes={processes}
       />
 
-      {/* O ContractFormModal será responsável por gerenciar o estado usando useForm (React Hook Form).
-         Aqui passamos apenas os valores iniciais (defaultValues) e os Schemas/Dados auxiliares.
-      */}
       <ContractFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        formData={selectedContract} // Passado como initialData/defaultValues
-        setFormData={setSelectedContract} // Mantido para compatibilidade, mas o ideal é o modal gerenciar internamente
+        formData={formData}
+        setFormData={setFormData}
         onSave={handleSave}
         loading={loading}
         isEditing={isEditing}
@@ -725,12 +747,21 @@ export function Contracts() {
         onOpenPartnerManager={() => setIsPartnerModalOpen(true)}
         analysts={analysts}
         onOpenAnalystManager={() => setIsAnalystModalOpen(true)}
-        onCNPJSearch={() => {}} // Lógica pode ser movida para dentro do form com RHF
-        // Estados manuais removidos daqui pois pertencem ao escopo do formulário interno (RHF + FieldArray)
+        onCNPJSearch={() => {}}
+        processes={processes}
+        currentProcess={currentProcess}
+        setCurrentProcess={setCurrentProcess}
+        editingProcessIndex={editingProcessIndex}
+        handleProcessAction={handleProcessAction}
+        editProcess={editProcess}
+        removeProcess={removeProcess}
+        newIntermediateFee={newIntermediateFee}
+        setNewIntermediateFee={setNewIntermediateFee}
+        addIntermediateFee={addIntermediateFee}
+        removeIntermediateFee={removeIntermediateFee}
         timelineData={timelineData}
         getStatusColor={getStatusColor}
         getStatusLabel={getStatusLabel}
-        schema={contractFormSchema} // Passando o schema para o modal usar no useForm
       />
 
       <PartnerManagerModal isOpen={isPartnerModalOpen} onClose={() => setIsPartnerModalOpen(false)} onUpdate={handlePartnerUpdate} />
