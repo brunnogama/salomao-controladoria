@@ -3,8 +3,7 @@ import { contractService } from '../services/contractService';
 import { partnerService } from '../services/partnerService';
 import { Contract, Partner, ContractCase } from '../types';
 
-// --- Funções Auxiliares (Mantidas iguais para economizar espaço visual, mas devem estar no arquivo) ---
-// ... (Mantenha as funções safeParseMoney, isDateInCurrentWeek, etc. aqui) ...
+// --- Funções Auxiliares ---
 const safeParseMoney = (value: string | number | undefined | null): number => {
   if (value === undefined || value === null || value === '') return 0;
   if (typeof value === 'number') return value;
@@ -16,18 +15,17 @@ const safeParseMoney = (value: string | number | undefined | null): number => {
   const floatVal = parseFloat(cleanStr);
   return isNaN(floatVal) ? 0 : floatVal;
 };
+
 const isDateInCurrentWeek = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); const cd = t.getDay(); const s = new Date(t); s.setDate(t.getDate() - cd); s.setHours(0,0,0,0); const e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59,999); return d >= s && d <= e; };
 const isDateInPreviousWeek = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); const cd = t.getDay(); const sc = new Date(t); sc.setDate(t.getDate() - cd); sc.setHours(0,0,0,0); const sp = new Date(sc); sp.setDate(sc.getDate() - 7); const ep = new Date(sp); ep.setDate(sp.getDate() + 6); ep.setHours(23,59,59,999); return d >= sp && d <= ep; };
 const isDateInCurrentMonth = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); return d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear(); };
 const isDateInLastMonth = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); let lm = t.getMonth() - 1; let ly = t.getFullYear(); if (lm < 0) { lm = 11; ly = t.getFullYear() - 1; } return d.getMonth() === lm && d.getFullYear() === ly; };
-
 
 export function useDashboardData() {
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
 
-  // 1. Busca de Dados via Services
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -39,7 +37,7 @@ export function useDashboardData() {
       setContracts(contratosData);
       setPartners(sociosData);
     } catch (error) {
-      // Erro já logado nos services
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -47,28 +45,19 @@ export function useDashboardData() {
 
   useEffect(() => {
     fetchDashboardData();
-
-    // Inscrição via Service
-    const unsubscribe = contractService.subscribe(() => {
-        fetchDashboardData();
-    });
-
-    return () => {
-      unsubscribe();
-    };
+    const unsubscribe = contractService.subscribe(() => { fetchDashboardData(); });
+    return () => { unsubscribe(); };
   }, []);
 
-  // 2. Cálculos Pesados (Memoized)
   const dashboardData = useMemo(() => {
     const hoje = new Date();
-    const dataInicioFixo = new Date(2025, 5, 1); // Junho 2025
+    const dataInicioFixo = new Date(2025, 5, 1);
     
     const partnerMap = partners.reduce((acc: any, s: any) => {
         acc[s.id] = s.name;
         return acc;
     }, {});
 
-    // Inicialização das Estruturas
     let mSemana = { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, rejeitados: 0, probono: 0, totalUnico: 0 };
     let mSemanaAnterior = { propPL: 0, propExito: 0, propMensal: 0, fechPL: 0, fechExito: 0, fechMensal: 0 };
     let mMes = { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, totalUnico: 0, analysis: 0, rejected: 0, probono: 0 };
@@ -77,7 +66,6 @@ export function useDashboardData() {
 
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
     let fPerdaAnalise = 0; let fPerdaNegociacao = 0;
-
     let somaDiasProspectProposta = 0; let qtdProspectProposta = 0;
     let somaDiasPropostaFechamento = 0; let qtdPropostaFechamento = 0;
 
@@ -110,9 +98,7 @@ export function useDashboardData() {
       if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) mensal += c.fixed_monthly_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.other_fees_extras && Array.isArray(c.other_fees_extras)) outros += c.other_fees_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       pl += outros;
-
       if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) exito += c.intermediate_fees.reduce((acc, val) => acc + safeParseMoney(val), 0);
-
       if (c.cases && Array.isArray(c.cases)) {
         c.cases.forEach((caseItem: ContractCase) => {
           pl += safeParseMoney(caseItem.pro_labore);
@@ -120,19 +106,28 @@ export function useDashboardData() {
         });
       }
 
+      // --- CORREÇÃO AQUI: Lógica Unificada de Data de Entrada ---
       const statusDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date].filter(d => d && d !== '').map(d => new Date(d + 'T12:00:00'));
       let dataEntradaReal = null;
       if (statusDates.length > 0) dataEntradaReal = new Date(Math.min(...statusDates.map(d => d.getTime())));
       else dataEntradaReal = c.created_at ? new Date(c.created_at) : new Date();
+      // -----------------------------------------------------------
 
       const mesAnoEntrada = dataEntradaReal.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
       if (mapaMeses[mesAnoEntrada] !== undefined) mapaMeses[mesAnoEntrada]++;
       else { if (!mapaMeses[mesAnoEntrada]) mapaMeses[mesAnoEntrada] = 0; mapaMeses[mesAnoEntrada]++; }
 
-      if (c.prospect_date) {
-         if (isDateInCurrentMonth(c.prospect_date)) mExecutivo.mesAtual.novos++;
-         if (isDateInLastMonth(c.prospect_date)) mExecutivo.mesAnterior.novos++;
-      }
+      // --- CORREÇÃO AQUI: Executivo agora usa dataEntradaReal ---
+      const isEntradaCurrentMonth = dataEntradaReal.getMonth() === hoje.getMonth() && dataEntradaReal.getFullYear() === hoje.getFullYear();
+      let lastMonth = hoje.getMonth() - 1;
+      let lastYear = hoje.getFullYear();
+      if (lastMonth < 0) { lastMonth = 11; lastYear--; }
+      const isEntradaLastMonth = dataEntradaReal.getMonth() === lastMonth && dataEntradaReal.getFullYear() === lastYear;
+
+      if (isEntradaCurrentMonth) mExecutivo.mesAtual.novos++;
+      if (isEntradaLastMonth) mExecutivo.mesAnterior.novos++;
+      // -----------------------------------------------------------
+
       if (c.proposal_date) {
          if (isDateInCurrentMonth(c.proposal_date)) { mExecutivo.mesAtual.propQtd++; mExecutivo.mesAtual.propPL += pl; mExecutivo.mesAtual.propExito += exito; mExecutivo.mesAtual.propMensal += mensal; }
          if (isDateInLastMonth(c.proposal_date)) { mExecutivo.mesAnterior.propQtd++; mExecutivo.mesAnterior.propPL += pl; mExecutivo.mesAnterior.propExito += exito; mExecutivo.mesAnterior.propMensal += mensal; }
