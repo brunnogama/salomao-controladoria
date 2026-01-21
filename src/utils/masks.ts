@@ -54,7 +54,6 @@ export const toTitleCase = (str: string) => {
 };
 
 export const maskHon = (value: string) => {
-  // Ex: 00.000.000/000
   let v = value.replace(/\D/g, '');
   if (v.length > 11) v = v.substring(0, 11);
   return v
@@ -62,26 +61,6 @@ export const maskHon = (value: string) => {
     .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/\.(\d{3})(\d)/, '.$1/$2');
 };
-
-export const maskCNJ = (value: string) => {
-    const cleanValue = value.replace(/\D/g, '');
-    return cleanValue
-        .replace(/^(\d{7})(\d)/, '$1-$2')
-        .replace(/^(\d{7}-\d{2})(\d)/, '$1.$2')
-        .replace(/^(\d{7}-\d{2}\.\d{4})(\d)/, '$1.$2')
-        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d)(\d)/, '$1.$2')
-        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d\.\d{2})(\d)/, '$1.$2')
-        .substring(0, 25);
-};
-
-export const safeParseFloat = (value: string | number | undefined | null): number => {
-    if (value === undefined || value === null || value === '') return 0;
-    if (typeof value === 'number') return value;
-    const cleanStr = value.toString().replace(/[^\d,-]/g, '').replace(',', '.');
-    const floatVal = parseFloat(cleanStr);
-    return isNaN(floatVal) ? 0 : floatVal;
-};
-// ... mantenha as funções existentes (maskCNPJ, maskMoney, etc) e adicione:
 
 export const formatForInput = (val: string | number | undefined) => {
   if (val === undefined || val === null) return '';
@@ -111,6 +90,11 @@ export const ensureArray = (val: any): string[] => {
     return [];
 };
 
+export const ensureDateValue = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    return dateStr.split('T')[0];
+};
+
 export const localMaskCNJ = (value: string) => {
     const cleanValue = value.replace(/\D/g, '');
     return cleanValue
@@ -121,5 +105,5 @@ export const localMaskCNJ = (value: string) => {
         .replace(/^(\d{7}-\d{2}\.\d{4}\.\d\.\d{2})(\d)/, '$1.$2')
         .substring(0, 25);
 };
-// Adicionei alias para manter compatibilidade com importações antigas
-export const localMaskCNJ = maskCNJ;
+
+export const maskCNJ = localMaskCNJ; // Alias
