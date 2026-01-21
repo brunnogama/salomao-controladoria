@@ -933,12 +933,13 @@ export function ContractFormModal(props: Props) {
       const totalValue = safeParseFloat(totalValueStr);
       if (totalValue <= 0) return;
       
-      // CORREÇÃO CRÍTICA: Forçar conversão robusta para string e limpeza antes do parseInt para garantir numInstallments correto
-      const cleanInstallmentsStr = String(installmentsStr || '1x').replace(/[^0-9]/g, '');
-      let numInstallments = parseInt(cleanInstallmentsStr, 10);
-      
-      // Fallback de segurança: se for NaN ou < 1, assume 1 parcela
-      if (isNaN(numInstallments) || numInstallments < 1) numInstallments = 1;
+      // Força garantia de valor numérico válido ANTES de qualquer processamento
+      const numInstallments = (() => {
+        if (!installmentsStr) return 1;
+        const cleanStr = String(installmentsStr).replace(/[^0-9]/g, '');
+        const parsed = parseInt(cleanStr, 10);
+        return (parsed > 0) ? parsed : 1;
+      })();
       
       const rawAmount = totalValue / numInstallments;
       // Arredondar para 2 casas decimais para evitar erros de inserção no banco (ex: dízimas)
