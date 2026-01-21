@@ -8,13 +8,16 @@ import {
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner'; // <--- Importar Toast
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
+import { ConfirmModal } from '../components/ui/ConfirmModal'; // <--- Importar Modal de Confirmação
 import { parseCurrency } from '../utils/masks';
 
+// ... (Mantenha as funções auxiliares getStatusColor, getStatusLabel, formatMoney, calculateTotalSuccess e FilterSelect IGUAIS ao código anterior para economizar espaço) ...
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -117,7 +120,6 @@ export function Contracts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [partnerFilter, setPartnerFilter] = useState('');
-  // NOVOS ESTADOS DE DATA
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -130,6 +132,9 @@ export function Contracts() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // <--- Estado para Modal de Confirmação
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); // <--- ID do item a deletar
+
   const emptyContract: Contract = {
     cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: true,
     status: 'analysis', physical_signature: false
@@ -234,28 +239,46 @@ export function Contracts() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!formData.id) return;
-    if (confirm('Tem certeza que deseja excluir este contrato?')) {
-      const { error } = await supabase.from('contracts').delete().eq('id', formData.id);
-      if (!error) {
-        setIsDetailsModalOpen(false);
-        fetchData();
-      }
-    }
+  // --- DELETE MODAL HANDLERS ---
+  const triggerDelete = (id: string) => {
+    setDeleteTargetId(id);
+    setIsConfirmModalOpen(true);
   };
 
-  const handleDeleteFromList = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = () => {
+    if (!formData.id) return;
+    triggerDelete(formData.id);
+  };
+
+  const handleDeleteFromList = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (confirm('Tem certeza que deseja excluir este contrato?')) {
-      const { error } = await supabase.from('contracts').delete().eq('id', id);
-      if (!error) fetchData();
+    triggerDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    
+    // Toast de carregamento
+    const toastId = toast.loading('Excluindo contrato...');
+
+    const { error } = await supabase.from('contracts').delete().eq('id', deleteTargetId);
+    
+    if (!error) {
+      toast.success('Contrato excluído com sucesso!', { id: toastId });
+      setIsDetailsModalOpen(false);
+      setIsConfirmModalOpen(false);
+      fetchData();
+    } else {
+      toast.error('Erro ao excluir contrato.', { id: toastId });
+      console.error(error);
     }
   };
+  // -----------------------------
 
   const handleSave = () => {
     fetchData();
     fetchNotifications();
+    toast.success(isEditing ? 'Contrato atualizado com sucesso!' : 'Contrato criado com sucesso!');
   };
 
   const handleProcessAction = () => {
@@ -315,13 +338,12 @@ export function Contracts() {
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
 
-    // --- LÓGICA DE FILTRO DE DATA ---
     let matchesDate = true;
     if (startDate || endDate) {
       const relevantDateStr = getRelevantDate(c);
       if (relevantDateStr) {
         const relevantDate = new Date(relevantDateStr);
-        relevantDate.setHours(0, 0, 0, 0); // Normalizar para comparar apenas o dia
+        relevantDate.setHours(0, 0, 0, 0); 
 
         if (startDate) {
           const start = new Date(startDate);
@@ -331,11 +353,11 @@ export function Contracts() {
 
         if (endDate) {
           const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999); // Final do dia
+          end.setHours(23, 59, 59, 999); 
           if (relevantDate > end) matchesDate = false;
         }
       } else {
-        matchesDate = false; // Se não tem data, não entra no filtro
+        matchesDate = false; 
       }
     }
     
@@ -374,6 +396,7 @@ export function Contracts() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contratos");
     XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
+    toast.success('Relatório gerado com sucesso!');
   };
 
   const clearFilters = () => {
@@ -670,12 +693,21 @@ export function Contracts() {
         </>
       )}
 
+      {/* --- CONFIRMATION MODAL --- */}
+      <ConfirmModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Contrato"
+        description="Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita."
+      />
+
       <ContractDetailsModal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         contract={formData}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onDelete={handleDelete} // Agora usa a função que abre o modal de confirmação
         processes={processes}
       />
 

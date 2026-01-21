@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner'; // <--- Importar Toaster
 import { Login } from './pages/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Contracts } from './pages/Contracts';
@@ -12,7 +13,7 @@ import { Settings } from './pages/Settings';
 import { History } from './pages/History';
 import { Volumetry } from './pages/Volumetry';
 import { Proposals } from './pages/Proposals';
-import { Jurimetria } from './pages/Jurimetria'; // <--- IMPORTANTE: Importar aqui
+import { Jurimetria } from './pages/Jurimetria';
 
 const PagePlaceholder = ({ title }: { title: string }) => (
   <div className="p-4">
@@ -26,6 +27,9 @@ const PagePlaceholder = ({ title }: { title: string }) => (
 function App() {
   return (
     <BrowserRouter>
+      {/* Adicionar o Toaster aqui */}
+      <Toaster position="top-right" richColors closeButton />
+      
       <Routes>
         <Route path="/" element={<Login />} />
 
@@ -39,7 +43,6 @@ function App() {
           
           <Route path="/propostas" element={<Proposals />} />
           
-          {/* --- ROTA ADICIONADA AQUI --- */}
           <Route path="/jurimetria" element={<Jurimetria />} />
           
           <Route path="/volumetria" element={<Volumetry />} />
