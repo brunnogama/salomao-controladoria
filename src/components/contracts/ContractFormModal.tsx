@@ -1018,6 +1018,13 @@ export function ContractFormModal(props: Props) {
       final_success_fee: cleanSuccess,
       fixed_monthly_fee: cleanFixed,
       other_fees: cleanOther,
+      
+      // GARANTINDO QUE AS PARCELAS SEJAM SALVAS EXPLICITAMENTE
+      pro_labore_installments: (sourceData as any).pro_labore_installments,
+      final_success_fee_installments: (sourceData as any).final_success_fee_installments,
+      fixed_monthly_fee_installments: (sourceData as any).fixed_monthly_fee_installments,
+      other_fees_installments: (sourceData as any).other_fees_installments,
+
       // Garantindo que os extras também sejam salvos
       pro_labore_extras: (sourceData as any).pro_labore_extras,
       final_success_extras: (sourceData as any).final_success_extras,
@@ -1807,7 +1814,7 @@ export function ContractFormModal(props: Props) {
                                       className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
                                       title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
                                   >
-                                              {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                                  {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                   </button>
                               </div>
                             )}
