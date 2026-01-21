@@ -304,7 +304,7 @@ export function ContractFormModal(props: Props) {
   const [uploading, setUploading] = useState(false);
   const [searchingCNJ, setSearchingCNJ] = useState(false);
   const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
-  const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
+  const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES', 'Salomão DF']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
   const [interimInstallments, setInterimInstallments] = useState('1x');
   const [interimClause, setInterimClause] = useState(''); // Estado local para cláusula intermediária
@@ -320,7 +320,7 @@ export function ContractFormModal(props: Props) {
   const [duplicateProcessWarning, setDuplicateProcessWarning] = useState<boolean>(false);
 
   // Estados do UI Rico (Processos)
-  const [newMagistrateTitle, setNewMagistrateTitle] = useState('Juiz');
+  const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
   const [isStandardCNJ, setIsStandardCNJ] = useState(true);
   const [otherProcessType, setOtherProcessType] = useState('');
@@ -365,7 +365,7 @@ export function ContractFormModal(props: Props) {
       setInterimClause('');
       setIsStandardCNJ(true);
       setOtherProcessType('');
-      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '' })); 
+      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: '' })); 
       setNewSubject('');
       setDuplicateClientCases([]);
       setDuplicateOpponentCases([]);
@@ -1136,7 +1136,7 @@ export function ContractFormModal(props: Props) {
       if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
       if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
       if (!formData.billing_location) return alert('O "Local Faturamento" é obrigatório para Contratos Fechados.');
-      if (formData.physical_signature === undefined) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
+      if (formData.physical_signature === undefined || formData.physical_signature === null) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
     }
 
     setLocalLoading(true);
@@ -1994,14 +1994,14 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                                            {c.contracts?.client_name}
+                                                            {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
                         )}
                     </div>
                     <div className="md:col-span-7">
-                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado (Adicionar Lista) **</label>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado</label>
                         <div className="flex gap-2">
                             <div className="w-40">
                                 <CustomSelect 
