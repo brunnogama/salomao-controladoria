@@ -81,6 +81,45 @@ export const safeParseFloat = (value: string | number | undefined | null): numbe
     const floatVal = parseFloat(cleanStr);
     return isNaN(floatVal) ? 0 : floatVal;
 };
+// ... mantenha as funções existentes (maskCNPJ, maskMoney, etc) e adicione:
 
+export const formatForInput = (val: string | number | undefined) => {
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'number') return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  if (typeof val === 'string' && !val.includes('R$') && !isNaN(parseFloat(val)) && val.trim() !== '') {
+      return parseFloat(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+  return val;
+};
+
+export const safeParseFloat = (value: string | number | undefined | null): number => {
+    if (value === undefined || value === null || value === '') return 0;
+    if (typeof value === 'number') return value;
+    const cleanStr = value.toString().replace(/[^\d,-]/g, '').replace(',', '.');
+    const floatVal = parseFloat(cleanStr);
+    return isNaN(floatVal) ? 0 : floatVal;
+};
+
+export const ensureArray = (val: any): string[] => {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('[')) {
+            try { return JSON.parse(trimmed); } catch { return []; }
+        }
+    }
+    return [];
+};
+
+export const localMaskCNJ = (value: string) => {
+    const cleanValue = value.replace(/\D/g, '');
+    return cleanValue
+        .replace(/^(\d{7})(\d)/, '$1-$2')
+        .replace(/^(\d{7}-\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{7}-\d{2}\.\d{4})(\d)/, '$1.$2')
+        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d)(\d)/, '$1.$2')
+        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d\.\d{2})(\d)/, '$1.$2')
+        .substring(0, 25);
+};
 // Adicionei alias para manter compatibilidade com importações antigas
 export const localMaskCNJ = maskCNJ;
