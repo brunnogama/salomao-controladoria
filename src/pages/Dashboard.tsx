@@ -113,6 +113,10 @@ export function Dashboard() {
   const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
   const diffEntrada = ultimoQtd - penultimoQtd;
 
+  // Cálculos manuais para exibir apenas mudanças de status + novos (ignorando edições)
+  const calculoAtividadeSemana = metrics.semana.novos + metrics.semana.propQtd + metrics.semana.fechQtd + metrics.semana.rejeitados + metrics.semana.probono;
+  const calculoAtividadeMes = metrics.mes.analysis + metrics.mes.propQtd + metrics.mes.fechQtd + metrics.mes.rejected + metrics.mes.probono;
+
   return (
     <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
       
@@ -361,51 +365,51 @@ export function Dashboard() {
             
             {/* Gráfico Semana */}
             <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 h-64"> 
-                <p className="text-xs font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
+                <p className="text-sm font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
                     <span>Comparativo Financeiro Visual (Semana Atual vs Anterior)</span>
                     <span className="text-gray-500 font-normal normal-case">Valores totais</span>
                 </p>
                 <div className="grid grid-cols-2 gap-8 h-48">
                     {/* Propostas */}
                     <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
-                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
+                        <p className="text-xs font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
                         <div className="flex items-end justify-center gap-3 h-full">
                             <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                <span className="text-[9px] text-gray-500 mb-1 font-bold">{formatMoney(valPropSemanaAnt)}</span>
+                                <span className="text-xs text-gray-500 mb-1 font-bold">{formatMoney(valPropSemanaAnt)}</span>
                                 <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropSemanaAnt > 0 ? (valPropSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-gray-500 mt-1">Anterior</span>
+                                <span className="text-[10px] text-gray-500 mt-1">Anterior</span>
                             </div>
                             <div className="flex flex-col items-center justify-end h-full w-14 group relative">
-                                <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                     {deltaPropSemana > 0 ? '+' : ''}{deltaPropSemana.toFixed(0)}%
                                 </div>
-                                <span className={`text-[9px] mb-1 font-bold ${deltaPropSemana >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                                <span className={`text-xs mb-1 font-bold ${deltaPropSemana >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
                                     {formatMoney(valPropSemana)}
                                 </span>
                                 <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropSemana > 0 ? (valPropSemana / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-blue-600 font-bold mt-1">Atual</span>
+                                <span className="text-[10px] text-blue-600 font-bold mt-1">Atual</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Fechados */}
                     <div className="flex flex-col justify-end relative">
-                        <p className="text-[10px] font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
+                        <p className="text-xs font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
                         <div className="flex items-end justify-center gap-3 h-full">
                             <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                <span className="text-[9px] text-gray-500 mb-1 font-bold">{formatMoney(valFechSemanaAnt)}</span>
+                                <span className="text-xs text-gray-500 mb-1 font-bold">{formatMoney(valFechSemanaAnt)}</span>
                                 <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechSemanaAnt > 0 ? (valFechSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-gray-500 mt-1">Anterior</span>
+                                <span className="text-[10px] text-gray-500 mt-1">Anterior</span>
                             </div>
                             <div className="flex flex-col items-center justify-end h-full w-14 group relative">
-                                <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                     {deltaFechSemana > 0 ? '+' : ''}{deltaFechSemana.toFixed(0)}%
                                 </div>
-                                <span className={`text-[9px] mb-1 font-bold ${deltaFechSemana >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                <span className={`text-xs mb-1 font-bold ${deltaFechSemana >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                                     {formatMoney(valFechSemana)}
                                 </span>
                                 <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechSemana > 0 ? (valFechSemana / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-green-600 font-bold mt-1">Atual</span>
+                                <span className="text-[10px] text-green-600 font-bold mt-1">Atual</span>
                             </div>
                         </div>
                     </div>
