@@ -678,7 +678,7 @@ export function ContractFormModal(props: Props) {
   const removeMagistrate = (index: number) => {
     setCurrentProcess(prev => {
       const newList = [...(prev.magistrates || [])];
-      newList.splice(index, 1);
+      const newListSplice = newList.splice(index, 1);
       return { ...prev, magistrates: newList };
     });
   };
@@ -1152,13 +1152,9 @@ export function ContractFormModal(props: Props) {
       other_fees_extras_clauses: ensureArray((sourceData as any).other_fees_extras_clauses),
       intermediate_fees_clauses: ensureArray((sourceData as any).intermediate_fees_clauses),
       
-      // Salvar arrays de parcelas extras
-      pro_labore_extras_installments: ensureArray((sourceData as any).pro_labore_extras_installments),
-      final_success_extras_installments: ensureArray((sourceData as any).final_success_extras_installments),
-      fixed_monthly_extras_installments: ensureArray((sourceData as any).fixed_monthly_extras_installments),
-      other_fees_extras_installments: ensureArray((sourceData as any).other_fees_extras_installments),
-      intermediate_fees_installments: ensureArray((sourceData as any).intermediate_fees_installments),
-
+      // REMOVIDO: Salvamento de arrays de parcelas extras na tabela Contracts para evitar erro 400
+      // Esses dados são processados e salvos em 'financial_installments'
+      
     }).eq('id', contractId);
   };
 
@@ -1210,12 +1206,12 @@ export function ContractFormModal(props: Props) {
             other_fees_extras_clauses: ensureArray((formData as any).other_fees_extras_clauses),
             intermediate_fees_clauses: ensureArray((formData as any).intermediate_fees_clauses),
             
-            // Salvar arrays de parcelas extras
-            pro_labore_extras_installments: ensureArray((formData as any).pro_labore_extras_installments),
-            final_success_extras_installments: ensureArray((formData as any).final_success_extras_installments),
-            fixed_monthly_extras_installments: ensureArray((formData as any).fixed_monthly_extras_installments),
-            other_fees_extras_installments: ensureArray((formData as any).other_fees_extras_installments),
-            intermediate_fees_installments: ensureArray((formData as any).intermediate_fees_installments),
+            // REMOVIDO: Envio de parcelas extras para a tabela Contracts para corrigir erro 400
+            // pro_labore_extras_installments: ensureArray((formData as any).pro_labore_extras_installments),
+            // final_success_extras_installments: ensureArray((formData as any).final_success_extras_installments),
+            // fixed_monthly_extras_installments: ensureArray((formData as any).fixed_monthly_extras_installments),
+            // other_fees_extras_installments: ensureArray((formData as any).other_fees_extras_installments),
+            // intermediate_fees_installments: ensureArray((formData as any).intermediate_fees_installments),
             
             // Campos de relacionamento/UI a serem ignorados
             partner_name: undefined,
@@ -2018,7 +2014,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                                            {c.contracts?.client_name}
+                                                                                    {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
