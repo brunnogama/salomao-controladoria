@@ -72,10 +72,10 @@ const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: 
         <div className="relative h-full w-full">
             <select
                 className="w-full h-full appearance-none bg-transparent pl-3 pr-8 text-xs font-medium text-gray-700 outline-none cursor-pointer focus:bg-gray-50 transition-colors"
-                value={value || ''}
+                value={value || '1x'}
                 onChange={(e) => onChange(e.target.value)}
             >
-                <option value="">Selecione</option>
+                {/* Removido Selecione e garantido 1x como default */}
                 {options.map(opt => (
                     <option key={opt} value={opt}>{opt}</option>
                 ))}
@@ -113,7 +113,7 @@ const FinancialInputWithInstallments = ({
           placeholder="R$ 0,00"
         />
         <div className={`w-16 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}>
-           <MinimalSelect value={installments || ''} onChange={onChangeInstallments} options={installmentOptions} />
+           <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
         </div>
         {onAdd && (
           <button 
@@ -307,7 +307,7 @@ export function ContractFormModal(props: Props) {
   const [statusOptions, setStatusOptions] = useState<{label: string, value: string}[]>([]);
   const [billingLocations, setBillingLocations] = useState(['Salomão RJ', 'Salomão SP', 'Salomão SC', 'Salomão ES']);
   const [clientExtraData, setClientExtraData] = useState({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-  const [interimInstallments, setInterimInstallments] = useState('');
+  const [interimInstallments, setInterimInstallments] = useState('1x'); // DEFAULT 1X
   const [interimClause, setInterimClause] = useState(''); // Estado local para cláusula intermediária
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   
@@ -352,10 +352,20 @@ export function ContractFormModal(props: Props) {
       fetchAuxiliaryTables();
       if (formData.id) fetchDocuments();
       setInitialFormData(JSON.parse(JSON.stringify(formData)));
+      
+      // Default inputs to 1x if undefined/null
+      setFormData(prev => ({
+          ...prev,
+          pro_labore_installments: prev.pro_labore_installments || '1x',
+          final_success_fee_installments: prev.final_success_fee_installments || '1x',
+          fixed_monthly_fee_installments: prev.fixed_monthly_fee_installments || '1x',
+          other_fees_installments: prev.other_fees_installments || '1x'
+      }));
+
     } else {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-      setInterimInstallments('');
+      setInterimInstallments('1x');
       setInterimClause('');
       setIsStandardCNJ(true);
       setOtherProcessType('');
@@ -577,33 +587,44 @@ export function ContractFormModal(props: Props) {
   const handleAddToList = (listField: string, valueField: keyof Contract) => {
     const value = (formData as any)[valueField];
     const clauseValue = (formData as any)[valueField + '_clause'];
+    const installValue = (formData as any)[valueField + '_installments'] || '1x'; // Captura a parcela atual
+
     if (!value || value === 'R$ 0,00' || value === '') return;
     
     const currentList = (formData as any)[listField] || [];
-    // CORREÇÃO: Usar ensureArray para garantir que sempre seja array
     const rawClauses = (formData as any)[listField + '_clauses'];
     const currentClausesList = ensureArray(rawClauses);
+    const currentInstallList = ensureArray((formData as any)[listField + '_installments']);
 
     setFormData(prev => ({ 
         ...prev, 
         [listField]: [...currentList, value],
         [listField + '_clauses']: [...currentClausesList, clauseValue || ''], 
+        [listField + '_installments']: [...currentInstallList, installValue], // Salva a parcela
         [valueField]: '',
-        [valueField + '_clause']: ''
+        [valueField + '_clause']: '',
+        [valueField + '_installments']: '1x' // Reseta para 1x
     }));
   };
 
   const removeExtra = (field: string, index: number) => {
     setFormData((prev: any) => {
       const newList = [...(prev[field] || [])];
-      // CORREÇÃO: Usar ensureArray
       const rawClauses = prev[field + '_clauses'];
       const newClausesList = [...ensureArray(rawClauses)];
+      const rawInstalls = prev[field + '_installments'];
+      const newInstallsList = [...ensureArray(rawInstalls)];
       
       newList.splice(index, 1);
       if(newClausesList.length > index) newClausesList.splice(index, 1);
+      if(newInstallsList.length > index) newInstallsList.splice(index, 1);
       
-      return { ...prev, [field]: newList, [field + '_clauses']: newClausesList };
+      return { 
+          ...prev, 
+          [field]: newList, 
+          [field + '_clauses']: newClausesList,
+          [field + '_installments']: newInstallsList
+      };
     });
   };
 
@@ -611,13 +632,16 @@ export function ContractFormModal(props: Props) {
       if(!newIntermediateFee) return;
       addIntermediateFee(); 
       
-      // CORREÇÃO: Usar ensureArray
-      const raw = (formData as any).intermediate_fees_clauses;
-      const currentClauses = ensureArray(raw);
+      const rawClauses = (formData as any).intermediate_fees_clauses;
+      const currentClauses = ensureArray(rawClauses);
+      
+      const rawInstalls = (formData as any).intermediate_fees_installments;
+      const currentInstalls = ensureArray(rawInstalls);
       
       setFormData(prev => ({
           ...prev,
-          intermediate_fees_clauses: [...currentClauses, interimClause]
+          intermediate_fees_clauses: [...currentClauses, interimClause],
+          intermediate_fees_installments: [...currentInstalls, interimInstallments] // Salva a parcela
       } as any));
       setInterimClause('');
       setInterimInstallments('1x');
@@ -625,12 +649,20 @@ export function ContractFormModal(props: Props) {
     
   const handleRemoveIntermediateFee = (idx: number) => {
       removeIntermediateFee(idx);
-      // CORREÇÃO: Usar ensureArray
-      const raw = (formData as any).intermediate_fees_clauses;
-      const currentClauses = [...ensureArray(raw)];
       
+      const rawClauses = (formData as any).intermediate_fees_clauses;
+      const currentClauses = [...ensureArray(rawClauses)];
       currentClauses.splice(idx, 1);
-      setFormData(prev => ({ ...prev, intermediate_fees_clauses: currentClauses } as any));
+
+      const rawInstalls = (formData as any).intermediate_fees_installments;
+      const currentInstalls = [...ensureArray(rawInstalls)];
+      currentInstalls.splice(idx, 1);
+      
+      setFormData(prev => ({ 
+          ...prev, 
+          intermediate_fees_clauses: currentClauses,
+          intermediate_fees_installments: currentInstalls 
+      } as any));
   };
 
   const addMagistrate = (magistrateName = newMagistrateName) => {
@@ -965,54 +997,113 @@ export function ContractFormModal(props: Props) {
     addInstallments(sourceData.fixed_monthly_fee, sourceData.fixed_monthly_fee_installments, 'fixed', (sourceData as any).fixed_monthly_fee_clause);
     addInstallments(sourceData.other_fees, sourceData.other_fees_installments, 'other', (sourceData as any).other_fees_clause);
 
-    // Intermediate Fees Logic (Updated with Clauses and Array Check)
+    // Intermediate Fees Logic (Updated with Clauses, Array Check and Separate Installments)
     if (sourceData.intermediate_fees && sourceData.intermediate_fees.length > 0) {
-      // CORREÇÃO: Usar ensureArray
       const clausesList = ensureArray((sourceData as any).intermediate_fees_clauses);
+      const installsList = ensureArray((sourceData as any).intermediate_fees_installments);
+      
       sourceData.intermediate_fees.forEach((fee, idx) => {
         const val = safeParseFloat(fee);
-        const clause = clausesList[idx];
-        if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'intermediate_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+        if (val > 0) {
+            const clause = clausesList[idx];
+            const installStr = installsList[idx] || '1x';
+            
+            const numInstallments = parseInt(installStr.replace(/[^0-9]/g, '') || '1', 10);
+            const amountPerInstallment = parseFloat((val / numInstallments).toFixed(2));
+            
+            for (let i = 1; i <= numInstallments; i++) {
+                installmentsToInsert.push({ 
+                    contract_id: contractId, 
+                    type: 'intermediate_fee', 
+                    installment_number: i, 
+                    total_installments: numInstallments, 
+                    amount: amountPerInstallment, 
+                    status: 'pending', 
+                    due_date: addMonths(new Date(), i).toISOString(), 
+                    clause: clause || null 
+                });
+            }
+        }
       });
     }
 
-    // Pro Labore Extras
+    // Pro Labore Extras (With separate installments)
     if ((sourceData as any).pro_labore_extras && (sourceData as any).pro_labore_extras.length > 0) {
         const clausesList = ensureArray((sourceData as any).pro_labore_extras_clauses);
+        const installsList = ensureArray((sourceData as any).pro_labore_extras_installments);
+        
         (sourceData as any).pro_labore_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
-          const clause = clausesList[idx];
-          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'pro_labore', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+          if (val > 0) {
+              const clause = clausesList[idx];
+              const installStr = installsList[idx] || '1x';
+              const numInstallments = parseInt(installStr.replace(/[^0-9]/g, '') || '1', 10);
+              const amountPerInstallment = parseFloat((val / numInstallments).toFixed(2));
+
+              for (let i = 1; i <= numInstallments; i++) {
+                  installmentsToInsert.push({ contract_id: contractId, type: 'pro_labore', installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString(), clause: clause || null });
+              }
+          }
         });
     }
 
     // Final Success Extras
     if ((sourceData as any).final_success_extras && (sourceData as any).final_success_extras.length > 0) {
         const clausesList = ensureArray((sourceData as any).final_success_extras_clauses);
+        const installsList = ensureArray((sourceData as any).final_success_extras_installments);
+        
         (sourceData as any).final_success_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
-          const clause = clausesList[idx];
-          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'final_success_fee', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+          if (val > 0) {
+              const clause = clausesList[idx];
+              const installStr = installsList[idx] || '1x';
+              const numInstallments = parseInt(installStr.replace(/[^0-9]/g, '') || '1', 10);
+              const amountPerInstallment = parseFloat((val / numInstallments).toFixed(2));
+
+              for (let i = 1; i <= numInstallments; i++) {
+                 installmentsToInsert.push({ contract_id: contractId, type: 'final_success_fee', installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString(), clause: clause || null });
+              }
+          }
         });
     }
 
     // Other Fees Extras
     if ((sourceData as any).other_fees_extras && (sourceData as any).other_fees_extras.length > 0) {
         const clausesList = ensureArray((sourceData as any).other_fees_extras_clauses);
+        const installsList = ensureArray((sourceData as any).other_fees_extras_installments);
+        
         (sourceData as any).other_fees_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
-          const clause = clausesList[idx];
-          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'other', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+          if (val > 0) {
+              const clause = clausesList[idx];
+              const installStr = installsList[idx] || '1x';
+              const numInstallments = parseInt(installStr.replace(/[^0-9]/g, '') || '1', 10);
+              const amountPerInstallment = parseFloat((val / numInstallments).toFixed(2));
+
+              for (let i = 1; i <= numInstallments; i++) {
+                installmentsToInsert.push({ contract_id: contractId, type: 'other', installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString(), clause: clause || null });
+              }
+          }
         });
     }
 
     // Fixed Monthly Extras
     if ((sourceData as any).fixed_monthly_extras && (sourceData as any).fixed_monthly_extras.length > 0) {
         const clausesList = ensureArray((sourceData as any).fixed_monthly_extras_clauses);
+        const installsList = ensureArray((sourceData as any).fixed_monthly_extras_installments);
+        
         (sourceData as any).fixed_monthly_extras.forEach((fee: string, idx: number) => {
           const val = safeParseFloat(fee);
-          const clause = clausesList[idx];
-          if (val > 0) installmentsToInsert.push({ contract_id: contractId, type: 'fixed', installment_number: 1, total_installments: 1, amount: val, status: 'pending', due_date: addMonths(new Date(), 1).toISOString(), clause: clause || null });
+          if (val > 0) {
+              const clause = clausesList[idx];
+              const installStr = installsList[idx] || '1x';
+              const numInstallments = parseInt(installStr.replace(/[^0-9]/g, '') || '1', 10);
+              const amountPerInstallment = parseFloat((val / numInstallments).toFixed(2));
+              
+              for (let i = 1; i <= numInstallments; i++) {
+                installmentsToInsert.push({ contract_id: contractId, type: 'fixed', installment_number: i, total_installments: numInstallments, amount: amountPerInstallment, status: 'pending', due_date: addMonths(new Date(), i).toISOString(), clause: clause || null });
+              }
+          }
         });
     }
 
@@ -1060,6 +1151,13 @@ export function ContractFormModal(props: Props) {
       fixed_monthly_extras_clauses: ensureArray((sourceData as any).fixed_monthly_extras_clauses),
       other_fees_extras_clauses: ensureArray((sourceData as any).other_fees_extras_clauses),
       intermediate_fees_clauses: ensureArray((sourceData as any).intermediate_fees_clauses),
+      
+      // Salvar arrays de parcelas extras
+      pro_labore_extras_installments: ensureArray((sourceData as any).pro_labore_extras_installments),
+      final_success_extras_installments: ensureArray((sourceData as any).final_success_extras_installments),
+      fixed_monthly_extras_installments: ensureArray((sourceData as any).fixed_monthly_extras_installments),
+      other_fees_extras_installments: ensureArray((sourceData as any).other_fees_extras_installments),
+      intermediate_fees_installments: ensureArray((sourceData as any).intermediate_fees_installments),
 
     }).eq('id', contractId);
   };
@@ -1111,6 +1209,13 @@ export function ContractFormModal(props: Props) {
             fixed_monthly_extras_clauses: ensureArray((formData as any).fixed_monthly_extras_clauses),
             other_fees_extras_clauses: ensureArray((formData as any).other_fees_extras_clauses),
             intermediate_fees_clauses: ensureArray((formData as any).intermediate_fees_clauses),
+            
+            // Salvar arrays de parcelas extras
+            pro_labore_extras_installments: ensureArray((formData as any).pro_labore_extras_installments),
+            final_success_extras_installments: ensureArray((formData as any).final_success_extras_installments),
+            fixed_monthly_extras_installments: ensureArray((formData as any).fixed_monthly_extras_installments),
+            other_fees_extras_installments: ensureArray((formData as any).other_fees_extras_installments),
+            intermediate_fees_installments: ensureArray((formData as any).intermediate_fees_installments),
             
             // Campos de relacionamento/UI a serem ignorados
             partner_name: undefined,
@@ -1461,20 +1566,20 @@ export function ContractFormModal(props: Props) {
                  {formData.status && (
                     <div className="animate-in fade-in slide-in-from-left-2">
                         <label className="text-xs font-medium block mb-1">
-                             {formData.status === 'analysis' ? 'Data do Prospect' :
-                              formData.status === 'proposal' ? 'Data da Proposta' :
-                              formData.status === 'active' ? 'Data da Assinatura' :
-                              formData.status === 'rejected' ? 'Data da Rejeição' :
+                             {formData.status === 'analysis' ? 'Data do Prospect' : 
+                              formData.status === 'proposal' ? 'Data da Proposta' : 
+                              formData.status === 'active' ? 'Data da Assinatura' : 
+                              formData.status === 'rejected' ? 'Data da Rejeição' : 
                               formData.status === 'probono' ? 'Data Probono' : 'Data do Status'}
                         </label>
                         <input 
                             type="date" 
                             className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
                             value={ensureDateValue(
-                                formData.status === 'analysis' ? formData.prospect_date :
-                                formData.status === 'proposal' ? formData.proposal_date :
-                                formData.status === 'active' ? formData.contract_date :
-                                formData.status === 'rejected' ? formData.rejection_date :
+                                formData.status === 'analysis' ? formData.prospect_date : 
+                                formData.status === 'proposal' ? formData.proposal_date : 
+                                formData.status === 'active' ? formData.contract_date : 
+                                formData.status === 'rejected' ? formData.rejection_date : 
                                 formData.status === 'probono' ? formData.probono_date : ''
                             )} 
                             onChange={e => {
@@ -1552,10 +1657,13 @@ export function ContractFormModal(props: Props) {
                       <div className="flex flex-wrap gap-2 mt-2">
                         {(formData as any).pro_labore_extras?.map((val: string, idx: number) => {
                            const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
+                           const installmentsList = ensureArray((formData as any).pro_labore_extras_installments);
                            return (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                  {val}<button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              <span key={idx} className="inline-flex items-center bg-white border border-blue-200 shadow-sm pr-1 pl-2 py-1 rounded-full text-xs text-blue-900" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px] bg-gray-100 px-1 rounded">Cl. {clauses[idx]}</span>}
+                                  <span className="font-semibold">{val}</span>
+                                  {installmentsList[idx] && installmentsList[idx] !== '1x' && <span className="ml-1 text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-1 rounded font-bold">{installmentsList[idx]}</span>}
+                                  <button onClick={() => removeExtra('pro_labore_extras', idx)} className="ml-2 p-0.5 rounded-full hover:bg-red-50 text-blue-400 hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                               </span>
                            );
                         })}
@@ -1575,10 +1683,13 @@ export function ContractFormModal(props: Props) {
                         <div className="flex flex-wrap gap-2 mt-2">
                             {(formData as any).other_fees_extras?.map((val: string, idx: number) => {
                                const clauses = ensureArray((formData as any).other_fees_extras_clauses);
+                               const installmentsList = ensureArray((formData as any).other_fees_extras_installments);
                                return (
-                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                    {val}<button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  <span key={idx} className="inline-flex items-center bg-white border border-blue-200 shadow-sm pr-1 pl-2 py-1 rounded-full text-xs text-blue-900" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px] bg-gray-100 px-1 rounded">Cl. {clauses[idx]}</span>}
+                                    <span className="font-semibold">{val}</span>
+                                    {installmentsList[idx] && installmentsList[idx] !== '1x' && <span className="ml-1 text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-1 rounded font-bold">{installmentsList[idx]}</span>}
+                                    <button onClick={() => removeExtra('other_fees_extras', idx)} className="ml-2 p-0.5 rounded-full hover:bg-red-50 text-blue-400 hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                                   </span>
                                );
                             })}
@@ -1598,10 +1709,13 @@ export function ContractFormModal(props: Props) {
                         <div className="flex flex-wrap gap-2 mt-2">
                             {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => {
                                const clauses = ensureArray((formData as any).fixed_monthly_extras_clauses);
+                               const installmentsList = ensureArray((formData as any).fixed_monthly_extras_installments);
                                return (
-                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                    {val}<button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  <span key={idx} className="inline-flex items-center bg-white border border-blue-200 shadow-sm pr-1 pl-2 py-1 rounded-full text-xs text-blue-900" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px] bg-gray-100 px-1 rounded">Cl. {clauses[idx]}</span>}
+                                    <span className="font-semibold">{val}</span>
+                                    {installmentsList[idx] && installmentsList[idx] !== '1x' && <span className="ml-1 text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-1 rounded font-bold">{installmentsList[idx]}</span>}
+                                    <button onClick={() => removeExtra('fixed_monthly_extras', idx)} className="ml-2 p-0.5 rounded-full hover:bg-red-50 text-blue-400 hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                                   </span>
                                );
                             })}
@@ -1624,10 +1738,13 @@ export function ContractFormModal(props: Props) {
                       <div className="flex flex-wrap gap-2 mt-2">
                         {formData.intermediate_fees?.map((fee, idx) => {
                           const clauses = ensureArray((formData as any).intermediate_fees_clauses);
+                          const installmentsList = ensureArray((formData as any).intermediate_fees_installments);
                           return (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                  {fee}<button onClick={() => handleRemoveIntermediateFee(idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              <span key={idx} className="inline-flex items-center bg-white border border-blue-200 shadow-sm pr-1 pl-2 py-1 rounded-full text-xs text-blue-900" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                  {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px] bg-gray-100 px-1 rounded">Cl. {clauses[idx]}</span>}
+                                  <span className="font-semibold">{fee}</span>
+                                  {installmentsList[idx] && installmentsList[idx] !== '1x' && <span className="ml-1 text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-1 rounded font-bold">{installmentsList[idx]}</span>}
+                                  <button onClick={() => handleRemoveIntermediateFee(idx)} className="ml-2 p-0.5 rounded-full hover:bg-red-50 text-blue-400 hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                               </span>
                           );
                         })}
@@ -1648,10 +1765,13 @@ export function ContractFormModal(props: Props) {
                       <div className="flex flex-wrap gap-2 mt-2">
                         {(formData as any).final_success_extras?.map((val: string, idx: number) => {
                            const clauses = ensureArray((formData as any).final_success_extras_clauses);
+                           const installmentsList = ensureArray((formData as any).final_success_extras_installments);
                            return (
-                              <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                {val}<button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                              <span key={idx} className="inline-flex items-center bg-white border border-blue-200 shadow-sm pr-1 pl-2 py-1 rounded-full text-xs text-blue-900" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px] bg-gray-100 px-1 rounded">Cl. {clauses[idx]}</span>}
+                                <span className="font-semibold">{val}</span>
+                                {installmentsList[idx] && installmentsList[idx] !== '1x' && <span className="ml-1 text-[9px] bg-yellow-100 text-yellow-800 border border-yellow-200 px-1 rounded font-bold">{installmentsList[idx]}</span>}
+                                <button onClick={() => removeExtra('final_success_extras', idx)} className="ml-2 p-0.5 rounded-full hover:bg-red-50 text-blue-400 hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                               </span>
                            );
                         })}
@@ -1677,9 +1797,10 @@ export function ContractFormModal(props: Props) {
                             {(formData as any).percent_extras?.map((val: string, idx: number) => {
                                const clauses = ensureArray((formData as any).percent_extras_clauses);
                                return (
-                                  <span key={idx} className="bg-white border border-blue-100 px-3 py-1 rounded-full text-xs text-blue-800 flex items-center shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px]">(Cl. {clauses[idx]})</span>}
-                                    {val}<button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 text-blue-400 hover:text-red-500"><X className="w-3 h-3" /></button>
+                                  <span key={idx} className="inline-flex items-center bg-white border border-blue-200 shadow-sm pr-1 pl-2 py-1 rounded-full text-xs text-blue-900" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                                    {clauses[idx] && <span className="mr-1 text-gray-500 font-bold text-[10px] bg-gray-100 px-1 rounded">Cl. {clauses[idx]}</span>}
+                                    <span className="font-semibold">{val}</span>
+                                    <button onClick={() => removeExtra('percent_extras', idx)} className="ml-2 p-0.5 rounded-full hover:bg-red-50 text-blue-400 hover:text-red-500 transition-colors"><X className="w-3 h-3" /></button>
                                   </span>
                                );
                             })}
@@ -1897,7 +2018,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                                        {c.contracts?.client_name}
+                                                                            {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
