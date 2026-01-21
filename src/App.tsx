@@ -1,47 +1,55 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Login } from './pages/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
-import { Dashboard } from './pages/Dashboard';
 import { Contracts } from './pages/Contracts';
-import { Proposals } from './pages/Proposals';
+import { GED } from './pages/GED';
+import { Dashboard } from './pages/Dashboard';
+import { Kanban } from './pages/Kanban';
 import { Clients } from './pages/Clients';
 import { Finance } from './pages/Finance';
-import { Volumetry } from './pages/Volumetry';
 import { Settings } from './pages/Settings';
-import { Login } from './pages/Login';
-import { GED } from './pages/GED';
-import { Kanban } from './pages/Kanban';
 import { History } from './pages/History';
-import { Jurimetria } from './pages/Jurimetria'; // Importar nova página
+import { Volumetry } from './pages/Volumetry';
+import { Proposals } from './pages/Proposals';
+import { Jurimetria } from './pages/Jurimetria'; // <--- IMPORTANTE: Importar aqui
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = localStorage.getItem('salomao_auth') === 'true';
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
-}
+const PagePlaceholder = ({ title }: { title: string }) => (
+  <div className="p-4">
+    <h1 className="text-2xl font-bold text-gray-800 mb-4">{title}</h1>
+    <div className="p-8 border-2 border-dashed border-gray-300 rounded-lg h-96 flex items-center justify-center text-gray-400">
+      Módulo em desenvolvimento
+    </div>
+  </div>
+);
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        <Route path="/" element={
-          <PrivateRoute>
-            <DashboardLayout />
-          </PrivateRoute>
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="contracts" element={<Contracts />} />
-          <Route path="proposals" element={<Proposals />} />
-          <Route path="clients" element={<Clients />} />
-          <Route path="finance" element={<Finance />} />
-          <Route path="ged" element={<GED />} />
-          <Route path="kanban" element={<Kanban />} />
-          <Route path="history" element={<History />} />
-          <Route path="jurimetria" element={<Jurimetria />} /> {/* Nova Rota */}
-          <Route path="volumetry" element={<Volumetry />} />
-          <Route path="settings" element={<Settings />} />
+        <Route path="/" element={<Login />} />
+
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/contratos" element={<Contracts />} />
+          <Route path="/clientes" element={<Clients />} />
+          <Route path="/kanban" element={<Kanban />} />
+          <Route path="/financeiro" element={<Finance />} />
+          <Route path="/ged" element={<GED />} />
+          
+          <Route path="/propostas" element={<Proposals />} />
+          
+          {/* --- ROTA ADICIONADA AQUI --- */}
+          <Route path="/jurimetria" element={<Jurimetria />} />
+          
+          <Route path="/volumetria" element={<Volumetry />} />
+          
+          <Route path="/compliance" element={<PagePlaceholder title="Compliance & Riscos" />} />
+          <Route path="/historico" element={<History />} />
+          <Route path="/configuracoes" element={<Settings />} />
         </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

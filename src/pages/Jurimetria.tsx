@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { supabase } from '../lib/supabase';
 import { Contract, ContractProcess } from '../types';
-import { Loader2, Share2, Gavel, Scale, FileText, Filter, Maximize2, Minimize2 } from 'lucide-react';
+import { Loader2, Share2, Gavel, Scale, FileText, Maximize2, Minimize2 } from 'lucide-react';
 
+// Interfaces para tipagem do Grafo
 interface GraphNode {
   id: string;
   group: string;
@@ -24,18 +25,21 @@ interface GraphData {
   links: GraphLink[];
 }
 
+// Interface para as estatísticas
+interface StatsCount {
+  judges: Record<string, number>;
+  subjects: Record<string, number>;
+  courts: Record<string, number>;
+}
+
 export function Jurimetria() {
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<Contract[]>([]);
-  // Correção 1: Tipagem explícita para o estado do grafo
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [dimensions, setDimensions] = useState({ w: 800, h: 600 });
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // Estados de Filtro
-  const [filterType, setFilterType] = useState('all'); // all, judge, subject, court
 
   useEffect(() => {
     fetchJurimetriaData();
@@ -55,14 +59,13 @@ export function Jurimetria() {
   const fetchJurimetriaData = async () => {
     try {
       setLoading(true);
-      // Buscamos contratos E seus processos aninhados
       const { data, error } = await supabase
         .from('contracts')
         .select(`
           *, 
           processes:contract_processes(*)
         `)
-        .eq('status', 'active'); // Focamos em contratos ativos para jurimetria
+        .eq('status', 'active');
 
       if (error) throw error;
       if (data) {
@@ -73,7 +76,7 @@ export function Jurimetria() {
       console.error("Erro Jurimetria:", error);
     } finally {
       setLoading(false);
-      setTimeout(handleResize, 100); // Ajusta tamanho após render
+      setTimeout(handleResize, 100);
     }
   };
 
@@ -82,29 +85,22 @@ export function Jurimetria() {
     const links: GraphLink[] = [];
     const nodeIds = new Set();
 
-    // Helper para adicionar nó único
     const addNode = (id: string, group: string, label: string, val: number, details?: any) => {
       if (!nodeIds.has(id)) {
         nodes.push({ id, group, label, val, ...details });
         nodeIds.add(id);
       } else {
-        // Incrementa valor/peso se já existe (ex: juiz que aparece mto)
         const node = nodes.find(n => n.id === id);
         if (node) node.val += 0.5;
       }
     };
 
     data.forEach(c => {
-      // 1. Nó do Contrato (Centro da teia local)
       const contractId = `C-${c.id}`;
       addNode(contractId, 'contract', c.client_name, 5, { fullData: c });
 
       if (c.processes && Array.isArray(c.processes)) {
         c.processes.forEach((p: ContractProcess) => {
-          // 2. Nó do Processo (Opcional, pode poluir, vamos ligar direto às entidades)
-          // Vamos ligar Contrato -> Juiz, Contrato -> Assunto, etc.
-
-          // Nó de Juiz (Magistrado)
           if (p.magistrates && Array.isArray(p.magistrates)) {
             p.magistrates.forEach(m => {
               const judgeId = `J-${m.name}`;
@@ -113,14 +109,12 @@ export function Jurimetria() {
             });
           }
 
-          // Nó de Assunto
           if (p.subject) {
             const subjectId = `S-${p.subject}`;
             addNode(subjectId, 'subject', p.subject, 2);
             links.push({ source: contractId, target: subjectId, type: 'about' });
           }
 
-          // Nó de Tribunal/Vara
           if (p.court) {
             const courtId = `T-${p.court}`;
             addNode(courtId, 'court', p.court, 2);
@@ -133,14 +127,8 @@ export function Jurimetria() {
     setGraphData({ nodes, links });
   };
 
-  // --- Estatísticas Calculadas ---
   const stats = useMemo(() => {
-    // Correção 2: Tipagem para o objeto de contagem (Record<string, number>)
-    const counts: { 
-      judges: Record<string, number>; 
-      subjects: Record<string, number>; 
-      courts: Record<string, number>; 
-    } = { judges: {}, subjects: {}, courts: {} };
+    const counts: StatsCount = { judges: {}, subjects: {}, courts: {} };
     
     contracts.forEach(c => {
       if(c.processes) {
@@ -169,8 +157,6 @@ export function Jurimetria() {
 
   return (
     <div className={`p-6 animate-in fade-in duration-500 h-full flex flex-col ${isFullscreen ? 'fixed inset-0 z-50 bg-[#F8FAFC] p-0' : ''}`}>
-      
-      {/* Header */}
       <div className={`flex justify-between items-start mb-6 ${isFullscreen ? 'p-6 bg-white shadow-sm' : ''}`}>
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
@@ -186,10 +172,7 @@ export function Jurimetria() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-        
-        {/* Painel Esquerdo - Estatísticas */}
         <div className="w-full lg:w-80 flex flex-col gap-4 overflow-y-auto pr-2">
-            {/* Card Juízes */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><Gavel className="w-4 h-4 text-salomao-gold" /> Top Magistrados</h3>
                 <div className="space-y-2">
@@ -201,8 +184,6 @@ export function Jurimetria() {
                     ))}
                 </div>
             </div>
-
-            {/* Card Assuntos */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><FileText className="w-4 h-4 text-blue-500" /> Assuntos Recorrentes</h3>
                 <div className="space-y-2">
@@ -214,8 +195,6 @@ export function Jurimetria() {
                     ))}
                 </div>
             </div>
-
-             {/* Card Tribunais */}
              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><Scale className="w-4 h-4 text-green-500" /> Tribunais / Varas</h3>
                 <div className="space-y-2">
@@ -229,7 +208,6 @@ export function Jurimetria() {
             </div>
         </div>
 
-        {/* Área do Grafo */}
         <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 relative overflow-hidden flex flex-col" ref={containerRef}>
             <div className="absolute top-4 left-4 z-10 flex gap-2">
                 <span className="bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold border border-gray-200 flex items-center gap-1 shadow-sm"><span className="w-2 h-2 rounded-full bg-salomao-blue"></span> Contrato</span>
@@ -237,7 +215,6 @@ export function Jurimetria() {
                 <span className="bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold border border-gray-200 flex items-center gap-1 shadow-sm"><span className="w-2 h-2 rounded-full bg-green-500"></span> Assunto</span>
             </div>
 
-            {/* Informação do Nó Selecionado */}
             {selectedNode && (
                 <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur p-4 rounded-xl border border-gray-200 shadow-lg max-w-sm animate-in slide-in-from-bottom-5">
                     <button onClick={() => setSelectedNode(null)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"><Minimize2 className="w-4 h-4" /></button>
@@ -260,24 +237,20 @@ export function Jurimetria() {
                 nodeLabel="label"
                 nodeColor={(node: any) => {
                     switch(node.group) {
-                        case 'contract': return '#0F2C4C'; // salomao-blue
-                        case 'judge': return '#D4AF37'; // salomao-gold
-                        case 'subject': return '#22C55E'; // green
-                        case 'court': return '#64748B'; // gray
+                        case 'contract': return '#0F2C4C'; 
+                        case 'judge': return '#D4AF37'; 
+                        case 'subject': return '#22C55E'; 
+                        case 'court': return '#64748B'; 
                         default: return '#ccc';
                     }
                 }}
                 nodeRelSize={6}
                 linkColor={() => '#E2E8F0'}
-                onNodeClick={(node) => {
-                    setSelectedNode(node);
-                    // Zoom logic could go here
-                }}
+                onNodeClick={(node) => { setSelectedNode(node); }}
                 cooldownTicks={100}
                 onEngineStop={() => {}}
             />
         </div>
-
       </div>
     </div>
   );
