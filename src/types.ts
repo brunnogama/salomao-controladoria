@@ -66,15 +66,18 @@ export interface Contract {
   reference?: string;
   observations?: string;
   rejection_reason?: string;
-  rejection_source?: string; // Adicionado
+  rejection_source?: string;
   rejection_by?: string;
   physical_signature?: boolean;
   timesheet?: boolean;
   process_count?: number;
   hon_number?: string;
   
-  cases?: ContractCase[]; // Adicionado
-  responsavel_socio?: string; // Adicionado
+  cases?: ContractCase[];
+  responsavel_socio?: string;
+  
+  // --- CAMPO ADICIONADO PARA CORRIGIR O ERRO ---
+  processes?: ContractProcess[]; 
 }
 
 export interface Client {
