@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { Contract, ContractCase } from '../types';
+import { Contract, Partner, ContractCase } from '../types';
 
-// --- Funções Auxiliares (Movidas para fora do componente) ---
+// --- Funções Auxiliares (Pure Functions) ---
 
 const safeParseMoney = (value: string | number | undefined | null): number => {
   if (value === undefined || value === null || value === '') return 0;
@@ -20,7 +20,7 @@ const isDateInCurrentWeek = (dateString?: string) => {
   if (!dateString) return false;
   const date = new Date(dateString + 'T12:00:00');
   const today = new Date();
-  const currentDay = today.getDay();
+  const currentDay = today.getDay(); // 0 (Domingo) a 6 (Sábado)
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - currentDay);
   startOfWeek.setHours(0, 0, 0, 0);
@@ -70,66 +70,32 @@ const isDateInLastMonth = (dateString?: string) => {
 
 export function useDashboardData() {
   const [loading, setLoading] = useState(true);
-  
-  // Estados de Métricas
-  const [metrics, setMetrics] = useState({
-    semana: {
-      novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
-      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
-      rejeitados: 0, probono: 0, totalUnico: 0,
-    },
-    semanaAnterior: {
-        propPL: 0, propExito: 0, propMensal: 0,
-        fechPL: 0, fechExito: 0, fechMensal: 0
-    },
-    mes: {
-      novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
-      fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
-      totalUnico: 0, analysis: 0, rejected: 0, probono: 0
-    },
-    executivo: {
-        mesAtual: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 },
-        mesAnterior: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 }
-    },
-    geral: {
-      totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0,
-      valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0,
-      totalFechadoPL: 0, totalFechadoExito: 0, assinados: 0, naoAssinados: 0,
-      mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0,
-      mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0,
-    },
-  });
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
 
-  const [funil, setFunil] = useState({
-    totalEntrada: 0, qualificadosProposta: 0, fechados: 0,
-    perdaAnalise: 0, perdaNegociacao: 0,
-    taxaConversaoProposta: '0', taxaConversaoFechamento: '0',
-    tempoMedioProspectProposta: 0, tempoMedioPropostaFechamento: 0
-  });
+  // 1. Busca de Dados (Apenas busca e salva o "Raw Data")
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [ { data: contratosData, error }, { data: sociosData } ] = await Promise.all([
+          supabase.from('contracts').select('*'),
+          supabase.from('partners').select('*')
+      ]);
 
-  const [evolucaoMensal, setEvolucaoMensal] = useState<any[]>([]);
-  
-  // Gráfico FECHADOS
-  const [financeiro12Meses, setFinanceiro12Meses] = useState<any[]>([]);
-  const [statsFinanceiro, setStatsFinanceiro] = useState({ total: 0, media: 0, diff: 0 });
-  const [mediasFinanceiras, setMediasFinanceiras] = useState({ pl: 0, exito: 0 });
-
-  // Gráfico PROPOSTAS
-  const [propostas12Meses, setPropostas12Meses] = useState<any[]>([]);
-  const [statsPropostas, setStatsPropostas] = useState({ total: 0, media: 0, diff: 0 });
-  const [mediasPropostas, setMediasPropostas] = useState({ pl: 0, exito: 0 });
-    
-  // Rejeição e Sócios
-  const [rejectionData, setRejectionData] = useState<{
-    reasons: { label: string, value: number, percent: number }[],
-    sources: { label: string, value: number, percent: number }[]
-  }>({ reasons: [], sources: [] });
-
-  const [contractsByPartner, setContractsByPartner] = useState<any[]>([]);
+      if (error) throw error;
+      if (contratosData) setContracts(contratosData);
+      if (sociosData) setPartners(sociosData);
+    } catch (error) {
+      console.error('Erro dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchDashboardData();
 
+    // Realtime Subscription
     const subscription = supabase
       .channel('dashboard_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contracts' }, () => {
@@ -142,32 +108,18 @@ export function useDashboardData() {
     };
   }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [ { data: contratos, error }, { data: socios } ] = await Promise.all([
-          supabase.from('contracts').select('*'),
-          supabase.from('partners').select('id, name')
-      ]);
-
-      if (error) throw error;
-      if (contratos) processarDados(contratos, socios || []);
-    } catch (error) {
-      console.error('Erro dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const processarDados = (contratos: Contract[], socios: any[] = []) => {
+  // 2. Cálculos Pesados (Memoized)
+  // Só roda se 'contracts' ou 'partners' mudarem
+  const dashboardData = useMemo(() => {
     const hoje = new Date();
     const dataInicioFixo = new Date(2025, 5, 1); // Junho 2025
     
-    const partnerMap = socios.reduce((acc: any, s: any) => {
+    const partnerMap = partners.reduce((acc: any, s: any) => {
         acc[s.id] = s.name;
         return acc;
     }, {});
 
+    // Inicialização das Estruturas
     let mSemana = {
       novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0,
       fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0,
@@ -215,6 +167,7 @@ export function useDashboardData() {
     let totalRejected = 0;
     const partnerCounts: Record<string, any> = {};
 
+    // Preenche meses vazios para os gráficos
     let iteradorMeses = new Date(dataInicioFixo);
     while (iteradorMeses <= hoje) {
       const key = iteradorMeses.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
@@ -224,12 +177,15 @@ export function useDashboardData() {
     }
     const dataLimite12Meses = dataInicioFixo;
 
-    contratos.forEach((c) => {
+    // --- LOOP PRINCIPAL (PESADO) ---
+    contracts.forEach((c) => {
+      // Parse de Valores
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
       let mensal = safeParseMoney(c.fixed_monthly_fee);
       let outros = safeParseMoney(c.other_fees);
 
+      // Somas extras
       if (c.pro_labore_extras && Array.isArray(c.pro_labore_extras)) {
         pl += c.pro_labore_extras.reduce((acc: number, val: any) => acc + safeParseMoney(val), 0);
       }
@@ -256,6 +212,7 @@ export function useDashboardData() {
         });
       }
 
+      // Datas
       const statusDates = [
          c.prospect_date,
          c.proposal_date,
@@ -279,7 +236,7 @@ export function useDashboardData() {
          mapaMeses[mesAnoEntrada]++;
       }
 
-      // Executivo
+      // Executivo e Comparações
       if (c.prospect_date) {
          if (isDateInCurrentMonth(c.prospect_date)) mExecutivo.mesAtual.novos++;
          if (isDateInLastMonth(c.prospect_date)) mExecutivo.mesAnterior.novos++;
@@ -313,6 +270,7 @@ export function useDashboardData() {
          }
       }
 
+      // Parceiros
       const pName = (c.partner_id && partnerMap[c.partner_id]) || 
                     c.responsavel_socio || 'Não Informado';
       
@@ -326,6 +284,7 @@ export function useDashboardData() {
       else if (c.status === 'rejected') partnerCounts[pName].rejected++;
       else if (c.status === 'probono') partnerCounts[pName].probono++;
 
+      // Rejeições
       if (c.status === 'rejected') {
           totalRejected++;
           const reason = c.rejection_reason || 'Não informado';
@@ -334,6 +293,7 @@ export function useDashboardData() {
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
       }
 
+      // Financeiro Gráfico (Active)
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
         dContrato.setDate(1); dContrato.setHours(0,0,0,0);
@@ -347,6 +307,7 @@ export function useDashboardData() {
         }
       }
 
+      // Financeiro Gráfico (Propostas)
       if (c.status === 'proposal' && c.proposal_date) {
         const dProposta = new Date(c.proposal_date + 'T12:00:00');
         dProposta.setDate(1); dProposta.setHours(0,0,0,0);
@@ -360,6 +321,7 @@ export function useDashboardData() {
         }
       }
 
+      // Tempos Funil
       const dProspect = c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null;
       const dProposal = c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : null;
       const dContract = c.contract_date ? new Date(c.contract_date + 'T12:00:00') : null;
@@ -375,6 +337,7 @@ export function useDashboardData() {
           qtdPropostaFechamento++;
       }
 
+      // Geral
       mGeral.totalCasos++;
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
@@ -394,6 +357,7 @@ export function useDashboardData() {
         c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++;
       }
 
+      // Métricas Semana
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) {
         mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; mSemana.propMensal += mensal;
@@ -411,6 +375,7 @@ export function useDashboardData() {
           mSemanaAnterior.fechPL += pl; mSemanaAnterior.fechExito += exito; mSemanaAnterior.fechMensal += mensal;
       }
 
+      // Métricas Mês
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) {
         mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; mMes.propMensal += mensal;
@@ -425,6 +390,7 @@ export function useDashboardData() {
       if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
       if (contractDates.some(date => isDateInCurrentMonth(date))) mMes.totalUnico++;
 
+      // Funil
       fTotal++;
       const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
       if (chegouEmProposta) fQualificados++;
@@ -432,38 +398,42 @@ export function useDashboardData() {
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
     });
 
-    // Processamento Gráficos
+    // --- PÓS-PROCESSAMENTO ---
+
+    // Financeiro 12 Meses
     const finArray = Object.entries(financeiroMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); 
     const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
     const monthsCount = finArray.length || 1;
-    setMediasFinanceiras({ pl: totalPL12 / monthsCount, exito: totalExito12 / monthsCount });
+    const mediasFinanceiras = { pl: totalPL12 / monthsCount, exito: totalExito12 / monthsCount };
 
     const totalFechado12Meses = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo + curr.exito, 0);
     const mediaFechadoMes = finArray.length > 0 ? totalFechado12Meses / finArray.length : 0;
     const ultimoFechado = finArray.length > 0 ? finArray[finArray.length - 1].pl + finArray[finArray.length - 1].fixo + finArray[finArray.length - 1].exito : 0;
     const penultimoFechado = finArray.length > 1 ? finArray[finArray.length - 2].pl + finArray[finArray.length - 2].fixo + finArray[finArray.length - 2].exito : 0;
-    setStatsFinanceiro({ total: totalFechado12Meses, media: mediaFechadoMes, diff: ultimoFechado - penultimoFechado });
+    const statsFinanceiro = { total: totalFechado12Meses, media: mediaFechadoMes, diff: ultimoFechado - penultimoFechado };
 
     const maxValFin = Math.max(...finArray.map(i => Math.max(i.pl, i.fixo, i.exito)), 1);
-    setFinanceiro12Meses(finArray.map(i => ({ ...i, hPl: (i.pl / maxValFin) * 100, hFixo: (i.fixo / maxValFin) * 100, hExito: (i.exito / maxValFin) * 100 })));
+    const financeiro12Meses = finArray.map(i => ({ ...i, hPl: (i.pl / maxValFin) * 100, hFixo: (i.fixo / maxValFin) * 100, hExito: (i.exito / maxValFin) * 100 }));
 
+    // Propostas 12 Meses
     const propArray = Object.entries(propostasMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPropPL12 = propArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0);
     const totalPropExito12 = propArray.reduce((acc, curr) => acc + curr.exito, 0);
     const monthsCountProp = propArray.length || 1;
-    setMediasPropostas({ pl: totalPropPL12 / monthsCountProp, exito: totalPropExito12 / monthsCountProp });
+    const mediasPropostas = { pl: totalPropPL12 / monthsCountProp, exito: totalPropExito12 / monthsCountProp };
 
     const totalPropostas12Meses = propArray.reduce((acc, curr) => acc + curr.pl + curr.fixo + curr.exito, 0);
     const mediaPropostasMes = propArray.length > 0 ? totalPropostas12Meses / propArray.length : 0;
     const ultimoProp = propArray.length > 0 ? propArray[propArray.length - 1].pl + propArray[propArray.length - 1].fixo + propArray[propArray.length - 1].exito : 0;
     const penultimoProp = propArray.length > 1 ? propArray[propArray.length - 2].pl + propArray[propArray.length - 2].fixo + propArray[propArray.length - 2].exito : 0;
-    setStatsPropostas({ total: totalPropostas12Meses, media: mediaPropostasMes, diff: ultimoProp - penultimoProp });
+    const statsPropostas = { total: totalPropostas12Meses, media: mediaPropostasMes, diff: ultimoProp - penultimoProp };
 
     const maxValProp = Math.max(...propArray.map(i => Math.max(i.pl, i.fixo, i.exito)), 1);
-    setPropostas12Meses(propArray.map(i => ({ ...i, hPl: (i.pl / maxValProp) * 100, hFixo: (i.fixo / maxValProp) * 100, hExito: (i.exito / maxValProp) * 100 })));
+    const propostas12Meses = propArray.map(i => ({ ...i, hPl: (i.pl / maxValProp) * 100, hFixo: (i.fixo / maxValProp) * 100, hExito: (i.exito / maxValProp) * 100 }));
 
-    setFunil({ 
+    // Funil
+    const funil = { 
         totalEntrada: fTotal, 
         qualificadosProposta: fQualificados, 
         fechados: fFechados, 
@@ -473,8 +443,9 @@ export function useDashboardData() {
         taxaConversaoFechamento: fQualificados > 0 ? ((fFechados / fQualificados) * 100).toFixed(1) : '0',
         tempoMedioProspectProposta: qtdProspectProposta > 0 ? Math.round(somaDiasProspectProposta / qtdProspectProposta) : 0,
         tempoMedioPropostaFechamento: qtdPropostaFechamento > 0 ? Math.round(somaDiasPropostaFechamento / qtdPropostaFechamento) : 0
-    });
+    };
 
+    // Evolução Mensal
     const mesesGrafico = [];
     let iteradorGrafico = new Date(dataInicioFixo);
     while (iteradorGrafico <= hoje) {
@@ -484,15 +455,17 @@ export function useDashboardData() {
     }
     const maxQtd = Math.max(...mesesGrafico.map((m) => m.qtd), 1);
     mesesGrafico.forEach((m) => (m.altura = (m.qtd / maxQtd) * 100));
-    setEvolucaoMensal(mesesGrafico);
+    const evolucaoMensal = mesesGrafico;
 
+    // Médias Gerais
     mGeral.mediaMensalNegociacaoPL = mGeral.valorEmNegociacaoPL / monthsCountProp;
     mGeral.mediaMensalNegociacaoExito = mGeral.valorEmNegociacaoExito / monthsCountProp;
     mGeral.mediaMensalCarteiraPL = mGeral.totalFechadoPL / monthsCount;
     mGeral.mediaMensalCarteiraExito = mGeral.totalFechadoExito / monthsCount;
 
-    setMetrics({ semana: mSemana, semanaAnterior: mSemanaAnterior, mes: mMes, executivo: mExecutivo, geral: mGeral });
+    const metrics = { semana: mSemana, semanaAnterior: mSemanaAnterior, mes: mMes, executivo: mExecutivo, geral: mGeral };
 
+    // Rejeição
     const formatRejection = (counts: Record<string, number>) => {
         return Object.entries(counts)
             .map(([label, value]) => ({ 
@@ -503,29 +476,34 @@ export function useDashboardData() {
             .sort((a, b) => b.value - a.value); 
     };
 
-    setRejectionData({
+    const rejectionData = {
         reasons: formatRejection(reasonCounts),
         sources: formatRejection(sourceCounts)
-    });
+    };
 
-    setContractsByPartner(Object.entries(partnerCounts)
+    // Parceiros
+    const contractsByPartner = Object.entries(partnerCounts)
         .map(([name, stats]: any) => ({ name, ...stats }))
-        .sort((a: any, b: any) => b.total - a.total));
-  };
+        .sort((a: any, b: any) => b.total - a.total);
+
+    return {
+      metrics,
+      funil,
+      evolucaoMensal,
+      financeiro12Meses,
+      statsFinanceiro,
+      propostas12Meses,
+      statsPropostas,
+      mediasFinanceiras,
+      mediasPropostas,
+      rejectionData,
+      contractsByPartner
+    };
+  }, [contracts, partners]); // <--- A MÁGICA: Só recalcula se contracts ou partners mudarem!
 
   return {
     loading,
-    metrics,
-    funil,
-    evolucaoMensal,
-    financeiro12Meses,
-    statsFinanceiro,
-    propostas12Meses,
-    statsPropostas,
-    mediasFinanceiras,
-    mediasPropostas,
-    rejectionData,
-    contractsByPartner,
-    refresh: fetchDashboardData
+    refresh: fetchDashboardData,
+    ...dashboardData
   };
 }
