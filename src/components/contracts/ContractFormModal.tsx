@@ -931,7 +931,10 @@ export function ContractFormModal(props: Props) {
     const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string, clause?: string) => {
       const totalValue = safeParseFloat(totalValueStr);
       if (totalValue <= 0) return;
-      const numInstallments = parseInt((installmentsStr || '1x').replace('x', '')) || 1;
+      // CORREÇÃO CRÍTICA: Forçar conversão para string e limpeza antes do parseInt para garantir numInstallments correto
+      const cleanInstallmentsStr = String(installmentsStr || '1x').replace(/[^0-9]/g, '');
+      const numInstallments = parseInt(cleanInstallmentsStr, 10) || 1;
+      
       const amountPerInstallment = totalValue / numInstallments;
       for (let i = 1; i <= numInstallments; i++) {
         installmentsToInsert.push({ 
@@ -1882,7 +1885,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                    {c.contracts?.client_name}
+                                                            {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
