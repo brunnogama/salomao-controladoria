@@ -7,10 +7,12 @@ import {
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
   ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // Importação adicionada
 import { useDashboardData } from '../hooks/useDashboardData';
 import { EmptyState } from '../components/ui/EmptyState';
 
 export function Dashboard() {
+  const navigate = useNavigate(); // Hook de navegação
   const {
     loading, metrics, funil, evolucaoMensal, financeiro12Meses, statsFinanceiro,
     propostas12Meses, statsPropostas, mediasFinanceiras, mediasPropostas,
@@ -56,6 +58,11 @@ export function Dashboard() {
     } finally {
         setExporting(false);
     }
+  };
+
+  // Função para navegação contextual (Drill-down)
+  const handleDrillDown = (status: string) => {
+    navigate('/contratos', { state: { status } });
   };
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
@@ -709,14 +716,16 @@ export function Dashboard() {
             <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
             <div className='flex items-center justify-between mb-6 border-b pb-4'><div className='flex items-center gap-2'><Camera className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Fotografia da Carteira Atual</h2><p className='text-xs text-gray-500'>Quantidade atual por status.</p></div></div>
             </div>
+            {/* --- CARDS CLICÁVEIS PARA DRILL-DOWN --- */}
             <div className='grid grid-cols-2 gap-4'>
-                <div className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div>
-                <div className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div>
-                <div className='bg-green-50 p-4 rounded-lg border border-green-100 text-center'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div>
-                <div className='bg-red-50 p-4 rounded-lg border border-red-100 text-center'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div>
-                <div className='bg-purple-50 p-4 rounded-lg border border-purple-100 text-center'><HeartHandshake className='mx-auto text-purple-600 mb-2' size={20} /><p className='text-2xl font-bold text-purple-800'>{metrics.geral.probono}</p><p className='text-xs text-purple-700 font-bold uppercase mt-1'>Probono</p></div>
-                <div className='bg-gray-50 p-4 rounded-lg border border-gray-200 text-center'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
+                <div onClick={() => handleDrillDown('analysis')} className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center cursor-pointer hover:shadow-md transition-all'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div>
+                <div onClick={() => handleDrillDown('proposal')} className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center cursor-pointer hover:shadow-md transition-all'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div>
+                <div onClick={() => handleDrillDown('active')} className='bg-green-50 p-4 rounded-lg border border-green-100 text-center cursor-pointer hover:shadow-md transition-all'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div>
+                <div onClick={() => handleDrillDown('rejected')} className='bg-red-50 p-4 rounded-lg border border-red-100 text-center cursor-pointer hover:shadow-md transition-all'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div>
+                <div onClick={() => handleDrillDown('probono')} className='bg-purple-50 p-4 rounded-lg border border-purple-100 text-center cursor-pointer hover:shadow-md transition-all'><HeartHandshake className='mx-auto text-purple-600 mb-2' size={20} /><p className='text-2xl font-bold text-purple-800'>{metrics.geral.probono}</p><p className='text-xs text-purple-700 font-bold uppercase mt-1'>Probono</p></div>
+                <div onClick={() => handleDrillDown('all')} className='bg-gray-50 p-4 rounded-lg border border-gray-200 text-center cursor-pointer hover:shadow-md transition-all'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
             </div>
+            {/* -------------------------------------- */}
             </div>
             <div className='lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between'>
                 <div>
@@ -817,7 +826,6 @@ export function Dashboard() {
                                     <span className="w-8 text-right text-gray-500">{item.rejected}</span>
                                 </div>
                             )}
-                            {/* --- CORREÇÃO: ADICIONADO O STATUS PROBONO --- */}
                             {item.probono > 0 && (
                                 <div className="flex items-center text-[10px]">
                                     <span className="w-16 text-purple-600 font-medium">Probono</span>
@@ -827,7 +835,6 @@ export function Dashboard() {
                                     <span className="w-8 text-right text-gray-500">{item.probono}</span>
                                 </div>
                             )}
-                            {/* --------------------------------------------- */}
                         </div>
                     </div>
                  ))}

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom'; // Importação do useLocation adicionada
 import { toast } from 'sonner'; 
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
@@ -15,7 +15,7 @@ import { ContractDetailsModal } from '../components/contracts/ContractDetailsMod
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { EmptyState } from '../components/ui/EmptyState'; // <--- Importação do EmptyState
+import { EmptyState } from '../components/ui/EmptyState';
 import { parseCurrency } from '../utils/masks';
 
 const getStatusColor = (status: string) => {
@@ -48,7 +48,7 @@ const formatMoney = (val: number | string | undefined) => {
 
 const calculateTotalSuccess = (c: Contract) => {
   let total = parseCurrency(c.final_success_fee);
-  
+   
   if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
     (c as any).final_success_extras.forEach((fee: string) => total += parseCurrency(fee));
   }
@@ -109,6 +109,7 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 
 export function Contracts() {
   const navigate = useNavigate();
+  const location = useLocation(); // Hook de localização para receber o estado
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -146,6 +147,15 @@ export function Contracts() {
   const [newIntermediateFee, setNewIntermediateFee] = useState('');
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Efeito para aplicar o filtro vindo da navegação (Drill-down)
+  useEffect(() => {
+    if (location.state && location.state.status) {
+      setStatusFilter(location.state.status);
+      // Opcional: Limpar o estado para não re-aplicar em navegações futuras indesejadas, 
+      // mas geralmente deixar no histórico é o comportamento esperado.
+    }
+  }, [location.state]);
 
   useEffect(() => {
     fetchData();
@@ -257,11 +267,11 @@ export function Contracts() {
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
-    
+     
     const toastId = toast.loading('Excluindo contrato...');
 
     const { error } = await supabase.from('contracts').delete().eq('id', deleteTargetId);
-    
+     
     if (!error) {
       toast.success('Contrato excluído com sucesso!', { id: toastId });
       setIsDetailsModalOpen(false);
@@ -359,7 +369,7 @@ export function Contracts() {
         matchesDate = false; 
       }
     }
-    
+     
     return matchesSearch && matchesStatus && matchesPartner && matchesDate;
   }).sort((a: Contract, b: Contract) => {
     if (sortBy === 'name') {
