@@ -924,18 +924,26 @@ export function ContractFormModal(props: Props) {
 
   const generateFinancialInstallments = async (contractId: string, sourceData = formData) => {
     if (sourceData.status !== 'active') return;
-    await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
+    const { error: deleteError } = await supabase.from('financial_installments').delete().eq('contract_id', contractId).eq('status', 'pending');
+    if (deleteError) console.error("Erro ao limpar parcelas pendentes:", deleteError);
     
     const installmentsToInsert: any[] = [];
     
     const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string, clause?: string) => {
       const totalValue = safeParseFloat(totalValueStr);
       if (totalValue <= 0) return;
-      // CORREÇÃO CRÍTICA: Forçar conversão para string e limpeza antes do parseInt para garantir numInstallments correto
-      const cleanInstallmentsStr = String(installmentsStr || '1x').replace(/[^0-9]/g, '');
-      const numInstallments = parseInt(cleanInstallmentsStr, 10) || 1;
       
-      const amountPerInstallment = totalValue / numInstallments;
+      // CORREÇÃO CRÍTICA: Forçar conversão robusta para string e limpeza antes do parseInt para garantir numInstallments correto
+      const cleanInstallmentsStr = String(installmentsStr || '1x').replace(/[^0-9]/g, '');
+      let numInstallments = parseInt(cleanInstallmentsStr, 10);
+      
+      // Fallback de segurança: se for NaN ou < 1, assume 1 parcela
+      if (isNaN(numInstallments) || numInstallments < 1) numInstallments = 1;
+      
+      const rawAmount = totalValue / numInstallments;
+      // Arredondar para 2 casas decimais para evitar erros de inserção no banco (ex: dízimas)
+      const amountPerInstallment = parseFloat(rawAmount.toFixed(2));
+
       for (let i = 1; i <= numInstallments; i++) {
         installmentsToInsert.push({ 
             contract_id: contractId, 
@@ -1007,7 +1015,10 @@ export function ContractFormModal(props: Props) {
         });
     }
 
-    if (installmentsToInsert.length > 0) await supabase.from('financial_installments').insert(installmentsToInsert);
+    if (installmentsToInsert.length > 0) {
+        const { error: insertError } = await supabase.from('financial_installments').insert(installmentsToInsert);
+        if (insertError) console.error("Erro ao gerar parcelas financeiras:", insertError);
+    }
   };
 
   const forceUpdateFinancials = async (contractId: string, sourceData = formData) => {
@@ -1885,7 +1896,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                            {c.contracts?.client_name}
+                                                                        {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
