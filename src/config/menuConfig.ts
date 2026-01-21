@@ -1,61 +1,25 @@
 import { 
   LayoutDashboard, 
+  FileText, 
   FileSignature, 
-  Users, 
-  Wallet, 
+  DollarSign, 
   BarChart3, 
-  Settings, 
-  FileText,
+  ShieldCheck, 
+  Users, 
+  KanbanSquare, 
   FolderOpen,
-  Share2 // Importar ícone para Jurimetria
+  Share2 // <--- Adicionado
 } from 'lucide-react';
 
 export const menuItems = [
-  {
-    icon: LayoutDashboard,
-    label: 'Dashboard',
-    path: '/'
-  },
-  {
-    icon: FileSignature,
-    label: 'Casos',
-    path: '/contracts'
-  },
-  {
-    icon: FileText,
-    label: 'Propostas',
-    path: '/proposals'
-  },
-  {
-    icon: Users,
-    label: 'Clientes',
-    path: '/clients'
-  },
-  {
-    icon: Wallet,
-    label: 'Financeiro',
-    path: '/finance'
-  },
-  {
-    icon: FolderOpen,
-    label: 'GED',
-    path: '/ged'
-  },
-  // --- NOVO ITEM ---
-  {
-    icon: Share2,
-    label: 'Jurimetria',
-    path: '/jurimetria'
-  },
-  // ----------------
-  {
-    icon: BarChart3,
-    label: 'Volumetria',
-    path: '/volumetry'
-  },
-  {
-    icon: Settings,
-    label: 'Configurações',
-    path: '/settings'
-  }
+  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+  { label: 'Contratos', path: '/contratos', icon: FileSignature },
+  { label: 'Propostas', path: '/propostas', icon: FileText },
+  { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
+  { label: 'Jurimetria', path: '/jurimetria', icon: Share2 }, // <--- Adicionado
+  { label: 'Volumetria', path: '/volumetria', icon: BarChart3 },
+  { label: 'Compliance', path: '/compliance', icon: ShieldCheck },
+  { label: 'Clientes', path: '/clientes', icon: Users },
+  { label: 'Kanban', path: '/kanban', icon: KanbanSquare },
+  { label: 'GED', path: '/ged', icon: FolderOpen },
 ];

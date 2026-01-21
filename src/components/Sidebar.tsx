@@ -12,7 +12,8 @@ import {
   FolderOpen,
   History,
   Settings,
-  LogOut 
+  LogOut,
+  Share2 // <--- IMPORTANTE: Importar o ícone aqui
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -21,12 +22,17 @@ export function Sidebar() {
   const [userName, setUserName] = useState('Carregando...');
   const [userRole, setUserRole] = useState('Administrador');
 
-  // Configuração exata do menu fornecida
+  // Configuração exata do menu
   const menuItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Casos', path: '/contratos', icon: FileSignature },
     { label: 'Propostas', path: '/propostas', icon: FileText },
     { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
+    
+    // --- NOVO ITEM ADICIONADO ---
+    { label: 'Jurimetria', path: '/jurimetria', icon: Share2 },
+    // ----------------------------
+
     { label: 'Volumetria', path: '/volumetria', icon: BarChart3 },
     { label: 'Compliance', path: '/compliance', icon: ShieldCheck },
     { label: 'Clientes', path: '/clientes', icon: Users },
