@@ -4,10 +4,31 @@ import { supabase } from '../lib/supabase';
 import { Contract, ContractProcess } from '../types';
 import { Loader2, Share2, Gavel, Scale, FileText, Filter, Maximize2, Minimize2 } from 'lucide-react';
 
+interface GraphNode {
+  id: string;
+  group: string;
+  label: string;
+  val: number;
+  fullData?: any;
+  role?: string;
+}
+
+interface GraphLink {
+  source: string;
+  target: string;
+  type: string;
+}
+
+interface GraphData {
+  nodes: GraphNode[];
+  links: GraphLink[];
+}
+
 export function Jurimetria() {
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  // Correção 1: Tipagem explícita para o estado do grafo
+  const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [dimensions, setDimensions] = useState({ w: 800, h: 600 });
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
@@ -57,8 +78,8 @@ export function Jurimetria() {
   };
 
   const processGraphData = (data: Contract[]) => {
-    const nodes: any[] = [];
-    const links: any[] = [];
+    const nodes: GraphNode[] = [];
+    const links: GraphLink[] = [];
     const nodeIds = new Set();
 
     // Helper para adicionar nó único
@@ -114,7 +135,12 @@ export function Jurimetria() {
 
   // --- Estatísticas Calculadas ---
   const stats = useMemo(() => {
-    const counts = { judges: {}, subjects: {}, courts: {} };
+    // Correção 2: Tipagem para o objeto de contagem (Record<string, number>)
+    const counts: { 
+      judges: Record<string, number>; 
+      subjects: Record<string, number>; 
+      courts: Record<string, number>; 
+    } = { judges: {}, subjects: {}, courts: {} };
     
     contracts.forEach(c => {
       if(c.processes) {
@@ -130,7 +156,7 @@ export function Jurimetria() {
       }
     });
 
-    const sortObj = (obj: any) => Object.entries(obj).sort(([,a]: any, [,b]: any) => b - a).slice(0, 5);
+    const sortObj = (obj: Record<string, number>) => Object.entries(obj).sort(([,a], [,b]) => b - a).slice(0, 5);
 
     return {
       topJudges: sortObj(counts.judges),
@@ -167,7 +193,7 @@ export function Jurimetria() {
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><Gavel className="w-4 h-4 text-salomao-gold" /> Top Magistrados</h3>
                 <div className="space-y-2">
-                    {stats.topJudges.map(([name, count]: any, i) => (
+                    {stats.topJudges.map(([name, count], i) => (
                         <div key={i} className="flex justify-between items-center text-sm">
                             <span className="text-gray-600 truncate flex-1" title={name}>{name}</span>
                             <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs font-bold">{count}</span>
@@ -180,7 +206,7 @@ export function Jurimetria() {
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><FileText className="w-4 h-4 text-blue-500" /> Assuntos Recorrentes</h3>
                 <div className="space-y-2">
-                    {stats.topSubjects.map(([name, count]: any, i) => (
+                    {stats.topSubjects.map(([name, count], i) => (
                         <div key={i} className="flex justify-between items-center text-sm">
                             <span className="text-gray-600 truncate flex-1" title={name}>{name}</span>
                             <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold">{count}</span>
@@ -193,7 +219,7 @@ export function Jurimetria() {
              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><Scale className="w-4 h-4 text-green-500" /> Tribunais / Varas</h3>
                 <div className="space-y-2">
-                    {stats.topCourts.map(([name, count]: any, i) => (
+                    {stats.topCourts.map(([name, count], i) => (
                         <div key={i} className="flex justify-between items-center text-sm">
                             <span className="text-gray-600 truncate flex-1" title={name}>{name}</span>
                             <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">{count}</span>
@@ -256,4 +282,3 @@ export function Jurimetria() {
     </div>
   );
 }
-
