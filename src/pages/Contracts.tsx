@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
-import { useNavigate, useLocation } from 'react-router-dom'; // Importação do useLocation adicionada
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner'; 
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
@@ -109,7 +109,7 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 
 export function Contracts() {
   const navigate = useNavigate();
-  const location = useLocation(); // Hook de localização para receber o estado
+  const location = useLocation();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -148,12 +148,9 @@ export function Contracts() {
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Efeito para aplicar o filtro vindo da navegação (Drill-down)
   useEffect(() => {
     if (location.state && location.state.status) {
       setStatusFilter(location.state.status);
-      // Opcional: Limpar o estado para não re-aplicar em navegações futuras indesejadas, 
-      // mas geralmente deixar no histórico é o comportamento esperado.
     }
   }, [location.state]);
 
@@ -249,7 +246,6 @@ export function Contracts() {
     setIsModalOpen(true);
   };
 
-  // --- DELETE MODAL HANDLERS ---
   const triggerDelete = (id: string) => {
     setDeleteTargetId(id);
     setIsConfirmModalOpen(true);
@@ -282,7 +278,6 @@ export function Contracts() {
       console.error(error);
     }
   };
-  // -----------------------------
 
   const handleSave = () => {
     fetchData();
@@ -343,7 +338,7 @@ export function Contracts() {
     const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.hon_number?.includes(searchTerm) ||
       c.cnpj?.includes(searchTerm) ||
-      (c as any).display_id?.includes(searchTerm);
+      c.display_id?.includes(searchTerm); // Removido 'as any'
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
 
@@ -385,11 +380,11 @@ export function Contracts() {
 
   const exportToExcel = () => {
     const data = filteredContracts.map(c => ({
-      'ID': (c as any).display_id,
+      'ID': c.display_id, // Removido 'as any'
       'Status': getStatusLabel(c.status),
       'Cliente': c.client_name,
       'CNPJ/CPF': c.cnpj || '-',
-      'Processos': (c as any).processes?.map((p: any) => p.process_number).join(', ') || '-',
+      'Processos': c.processes?.map((p) => p.process_number).join(', ') || '-', // Removido 'as any'
       'Sócio': c.partner_name,
       'Área': c.area,
       'UF': c.uf,
@@ -598,7 +593,6 @@ export function Contracts() {
       {loading ? (
         <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : filteredContracts.length === 0 ? (
-         // --- AQUI ENTRA O EMPTY STATE ---
          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
               <EmptyState
                 icon={FileSearch}
@@ -622,7 +616,7 @@ export function Contracts() {
                   <div key={contract.id} onClick={() => handleView(contract)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0 pr-8">
-                        <span className="text-xs text-gray-400 font-mono mb-1 block">{(contract as any).display_id}</span>
+                        <span className="text-xs text-gray-400 font-mono mb-1 block">{contract.display_id}</span>
                         <h3 className="font-bold text-gray-800 text-sm truncate" title={contract.client_name}>{contract.client_name}</h3>
                         <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mt-1 border ${getStatusColor(contract.status)}`}>
                           {getStatusLabel(contract.status)}
@@ -634,8 +628,8 @@ export function Contracts() {
                       <div className="flex items-center">
                         <Scale className="w-3.5 h-3.5 mr-2 text-gray-400" />
                         <span className="truncate">
-                          {(contract as any).processes && (contract as any).processes.length > 0
-                            ? (contract as any).processes.map((p: any) => p.process_number).join(', ')
+                          {contract.processes && contract.processes.length > 0
+                            ? contract.processes.map((p) => p.process_number).join(', ')
                             : 'Sem processos'}
                         </span>
                       </div>
@@ -691,12 +685,12 @@ export function Contracts() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredContracts.map(contract => (
                     <tr key={contract.id} onClick={() => handleView(contract)} className="hover:bg-gray-50 cursor-pointer group">
-                      <td className="p-3 font-mono text-gray-500">{(contract as any).display_id}</td>
+                      <td className="p-3 font-mono text-gray-500">{contract.display_id}</td>
                       <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getStatusColor(contract.status)}`}>{getStatusLabel(contract.status)}</span></td>
                       <td className="p-3 font-medium text-gray-800">{contract.client_name}</td>
-                      <td className="p-3 text-gray-600 max-w-[200px] truncate" title={(contract as any).processes?.map((p: any) => p.process_number).join(', ')}>
-                        {(contract as any).processes && (contract as any).processes.length > 0
-                          ? (contract as any).processes.map((p: any) => p.process_number).join(', ')
+                      <td className="p-3 text-gray-600 max-w-[200px] truncate" title={contract.processes?.map(p => p.process_number).join(', ')}>
+                        {contract.processes && contract.processes.length > 0
+                          ? contract.processes.map(p => p.process_number).join(', ')
                           : '-'}
                       </td>
                       <td className="p-3 text-gray-600">{contract.partner_name}</td>
@@ -731,7 +725,7 @@ export function Contracts() {
         onClose={() => setIsDetailsModalOpen(false)}
         contract={formData}
         onEdit={handleEdit}
-        onDelete={handleDelete} // Agora usa a função que abre o modal de confirmação
+        onDelete={handleDelete}
         processes={processes}
       />
 
