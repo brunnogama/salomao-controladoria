@@ -5,9 +5,10 @@ import {
   CalendarDays, CalendarRange, ArrowRight, Filter, BarChart3, Camera, FileSignature,
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
-  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle
+  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch // <--- Importado FileSearch para Empty State
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { EmptyState } from '../components/ui/EmptyState'; // <--- Importação do componente EmptyState
 
 export function Dashboard() {
   const {
@@ -597,8 +598,17 @@ export function Dashboard() {
                                 <span className='text-[10px] font-bold text-blue-800'>{formatMoney(mediasPropostas.pl)} / {formatMoney(mediasPropostas.exito)}</span>
                             </div>
                         </div>
-                        <div className='h-52 flex items-end justify-around gap-2 mb-4'>
-                            {propostas12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados de propostas</p>) : (propostas12Meses.map((item, index) => {
+                        <div className='h-52 flex items-end justify-around gap-2 mb-4 relative'>
+                            {propostas12Meses.length === 0 ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                                  <EmptyState 
+                                      icon={BarChart3} 
+                                      title="Sem dados de propostas" 
+                                      description="Ainda não há histórico suficiente para gerar o gráfico."
+                                      className="min-h-[150px]"
+                                  />
+                               </div>
+                            ) : (propostas12Meses.map((item, index) => {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
                                 <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
@@ -644,8 +654,17 @@ export function Dashboard() {
                                 <span className='text-[10px] font-bold text-green-800'>{formatMoney(mediasFinanceiras.pl)} / {formatMoney(mediasFinanceiras.exito)}</span>
                             </div>
                         </div>
-                        <div className='h-52 flex items-end justify-around gap-2 mb-4'>
-                            {financeiro12Meses.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados financeiros</p>) : (financeiro12Meses.map((item, index) => {
+                        <div className='h-52 flex items-end justify-around gap-2 mb-4 relative'>
+                            {financeiro12Meses.length === 0 ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                                  <EmptyState 
+                                      icon={BarChart3} 
+                                      title="Sem dados financeiros" 
+                                      description="Ainda não há histórico suficiente para gerar o gráfico."
+                                      className="min-h-[150px]"
+                                  />
+                               </div>
+                            ) : (financeiro12Meses.map((item, index) => {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
                                 <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
@@ -703,8 +722,17 @@ export function Dashboard() {
                 <div>
                     <h3 className='font-bold text-gray-800 mb-1 flex items-center gap-2'><BarChart3 className='text-[#0F2C4C]' size={20} /> Entrada de Casos (12 Meses)</h3>
                     <p className="text-xs text-gray-400 font-normal mb-4 ml-7">A partir de Junho de 2025</p>
-                    <div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100'>
-                        {evolucaoMensal.length === 0 ? (<p className='w-full text-center text-gray-400 self-center'>Sem dados</p>) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}
+                    <div className='h-64 flex items-end justify-around gap-2 pb-6 border-b border-gray-100 relative'>
+                        {evolucaoMensal.length === 0 ? (
+                           <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                              <EmptyState 
+                                  icon={BarChart3} 
+                                  title="Sem dados de evolução" 
+                                  description="Ainda não há histórico suficiente para gerar o gráfico de entrada."
+                                  className="min-h-[200px]" 
+                              />
+                           </div>
+                        ) : (evolucaoMensal.map((item, index) => (<div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group'><span className='text-xs font-bold text-blue-900 mb-1 opacity-100'>{item.qtd}</span><div className='relative w-full max-w-[40px] bg-blue-100 rounded-t-md hover:bg-blue-200 transition-all cursor-pointer' style={{ height: `${item.altura}%` }}></div><span className='text-xs text-gray-500 font-medium uppercase'>{item.mes}</span></div>)))}
                     </div>
                 </div>
                 
@@ -746,7 +774,7 @@ export function Dashboard() {
                  </div>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> 
-                 {contractsByPartner.length === 0 ? <p className="text-sm text-gray-400 col-span-3">Nenhum dado.</p> : contractsByPartner.map((item, idx) => (
+                 {contractsByPartner.length === 0 ? <p className="text-sm text-gray-400 col-span-3 text-center py-8">Nenhum dado de sócio disponível.</p> : contractsByPartner.map((item, idx) => (
                     <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                         <div className="flex justify-between items-center mb-3">
                             <span className="font-bold text-gray-800 text-sm truncate" title={item.name}>{item.name}</span>

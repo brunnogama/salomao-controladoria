@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { FolderOpen, FileText, Download, Search, HardDrive, Clock, FileCheck, Hash } from 'lucide-react';
 import { maskHon } from '../utils/masks';
+import { EmptyState } from '../components/ui/EmptyState'; // <--- Importação do componente
 
 interface GEDDocument {
   id: string;
@@ -210,10 +211,20 @@ export function GED() {
             {loading ? (
               <div className="text-center py-10 text-gray-400">Carregando documentos...</div>
             ) : filteredDocs.length === 0 ? (
-              <div className="text-center py-20 flex flex-col items-center">
-                <div className="bg-gray-50 p-4 rounded-full mb-4"><FolderOpen className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-gray-500">Nenhum arquivo encontrado nesta pasta.</p>
-              </div>
+               // --- INICIO DO EMPTY STATE ---
+               <EmptyState 
+                  icon={FolderOpen}
+                  title="Nenhum arquivo encontrado"
+                  description={
+                      searchTerm 
+                      ? "Não encontramos arquivos com este nome. Tente outra busca." 
+                      : selectedFolder 
+                        ? "Esta pasta está vazia." 
+                        : "O GED ainda não possui documentos. Adicione contratos para vê-los aqui."
+                  }
+                  className="h-full justify-center"
+               />
+               // --- FIM DO EMPTY STATE ---
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredDocs.map((doc) => (

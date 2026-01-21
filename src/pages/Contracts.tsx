@@ -3,21 +3,21 @@ import {
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase,
   CheckCircle2, Clock, Scale, Tag, Loader2,
   LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
-  FileSignature, ChevronDown, X
+  FileSignature, ChevronDown, X, FileSearch
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner'; // <--- Importar Toast
+import { toast } from 'sonner'; 
 import { Contract, Partner, ContractProcess, TimelineEvent, Analyst } from '../types';
 import { ContractFormModal } from '../components/contracts/ContractFormModal';
 import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
 import { PartnerManagerModal } from '../components/partners/PartnerManagerModal';
 import { AnalystManagerModal } from '../components/analysts/AnalystManagerModal';
-import { ConfirmModal } from '../components/ui/ConfirmModal'; // <--- Importar Modal de Confirmação
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { EmptyState } from '../components/ui/EmptyState'; // <--- Importação do EmptyState
 import { parseCurrency } from '../utils/masks';
 
-// ... (Mantenha as funções auxiliares getStatusColor, getStatusLabel, formatMoney, calculateTotalSuccess e FilterSelect IGUAIS ao código anterior para economizar espaço) ...
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200';
@@ -132,8 +132,8 @@ export function Contracts() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isAnalystModalOpen, setIsAnalystModalOpen] = useState(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // <--- Estado para Modal de Confirmação
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); // <--- ID do item a deletar
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const emptyContract: Contract = {
     cnpj: '', has_no_cnpj: false, client_name: '', client_position: 'Autor', area: '', uf: 'RJ', partner_id: '', has_legal_process: true,
@@ -258,7 +258,6 @@ export function Contracts() {
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
     
-    // Toast de carregamento
     const toastId = toast.loading('Excluindo contrato...');
 
     const { error } = await supabase.from('contracts').delete().eq('id', deleteTargetId);
@@ -588,6 +587,21 @@ export function Contracts() {
 
       {loading ? (
         <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
+      ) : filteredContracts.length === 0 ? (
+         // --- AQUI ENTRA O EMPTY STATE ---
+         <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <EmptyState
+                icon={FileSearch}
+                title="Nenhum caso encontrado"
+                description={
+                    searchTerm || statusFilter !== 'all' || partnerFilter !== '' || startDate !== '' || endDate !== '' 
+                    ? "Não encontramos nenhum contrato com os filtros atuais. Tente limpar a busca."
+                    : "Você ainda não possui casos cadastrados. Comece criando um novo."
+                }
+                actionLabel={searchTerm || statusFilter !== 'all' || partnerFilter !== '' || startDate !== '' || endDate !== '' ? "Limpar Filtros" : "Novo Caso"}
+                onAction={searchTerm || statusFilter !== 'all' || partnerFilter !== '' || startDate !== '' || endDate !== '' ? clearFilters : handleNew}
+              />
+         </div>
       ) : (
         <>
           {viewMode === 'grid' ? (

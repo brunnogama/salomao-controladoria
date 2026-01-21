@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Edit2 } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt } from 'lucide-react'; // <--- Importado Receipt
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
+import { EmptyState } from '../components/ui/EmptyState'; // <--- Importado EmptyState
 import * as XLSX from 'xlsx';
 
 export function Finance() {
@@ -136,6 +137,12 @@ export function Finance() {
     XLSX.utils.book_append_sheet(wb, ws, "Financeiro");
     XLSX.writeFile(wb, "Relatorio_Financeiro.xlsx");
   };
+  
+  const clearFilters = () => {
+      setSearchTerm('');
+      setSelectedPartner('');
+      setSelectedLocation('');
+  };
 
   const filteredInstallments = installments.filter(i => {
     const matchesSearch = i.contract?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -244,6 +251,22 @@ export function Finance() {
 
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
+      ) : filteredInstallments.length === 0 ? (
+          // --- EMPTY STATE ---
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-96">
+               <EmptyState
+                  icon={Receipt}
+                  title="Nenhum lançamento encontrado"
+                  description={
+                      searchTerm || selectedPartner || selectedLocation
+                      ? "Nenhum resultado para os filtros aplicados."
+                      : "Ainda não existem lançamentos financeiros cadastrados."
+                  }
+                  actionLabel={searchTerm || selectedPartner || selectedLocation ? "Limpar Filtros" : undefined}
+                  onAction={searchTerm || selectedPartner || selectedLocation ? clearFilters : undefined}
+                  className="h-full justify-center"
+               />
+          </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
