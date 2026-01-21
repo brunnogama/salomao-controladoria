@@ -1,18 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, ControllerRenderProps } from 'react-hook-form'; // Import type
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Edit, Trash2, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, AlertTriangle, Pencil, Gavel, Eye } from 'lucide-react';
-import { Contract, Partner, ContractProcess, ContractDocument, Analyst, Magistrate } from '../../types';
-import { maskCNPJ, maskMoney, maskHon, toTitleCase, formatForInput, safeParseFloat, ensureArray, localMaskCNJ, ensureDateValue } from '../../utils/masks';
+import { Plus, X, Save, Settings, Check, ChevronDown, Clock, Edit, Trash2, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, AlertTriangle, Pencil, Gavel, Eye } from 'lucide-react';
+import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
+import { maskCNPJ, maskMoney, maskHon, toTitleCase, parseCurrency, safeParseFloat, ensureArray, formatForInput, localMaskCNJ, ensureDateValue } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
 import { CustomSelect } from '../ui/CustomSelect';
 import { toast } from 'sonner';
 
-// --- SUB-COMPONENTES VISUAIS (Mantidos aqui para facilitar sua cópia) ---
+// --- SCHEMA & TYPES ---
+const contractSchema = z.object({
+  id: z.string().optional(),
+  status: z.enum(['analysis', 'proposal', 'active', 'rejected', 'probono']),
+  client_name: z.string().min(1, "Nome do Cliente é obrigatório"),
+  partner_id: z.string().min(1, "Sócio Responsável é obrigatório"),
+  
+  prospect_date: z.string().optional().nullable(),
+  proposal_date: z.string().optional().nullable(),
+  contract_date: z.string().optional().nullable(),
+  rejection_date: z.string().optional().nullable(),
+  probono_date: z.string().optional().nullable(),
 
+  hon_number: z.string().optional(),
+  billing_location: z.string().optional(),
+  physical_signature: z.any().optional(),
+
+  cnpj: z.string().optional(),
+  has_no_cnpj: z.boolean().optional(),
+  area: z.string().optional(),
+  uf: z.string().optional(),
+  client_id: z.string().optional(),
+  client_position: z.string().optional(),
+  analyst_id: z.string().optional(),
+  rejection_by: z.string().optional(),
+  rejection_reason: z.string().optional(),
+  
+  pro_labore: z.string().optional(),
+  final_success_fee: z.string().optional(),
+  fixed_monthly_fee: z.string().optional(),
+  other_fees: z.string().optional(),
+  
+  has_legal_process: z.boolean().optional(),
+  observations: z.string().optional(),
+  reference: z.string().optional(),
+  company_name: z.string().optional(),
+  timesheet: z.boolean().optional(),
+  
+  final_success_percent: z.string().optional(),
+  final_success_percent_clause: z.string().optional(),
+  
+  // Arrays
+  pro_labore_installments: z.any(), final_success_fee_installments: z.any(), fixed_monthly_fee_installments: z.any(), other_fees_installments: z.any(),
+  pro_labore_clause: z.any(), final_success_fee_clause: z.any(), fixed_monthly_fee_clause: z.any(), other_fees_clause: z.any(),
+});
+
+type ContractFormValues = z.infer<typeof contractSchema>;
+
+// --- SUB-COMPONENTES VISUAIS ---
 const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => (
     <div className="relative h-full w-full">
         <select className="w-full h-full appearance-none bg-transparent pl-3 pr-8 text-xs font-medium text-gray-700 outline-none cursor-pointer focus:bg-gray-50 transition-colors" value={value || '1x'} onChange={(e) => onChange(e.target.value)}>
@@ -63,54 +110,6 @@ const OptionManager = ({ title, options, onAdd, onRemove, onEdit, onClose, place
     );
 };
 
-// --- SCHEMA & TYPES ---
-const contractSchema = z.object({
-  id: z.string().optional(),
-  status: z.enum(['analysis', 'proposal', 'active', 'rejected', 'probono']),
-  client_name: z.string().min(1, "Nome do Cliente é obrigatório"),
-  partner_id: z.string().min(1, "Sócio Responsável é obrigatório"),
-  
-  prospect_date: z.string().optional().nullable(),
-  proposal_date: z.string().optional().nullable(),
-  contract_date: z.string().optional().nullable(),
-  rejection_date: z.string().optional().nullable(),
-  probono_date: z.string().optional().nullable(),
-
-  hon_number: z.string().optional(),
-  billing_location: z.string().optional(),
-  physical_signature: z.any().optional(),
-
-  cnpj: z.string().optional(),
-  has_no_cnpj: z.boolean().optional(),
-  area: z.string().optional(),
-  uf: z.string().optional(),
-  client_id: z.string().optional(),
-  client_position: z.string().optional(),
-  analyst_id: z.string().optional(),
-  rejection_by: z.string().optional(),
-  rejection_reason: z.string().optional(),
-  
-  pro_labore: z.string().optional(),
-  final_success_fee: z.string().optional(),
-  fixed_monthly_fee: z.string().optional(),
-  other_fees: z.string().optional(),
-  
-  has_legal_process: z.boolean().optional(),
-  observations: z.string().optional(),
-  reference: z.string().optional(),
-  company_name: z.string().optional(),
-  timesheet: z.boolean().optional(),
-  
-  final_success_percent: z.string().optional(),
-  final_success_percent_clause: z.string().optional(),
-  
-  // Arrays gerenciados via setFormData (bypass no RHF para evitar complexidade excessiva na migração)
-  pro_labore_installments: z.any(), final_success_fee_installments: z.any(), fixed_monthly_fee_installments: z.any(), other_fees_installments: z.any(),
-  pro_labore_clause: z.any(), final_success_fee_clause: z.any(), fixed_monthly_fee_clause: z.any(), other_fees_clause: z.any(),
-});
-
-type ContractFormValues = z.infer<typeof contractSchema>;
-
 // --- CONSTANTES ---
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 const DEFAULT_COURTS = ['STF', 'STJ', 'TST', 'TRF1', 'TRF2', 'TRF3', 'TRF4', 'TRF5', 'TJSP', 'TJRJ', 'TJMG', 'TJRS', 'TJPR', 'TJSC', 'TJBA', 'TJDFT', 'TRT1', 'TRT2', 'TRT15'];
@@ -120,10 +119,20 @@ const DEFAULT_POSITIONS = ['Autor', 'Réu', 'Terceiro Interessado', 'Exequente',
 const DEFAULT_VARAS = ['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais'];
 const DEFAULT_JUSTICES = ['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar'];
 
+const getThemeBackground = (status: string) => {
+  switch (status) {
+    case 'analysis': return 'bg-yellow-50';
+    case 'proposal': return 'bg-blue-50';
+    case 'active': return 'bg-green-50';
+    case 'rejected': return 'bg-red-50';
+    default: return 'bg-gray-50';
+  }
+};
+
 interface Props {
   isOpen: boolean; onClose: () => void; formData: Contract; setFormData: React.Dispatch<React.SetStateAction<Contract>>; onSave: () => void; loading: boolean; isEditing: boolean;
   partners: Partner[]; onOpenPartnerManager: () => void; analysts: Analyst[]; onOpenAnalystManager: () => void;
-  // Props de compatibilidade (não usadas diretamente aqui, mas mantidas para não quebrar o pai)
+  // Props de compatibilidade
   [key: string]: any;
 }
 
@@ -238,7 +247,6 @@ export function ContractFormModal(props: Props) {
   // --- ACTIONS ---
   const handleGenericAdd = async (value: string) => { 
       const cleanValue = toTitleCase(value.trim()); if(!cleanValue) return false; let error=null; 
-      // Configuração para evitar switch case gigante
       const config: any = {
           'area': { table: null, setter: setLegalAreas, field: 'area' },
           'client': { table: 'clients', setter: setClientOptions, field: 'client_name' },
@@ -328,11 +336,9 @@ export function ContractFormModal(props: Props) {
         const clientId = await upsertClient(); if (!clientId) throw new Error("Erro no cliente");
         const payload: any = { ...data, client_id: clientId, pro_labore: safeParseFloat(data.pro_labore), final_success_fee: safeParseFloat(data.final_success_fee), fixed_monthly_fee: safeParseFloat(data.fixed_monthly_fee), other_fees: safeParseFloat(data.other_fees) };
         
-        // Merge extras from state
         ['pro_labore', 'final_success', 'fixed_monthly', 'other_fees', 'intermediate_fees'].forEach(k => {
             if((formData as any)[k + '_extras']) payload[k + '_extras'] = (formData as any)[k + '_extras'];
             if((formData as any)[k + '_installments']) payload[k + '_installments'] = (formData as any)[k + '_installments'];
-            // ... add clause logic merge here if needed, keeping it simple for stability
         });
 
         let savedId = formData.id;
@@ -348,7 +354,6 @@ export function ContractFormModal(props: Props) {
     } catch(e: any) { toast.error(e.message); } finally { setLocalLoading(false); }
   };
 
-  // Render Helpers (simplified options for brevity)
   const clientOpts = clientOptions.map(c => ({ label: c, value: c }));
   const partnerOpts = partners.map(p => ({ label: p.name, value: p.id }));
   
@@ -365,7 +370,7 @@ export function ContractFormModal(props: Props) {
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
            {/* STATUS */}
            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-5">
-               <Controller name="status" control={control} render={({ field }) => ( <CustomSelect label="Status Atual *" value={field.value} onChange={(v) => { field.onChange(v); setFormData(p => ({...p, status: v as any})); }} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Novo Status" /> )} />
+               <Controller name="status" control={control} render={({ field }: { field: ControllerRenderProps<ContractFormValues, 'status'> }) => ( <CustomSelect label="Status Atual *" value={field.value} onChange={(v) => { field.onChange(v); setFormData(p => ({...p, status: v as any})); }} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Novo Status" /> )} />
                {watchedStatus && (
                    <div><label className="text-xs font-medium block mb-1">Data</label><input type="date" className="w-full border p-2.5 rounded-lg text-sm" {...register(watchedStatus === 'active' ? 'contract_date' : 'created_at')} /></div>
                )}
@@ -375,12 +380,12 @@ export function ContractFormModal(props: Props) {
            <section className="space-y-5">
                <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-2">Cliente</h3>
                <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                   <div className="md:col-span-9"><Controller name="client_name" control={control} render={({ field }) => ( <CustomSelect label="Nome do Cliente *" value={field.value} onChange={field.onChange} options={clientOpts} onAction={() => setActiveManager('client')} actionLabel="Gerenciar" actionIcon={Settings} /> )} /></div>
+                   <div className="md:col-span-9"><Controller name="client_name" control={control} render={({ field }: { field: ControllerRenderProps<ContractFormValues, 'client_name'> }) => ( <CustomSelect label="Nome do Cliente *" value={field.value} onChange={field.onChange} options={clientOpts} onAction={() => setActiveManager('client')} actionLabel="Gerenciar" actionIcon={Settings} /> )} /></div>
                    <div className="md:col-span-3"><label className="block text-xs font-medium mb-1">CNPJ</label><input type="text" {...register('cnpj')} className="w-full border p-2.5 rounded-lg text-sm" /></div>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                   <Controller name="area" control={control} render={({ field }) => ( <CustomSelect label="Área" value={field.value || ''} onChange={field.onChange} options={legalAreas.map(a => ({label:a, value:a}))} /> )} />
-                   <Controller name="partner_id" control={control} render={({ field }) => ( <CustomSelect label="Sócio *" value={field.value} onChange={field.onChange} options={partnerOpts} /> )} />
+                   <Controller name="area" control={control} render={({ field }: { field: ControllerRenderProps<ContractFormValues, 'area'> }) => ( <CustomSelect label="Área" value={field.value || ''} onChange={field.onChange} options={legalAreas.map(a => ({label:a, value:a}))} /> )} />
+                   <Controller name="partner_id" control={control} render={({ field }: { field: ControllerRenderProps<ContractFormValues, 'partner_id'> }) => ( <CustomSelect label="Sócio *" value={field.value} onChange={field.onChange} options={partnerOpts} /> )} />
                </div>
            </section>
 
@@ -404,8 +409,6 @@ export function ContractFormModal(props: Props) {
                        <FinancialInputWithInstallments label="Êxito Final" value={watch('final_success_fee')} onChangeValue={(v: string) => setValue('final_success_fee', v)} installments={watch('final_success_fee_installments')} onChangeInstallments={(v: string) => setValue('final_success_fee_installments', v)} onAdd={() => handleAddToList('final_success_extras', 'final_success_fee', 'final_success_installments', 'final_success_fee_installments')} clause={watch('final_success_fee_clause')} onChangeClause={(v: string) => setValue('final_success_fee_clause', v)} />
                        <FinancialInputWithInstallments label="Fixo Mensal" value={watch('fixed_monthly_fee')} onChangeValue={(v: string) => setValue('fixed_monthly_fee', v)} installments={watch('fixed_monthly_fee_installments')} onChangeInstallments={(v: string) => setValue('fixed_monthly_fee_installments', v)} onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee', 'fixed_monthly_installments', 'fixed_monthly_fee_installments')} clause={watch('fixed_monthly_fee_clause')} onChangeClause={(v: string) => setValue('fixed_monthly_fee_clause', v)} />
                    </div>
-                   {/* Lista de Extras Simplificada Visualmente */}
-                   <div className="space-y-1">{(formData as any).pro_labore_extras?.map((v: string, i: number) => <div key={i} className="text-xs bg-gray-50 p-1 flex justify-between"><span>Extra PL: {v}</span><button type="button" onClick={() => removeExtra('pro_labore_extras', i)}><X className="w-3 h-3" /></button></div>)}</div>
                </section>
            )}
         </div>
