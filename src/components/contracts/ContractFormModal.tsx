@@ -5,16 +5,118 @@ import * as z from 'zod';
 import { supabase } from '../../lib/supabase';
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, Edit, Trash2, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, AlertTriangle, Pencil, Gavel, Eye } from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
-import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency, safeParseFloat } from '../../utils/masks'; // Importado de masks
+import { maskCNPJ, maskMoney, maskHon, toTitleCase, parseCurrency, safeParseFloat } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
 import { CustomSelect } from '../ui/CustomSelect';
 import { toast } from 'sonner';
-import { contractSchema, ContractFormValues } from '../../schemas/contractSchema'; // Importe o Schema
 
-// --- COMPONENTES AUXILIARES (INLINE PARA GARANTIR FUNCIONAMENTO IMEDIATO) ---
+// --- SCHEMA ZOD ---
+const contractSchema = z.object({
+  id: z.string().optional(),
+  status: z.enum(['analysis', 'proposal', 'active', 'rejected', 'probono']),
+  client_name: z.string().min(1, "Nome do Cliente é obrigatório"),
+  partner_id: z.string().min(1, "Sócio Responsável é obrigatório"),
+  
+  prospect_date: z.string().optional().nullable(),
+  proposal_date: z.string().optional().nullable(),
+  contract_date: z.string().optional().nullable(),
+  rejection_date: z.string().optional().nullable(),
+  probono_date: z.string().optional().nullable(),
 
-// Minimal Select
+  hon_number: z.string().optional(),
+  billing_location: z.string().optional(),
+  physical_signature: z.any().optional(),
+
+  cnpj: z.string().optional(),
+  has_no_cnpj: z.boolean().optional(),
+  area: z.string().optional(),
+  uf: z.string().optional(),
+  client_id: z.string().optional(),
+  client_position: z.string().optional(),
+  analyst_id: z.string().optional(),
+  rejection_by: z.string().optional(),
+  rejection_reason: z.string().optional(),
+  
+  pro_labore: z.string().optional(),
+  final_success_fee: z.string().optional(),
+  fixed_monthly_fee: z.string().optional(),
+  other_fees: z.string().optional(),
+  
+  has_legal_process: z.boolean().optional(),
+  observations: z.string().optional(),
+  reference: z.string().optional(),
+  timesheet: z.boolean().optional(),
+  
+  final_success_percent: z.string().optional(),
+  final_success_percent_clause: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.status === 'analysis' && !data.prospect_date) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Data do Prospect é obrigatória", path: ['prospect_date'] });
+  }
+  if (data.status === 'proposal' && !data.proposal_date) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Data da Proposta é obrigatória", path: ['proposal_date'] });
+  }
+  if (data.status === 'active') {
+    if (!data.contract_date) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Data da Assinatura é obrigatória", path: ['contract_date'] });
+    if (!data.hon_number) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Número HON é obrigatório", path: ['hon_number'] });
+    if (!data.billing_location) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Local de Faturamento é obrigatório", path: ['billing_location'] });
+    if (data.physical_signature === undefined || data.physical_signature === null || data.physical_signature === '') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Informe sobre a Assinatura Física", path: ['physical_signature'] });
+    }
+  }
+});
+
+type ContractFormValues = z.infer<typeof contractSchema>;
+
+// --- HELPERS ---
+const ensureArray = (val: any): string[] => {
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('[')) {
+            try { return JSON.parse(trimmed); } catch { return []; }
+        }
+    }
+    return [];
+};
+
+const formatForInput = (val: string | number | undefined) => {
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'number') return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  if (typeof val === 'string' && !val.includes('R$') && !isNaN(parseFloat(val)) && val.trim() !== '') {
+      return parseFloat(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+  return val;
+};
+
+const ensureDateValue = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    return dateStr.split('T')[0];
+};
+
+const localMaskCNJ = (value: string) => {
+    const cleanValue = value.replace(/\D/g, '');
+    return cleanValue
+        .replace(/^(\d{7})(\d)/, '$1-$2')
+        .replace(/^(\d{7}-\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{7}-\d{2}\.\d{4})(\d)/, '$1.$2')
+        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d)(\d)/, '$1.$2')
+        .replace(/^(\d{7}-\d{2}\.\d{4}\.\d\.\d{2})(\d)/, '$1.$2')
+        .substring(0, 25);
+};
+
+const getThemeBackground = (status: string) => {
+  switch (status) {
+    case 'analysis': return 'bg-yellow-50';
+    case 'proposal': return 'bg-blue-50';
+    case 'active': return 'bg-green-50';
+    case 'rejected': return 'bg-red-50';
+    default: return 'bg-gray-50';
+  }
+};
+
+// --- SUB-COMPONENTES LOCAIS ---
 const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => (
     <div className="relative h-full w-full">
         <select className="w-full h-full appearance-none bg-transparent pl-3 pr-8 text-xs font-medium text-gray-700 outline-none cursor-pointer focus:bg-gray-50 transition-colors" value={value || '1x'} onChange={(e) => onChange(e.target.value)}>
@@ -24,7 +126,29 @@ const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: 
     </div>
 );
 
-// Option Manager Local
+const FinancialInputWithInstallments = ({ 
+  label, value, onChangeValue, installments, onChangeInstallments, onAdd, clause, onChangeClause
+}: any) => {
+  const installmentOptions = Array.from({ length: 24 }, (_, i) => `${i + 1}x`);
+  return (
+    <div>
+      <label className="text-xs font-medium block mb-1 text-gray-600">{label}</label>
+      <div className="flex rounded-lg shadow-sm">
+        {onChangeClause && (
+             <input type="text" className="w-14 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-gray-50 focus:border-salomao-blue outline-none border-r-0 placeholder-gray-400 text-center" value={clause || ''} onChange={(e) => onChangeClause(e.target.value)} placeholder="Cl." title="Cláusula (ex: 2.1)" />
+        )}
+        <input type="text" className={`flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0 ${!onChangeClause ? 'rounded-l-lg' : ''} ${!onAdd ? 'rounded-r-none border-r-0' : ''}`} value={value || ''} onChange={(e) => onChangeValue(maskMoney(e.target.value))} placeholder="R$ 0,00" />
+        <div className={`w-16 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}>
+           <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
+        </div>
+        {onAdd && (
+          <button onClick={onAdd} className="bg-salomao-blue text-white px-2 rounded-r-lg hover:bg-blue-900 transition-colors flex items-center justify-center border-l border-blue-800" type="button" title="Adicionar valor"><Plus className="w-4 h-4" /></button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const OptionManager = ({ title, options, onAdd, onRemove, onEdit, onClose, placeholder = "Digite o nome" }: any) => {
     const [inputValue, setInputValue] = useState('');
     const [loading, setLoading] = useState(false);
@@ -54,30 +178,6 @@ const OptionManager = ({ title, options, onAdd, onRemove, onEdit, onClose, place
     );
 };
 
-// Financial Input
-const FinancialInputWithInstallments = ({ label, value, onChangeValue, installments, onChangeInstallments, onAdd, clause, onChangeClause }: any) => {
-  const installmentOptions = Array.from({ length: 24 }, (_, i) => `${i + 1}x`);
-  return (
-    <div>
-      <label className="text-xs font-medium block mb-1 text-gray-600">{label}</label>
-      <div className="flex rounded-lg shadow-sm">
-        {onChangeClause && (<input type="text" className="w-14 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-gray-50 focus:border-salomao-blue outline-none border-r-0 placeholder-gray-400 text-center" value={clause || ''} onChange={(e) => onChangeClause(e.target.value)} placeholder="Cl." title="Cláusula (ex: 2.1)" />)}
-        <input type="text" className={`flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0 ${!onChangeClause ? 'rounded-l-lg' : ''} ${!onAdd ? 'rounded-r-none border-r-0' : ''}`} value={value || ''} onChange={(e) => onChangeValue(maskMoney(e.target.value))} placeholder="R$ 0,00" />
-        <div className={`w-16 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}><MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} /></div>
-        {onAdd && (<button onClick={onAdd} className="bg-salomao-blue text-white px-2 rounded-r-lg hover:bg-blue-900 transition-colors flex items-center justify-center border-l border-blue-800" type="button" title="Adicionar valor"><Plus className="w-4 h-4" /></button>)}
-      </div>
-    </div>
-  );
-};
-
-// --- PROPS ---
-interface Props {
-  isOpen: boolean; onClose: () => void; formData: Contract; setFormData: React.Dispatch<React.SetStateAction<Contract>>; onSave: () => void; loading: boolean; isEditing: boolean;
-  partners: Partner[]; onOpenPartnerManager: () => void; analysts: Analyst[]; onOpenAnalystManager: () => void;
-  // Removi props que podem ser calculadas localmente para simplificar
-  processes: ContractProcess[]; currentProcess: ContractProcess; setCurrentProcess: React.Dispatch<React.SetStateAction<ContractProcess>>; editingProcessIndex: number | null; handleProcessAction: () => void; editProcess: (idx: number) => void; removeProcess: (idx: number) => void; newIntermediateFee: string; setNewIntermediateFee: (v: string) => void; addIntermediateFee: () => void; removeIntermediateFee: (idx: number) => void; timelineData: TimelineEvent[]; getStatusColor: (s: string) => string; getStatusLabel: (s: string) => string;
-}
-
 // --- CONSTANTS ---
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 const DEFAULT_COURTS = ['STF', 'STJ', 'TST', 'TRF1', 'TRF2', 'TRF3', 'TRF4', 'TRF5', 'TJSP', 'TJRJ', 'TJMG', 'TJRS', 'TJPR', 'TJSC', 'TJBA', 'TJDFT', 'TRT1', 'TRT2', 'TRT15'];
@@ -87,18 +187,35 @@ const DEFAULT_POSITIONS = ['Autor', 'Réu', 'Terceiro Interessado', 'Exequente',
 const DEFAULT_VARAS = ['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais'];
 const DEFAULT_JUSTICES = ['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar'];
 
-const ensureArray = (val: any): string[] => { if (Array.isArray(val)) return val; if (typeof val === 'string') { try { return JSON.parse(val); } catch { return []; } } return []; };
-const getThemeBackground = (status: string) => { switch (status) { case 'analysis': return 'bg-yellow-50'; case 'proposal': return 'bg-blue-50'; case 'active': return 'bg-green-50'; case 'rejected': return 'bg-red-50'; default: return 'bg-gray-50'; } };
+// --- INTERFACES DE PROPS ---
+interface Props {
+  isOpen: boolean; onClose: () => void; formData: Contract; setFormData: React.Dispatch<React.SetStateAction<Contract>>; onSave: () => void; loading: boolean; isEditing: boolean;
+  partners: Partner[]; onOpenPartnerManager: () => void; analysts: Analyst[]; onOpenAnalystManager: () => void;
+  // Props extras para manter compatibilidade com o chamador
+  onCNPJSearch?: () => void; 
+  processes?: ContractProcess[]; 
+  currentProcess?: ContractProcess; 
+  setCurrentProcess?: any; 
+  editingProcessIndex?: number | null; 
+  handleProcessAction?: () => void; 
+  editProcess?: (idx: number) => void; 
+  removeProcess?: (idx: number) => void; 
+  newIntermediateFee?: string; 
+  setNewIntermediateFee?: (v: string) => void; 
+  addIntermediateFee?: () => void; 
+  removeIntermediateFee?: (idx: number) => void; 
+  timelineData?: TimelineEvent[]; 
+  getStatusColor?: (s: string) => string; 
+  getStatusLabel?: (s: string) => string;
+}
 
 export function ContractFormModal(props: Props) {
   const { 
     isOpen, onClose, formData, setFormData, onSave, loading: parentLoading, isEditing,
-    partners, onOpenPartnerManager, analysts, onOpenAnalystManager,
-    processes, currentProcess, setCurrentProcess, editingProcessIndex, handleProcessAction, editProcess, removeProcess,
-    newIntermediateFee, setNewIntermediateFee, addIntermediateFee, removeIntermediateFee
+    partners, onOpenPartnerManager, analysts, onOpenAnalystManager
   } = props;
 
-  // React Hook Form Setup
+  // React Hook Form
   const { register, handleSubmit, control, setValue, watch, reset, formState: { errors } } = useForm<ContractFormValues>({
     resolver: zodResolver(contractSchema),
     defaultValues: formData as any
@@ -106,27 +223,7 @@ export function ContractFormModal(props: Props) {
 
   const watchedStatus = watch('status');
 
-  // Sync Form State
-  useEffect(() => {
-    if (isOpen) {
-      reset(formData as any);
-      fetchStatuses();
-      fetchAuxiliaryTables();
-      if (formData.id) fetchDocuments();
-      setInitialFormData(JSON.parse(JSON.stringify(formData)));
-    } else {
-      setDocuments([]);
-      setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
-      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: '' })); 
-      setDuplicateClientCases([]);
-      setDuplicateOpponentCases([]);
-      setDuplicateProcessWarning(false);
-      setInitialFormData(null);
-      setActiveManager(null);
-    }
-  }, [isOpen, formData, reset]);
-
-  // Local States
+  // --- ESTADOS LOCAIS PARA UI COMPLEXA (MANTIDOS DO ORIGINAL) ---
   const [localLoading, setLocalLoading] = useState(false);
   const [documents, setDocuments] = useState<ContractDocument[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -143,6 +240,12 @@ export function ContractFormModal(props: Props) {
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
   const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
   const [duplicateProcessWarning, setDuplicateProcessWarning] = useState<boolean>(false);
+
+  // Estados de Processo Local
+  const [processes, setProcesses] = useState<ContractProcess[]>([]);
+  const [currentProcess, setCurrentProcess] = useState<ContractProcess>({ process_number: '', uf: '', position: '' });
+  const [editingProcessIndex, setEditingProcessIndex] = useState<number | null>(null);
+  const [newIntermediateFee, setNewIntermediateFee] = useState('');
 
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
@@ -166,7 +269,39 @@ export function ContractFormModal(props: Props) {
 
   const isLoading = parentLoading || localLoading;
 
-  // Effects and Logic
+  // --- EFFECTS ---
+  useEffect(() => {
+    if (isOpen) {
+      reset({ ...formData, 
+          pro_labore_installments: formData.pro_labore_installments || '1x',
+          final_success_fee_installments: formData.final_success_fee_installments || '1x',
+          fixed_monthly_fee_installments: formData.fixed_monthly_fee_installments || '1x',
+          other_fees_installments: formData.other_fees_installments || '1x',
+      } as any);
+      
+      fetchStatuses();
+      fetchAuxiliaryTables();
+      if (formData.id) {
+          fetchDocuments();
+          fetchProcesses();
+      } else {
+          setProcesses([]); // Resetar processos se for novo
+      }
+      setInitialFormData(JSON.parse(JSON.stringify(formData)));
+    } else {
+      setDocuments([]);
+      setProcesses([]);
+      setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
+      setCurrentProcess({ process_number: '', uf: '', position: '' });
+      setDuplicateClientCases([]);
+      setDuplicateOpponentCases([]);
+      setDuplicateProcessWarning(false);
+      setInitialFormData(null);
+      setActiveManager(null);
+    }
+  }, [isOpen, formData, reset]);
+
+  // Sync Duplicates
   useEffect(() => {
     const checkClientDuplicates = async () => {
         const clientName = watch('client_name');
@@ -177,19 +312,12 @@ export function ContractFormModal(props: Props) {
     const timer = setTimeout(checkClientDuplicates, 800); return () => clearTimeout(timer);
   }, [watch('client_name'), formData.id]);
 
-  useEffect(() => {
-    const checkOpponentDuplicates = async () => {
-        if (!currentProcess.opponent || currentProcess.opponent.length < 3) { setDuplicateOpponentCases([]); return; }
-        const { data } = await supabase.from('contract_processes').select('contract_id, contracts(id, client_name, hon_number)').ilike('opponent', `%${currentProcess.opponent}%`).limit(5);
-        if (data) {
-            const uniqueCases = data.reduce((acc: any[], current: any) => { const x = acc.find((item: any) => item.contracts?.id === current.contracts?.id); return (!x && current.contracts) ? acc.concat([current]) : acc; }, []);
-            setDuplicateOpponentCases(uniqueCases);
-        }
-    };
-    const timer = setTimeout(checkOpponentDuplicates, 800); return () => clearTimeout(timer);
-  }, [currentProcess.opponent]);
+  // Fetch Logic
+  const fetchProcesses = async () => {
+      const { data } = await supabase.from('contract_processes').select('*').eq('contract_id', formData.id);
+      if(data) setProcesses(data);
+  };
 
-  // Fetchers
   const fetchAuxiliaryTables = async () => {
     const { data: courts } = await supabase.from('courts').select('name').order('name');
     if (courts) setCourtOptions(Array.from(new Set([...DEFAULT_COURTS, ...courts.map(c => c.name)])).sort((a, b) => a.localeCompare(b)));
@@ -253,7 +381,7 @@ export function ContractFormModal(props: Props) {
     if (data) setDocuments(data);
   };
 
-  // Submit Logic
+  // --- SUBMIT PRINCIPAL ---
   const onFormSubmit = async (data: ContractFormValues) => {
     setLocalLoading(true);
     try {
@@ -391,7 +519,7 @@ export function ContractFormModal(props: Props) {
     }
   };
 
-  // Funções Auxiliares
+  // Funções Auxiliares de Lista Extra
   const handleAddToList = (listField: string, valueField: keyof Contract, installmentsListField?: string, installmentsSourceField?: keyof Contract) => {
     const value = watch(valueField as any);
     const clauseValue = watch((valueField + '_clause') as any);
@@ -429,29 +557,33 @@ export function ContractFormModal(props: Props) {
 
   const handleAddIntermediateFee = () => {
       if(!newIntermediateFee) return;
-      addIntermediateFee(); 
+      // addIntermediateFee(); // Removido pois vamos usar lógica local
+      setFormData((prev: any) => ({ ...prev, intermediate_fees: [...(prev.intermediate_fees || []), newIntermediateFee] }));
+      
       const currentClauses = ensureArray((formData as any).intermediate_fees_clauses);
       const currentInstallments = ensureArray((formData as any).intermediate_fees_installments);
       setFormData(prev => ({ ...prev, intermediate_fees_clauses: [...currentClauses, interimClause], intermediate_fees_installments: [...currentInstallments, interimInstallments] } as any));
-      setInterimClause(''); setInterimInstallments('1x');
+      setInterimClause(''); setInterimInstallments('1x'); setNewIntermediateFee('');
   };
     
   const handleRemoveIntermediateFee = (idx: number) => {
-      removeIntermediateFee(idx);
-      const currentClauses = [...ensureArray((formData as any).intermediate_fees_clauses)];
-      currentClauses.splice(idx, 1);
-      const currentInst = [...ensureArray((formData as any).intermediate_fees_installments)];
-      currentInst.splice(idx, 1);
+      // removeIntermediateFee(idx);
+      setFormData((prev: any) => ({ ...prev, intermediate_fees: prev.intermediate_fees?.filter((_: any, i: number) => i !== idx) }));
+      const currentClauses = [...ensureArray((formData as any).intermediate_fees_clauses)]; currentClauses.splice(idx, 1);
+      const currentInst = [...ensureArray((formData as any).intermediate_fees_installments)]; currentInst.splice(idx, 1);
       setFormData(prev => ({ ...prev, intermediate_fees_clauses: currentClauses, intermediate_fees_installments: currentInst } as any));
   };
 
+  // Funções de Gerenciamento Genérico e Lógica de Processos (MANTIDAS IGUAIS)
   const addMagistrate = (magistrateName = newMagistrateName) => { if (!magistrateName.trim()) return; const newMagistrate: Magistrate = { title: newMagistrateTitle, name: magistrateName }; setCurrentProcess(prev => ({ ...prev, magistrates: [...(prev.magistrates || []), newMagistrate] })); setNewMagistrateName(''); };
   const removeMagistrate = (index: number) => { setCurrentProcess(prev => { const newList = [...(prev.magistrates || [])]; newList.splice(index, 1); return { ...prev, magistrates: newList }; }); };
   const addSubjectToProcess = () => { if (!newSubject.trim()) return; const cleanSubject = toTitleCase(newSubject.trim()); const currentSubjects = currentProcess.subject ? currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== '') : []; if (!currentSubjects.includes(cleanSubject)) { const updatedSubjects = [...currentSubjects, cleanSubject]; setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') })); } setNewSubject(''); };
   const removeSubject = (subjectToRemove: string) => { if (!currentProcess.subject) return; const currentSubjects = currentProcess.subject.split(';').map(s => s.trim()).filter(s => s !== ''); const updatedSubjects = currentSubjects.filter(s => s !== subjectToRemove); setCurrentProcess(prev => ({ ...prev, subject: updatedSubjects.join('; ') })); };
   
-  const handleProcessAction = () => { if (!currentProcess.process_number) return; if (editingProcessIndex !== null) { const updated = [...processes]; updated[editingProcessIndex] = currentProcess; props.handleProcessAction(); } else { props.handleProcessAction(); } };
-  
+  const handleLocalProcessAction = () => { if (!currentProcess.process_number) return; if (editingProcessIndex !== null) { const updated = [...processes]; updated[editingProcessIndex] = currentProcess; setProcesses(updated); setEditingProcessIndex(null); } else { setProcesses([...processes, currentProcess]); } setCurrentProcess({ process_number: '', uf: '', position: '' }); };
+  const editLocalProcess = (idx: number) => { setCurrentProcess(processes[idx]); setEditingProcessIndex(idx); };
+  const removeLocalProcess = (idx: number) => { setProcesses(processes.filter((_, i) => i !== idx)); };
+
   const handleGenericAdd = async (value: string) => { 
       const cleanValue = toTitleCase(value.trim()); if(!cleanValue) return false; let error=null; 
       switch(activeManager) { 
@@ -641,18 +773,18 @@ export function ContractFormModal(props: Props) {
                             </div>
                         </div>
                         <div className="flex justify-end mt-4">
-                            <button type="button" onClick={handleProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 flex items-center justify-center shadow-md text-sm font-bold"><Plus className="w-4 h-4 mr-2" /> Adicionar Processo</button>
+                            <button type="button" onClick={handleLocalProcessAction} className="bg-salomao-blue text-white rounded px-4 py-2 hover:bg-blue-900 flex items-center justify-center shadow-md text-sm font-bold"><Plus className="w-4 h-4 mr-2" /> Adicionar Processo</button>
                         </div>
                     </div>
                     {/* Lista de Processos */}
                     {processes.length > 0 && (
                         <div className="space-y-2 mt-4">
                             {processes.map((p, idx) => (
-                                <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:border-blue-200 transition-colors group">
                                     <span className="font-mono font-medium text-salomao-blue">{p.process_number}</span>
                                     <div className="flex gap-2">
-                                        <button type="button" onClick={() => editProcess(idx)} className="text-blue-500"><Edit className="w-4 h-4" /></button>
-                                        <button type="button" onClick={() => removeProcess(idx)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
+                                        <button type="button" onClick={() => editLocalProcess(idx)} className="text-blue-500"><Edit className="w-4 h-4" /></button>
+                                        <button type="button" onClick={() => removeLocalProcess(idx)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
                                     </div>
                                 </div>
                             ))}
