@@ -366,7 +366,7 @@ export function Dashboard() {
             {/* Gráfico Semana */}
             <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 h-64"> 
                 <p className="text-sm font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
-                    <span>Comparativo Financeiro Visual (Semana Atual vs Anterior)</span>
+                    <span>Comparativo Financeiro (Semana Atual vs Anterior)</span>
                     <span className="text-gray-500 font-normal normal-case">Valores totais</span>
                 </p>
                 <div className="grid grid-cols-2 gap-8 h-48">
@@ -493,7 +493,7 @@ export function Dashboard() {
             {/* Gráfico Mês */}
             <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 h-64">
                 <p className="text-xs font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
-                    <span>Comparativo Financeiro Visual (Mês Atual vs Anterior)</span>
+                    <span>Comparativo Financeiro (Mês Atual vs Anterior)</span>
                     <span className="text-gray-500 font-normal normal-case">Valores totais</span>
                 </p>
                 <div className="grid grid-cols-2 gap-8 h-48">
