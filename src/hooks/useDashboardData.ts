@@ -106,18 +106,15 @@ export function useDashboardData() {
         });
       }
 
-      // --- CORREÇÃO AQUI: Lógica Unificada de Data de Entrada ---
       const statusDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date].filter(d => d && d !== '').map(d => new Date(d + 'T12:00:00'));
       let dataEntradaReal = null;
       if (statusDates.length > 0) dataEntradaReal = new Date(Math.min(...statusDates.map(d => d.getTime())));
       else dataEntradaReal = c.created_at ? new Date(c.created_at) : new Date();
-      // -----------------------------------------------------------
 
       const mesAnoEntrada = dataEntradaReal.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
       if (mapaMeses[mesAnoEntrada] !== undefined) mapaMeses[mesAnoEntrada]++;
       else { if (!mapaMeses[mesAnoEntrada]) mapaMeses[mesAnoEntrada] = 0; mapaMeses[mesAnoEntrada]++; }
 
-      // --- CORREÇÃO AQUI: Executivo agora usa dataEntradaReal ---
       const isEntradaCurrentMonth = dataEntradaReal.getMonth() === hoje.getMonth() && dataEntradaReal.getFullYear() === hoje.getFullYear();
       let lastMonth = hoje.getMonth() - 1;
       let lastYear = hoje.getFullYear();
@@ -126,7 +123,6 @@ export function useDashboardData() {
 
       if (isEntradaCurrentMonth) mExecutivo.mesAtual.novos++;
       if (isEntradaLastMonth) mExecutivo.mesAnterior.novos++;
-      // -----------------------------------------------------------
 
       if (c.proposal_date) {
          if (isDateInCurrentMonth(c.proposal_date)) { mExecutivo.mesAtual.propQtd++; mExecutivo.mesAtual.propPL += pl; mExecutivo.mesAtual.propExito += exito; mExecutivo.mesAtual.propMensal += mensal; }
@@ -210,16 +206,18 @@ export function useDashboardData() {
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) mMes.rejected++;
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) mMes.probono++;
 
-      const contractDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date];
-      if (contractDates.some(date => isDateInCurrentWeek(date))) mSemana.totalUnico++;
-      if (contractDates.some(date => isDateInCurrentMonth(date))) mMes.totalUnico++;
-
       fTotal++;
       const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
       if (chegouEmProposta) fQualificados++;
       if (c.status === 'active') fFechados++;
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
     });
+
+    // --- CÁLCULO ATUALIZADO DO TOTAL ÚNICO (SOMA DAS ATIVIDADES) ---
+    // Agora o total reflete a soma exata dos cards do dashboard, garantindo consistência visual.
+    mSemana.totalUnico = mSemana.novos + mSemana.propQtd + mSemana.fechQtd + mSemana.rejeitados + mSemana.probono;
+    mMes.totalUnico = mMes.analysis + mMes.propQtd + mMes.fechQtd + mMes.rejected + mMes.probono;
+    // ---------------------------------------------------------------
 
     const finArray = Object.entries(financeiroMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
