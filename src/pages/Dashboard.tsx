@@ -5,7 +5,7 @@ import {
   CalendarDays, CalendarRange, ArrowRight, Filter, BarChart3, Camera, FileSignature,
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
-  ArrowUpRight, GitCommit
+  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 
