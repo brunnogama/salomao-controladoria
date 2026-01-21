@@ -23,7 +23,7 @@ export function ContractStatusSection({
   onOpenAnalystManager,
   handleCreateStatus
 }: Props) {
-  const { control, watch, formState: { errors }, register } = useFormContext<ContractFormValues>();
+  const { control, watch, formState: { errors }, register, setValue } = useFormContext<ContractFormValues>();
   const watchedStatus = watch('status');
 
   return (
@@ -81,8 +81,36 @@ export function ContractStatusSection({
           </div>
         </div>
       )}
+      
+      {watchedStatus === 'rejected' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 animate-in fade-in slide-in-from-top-2">
+            <div>
+                <Controller name="analyst_id" control={control} render={({ field }) => (
+                    <CustomSelect label="Analisado por" value={field.value || ''} onChange={field.onChange} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
+                )} />
+            </div>
+            <div>
+                <Controller name="rejection_by" control={control} render={({ field }) => (
+                    <CustomSelect label="Quem rejeitou" value={field.value || ''} onChange={field.onChange} options={rejectionByOptions} />
+                )} />
+            </div>
+            <div>
+                <Controller name="rejection_reason" control={control} render={({ field }) => (
+                    <CustomSelect label="Motivo da Rejeição" value={field.value || ''} onChange={field.onChange} options={rejectionReasonOptions} />
+                )} />
+            </div>
+        </div>
+      )}
 
-      {/* Outros blocos condicionais (rejected, probono) omitidos para brevidade, mas seguem o mesmo padrão */}
+      {watchedStatus === 'probono' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
+            <div>
+                <Controller name="partner_id" control={control} render={({ field }) => (
+                    <CustomSelect label="Enviado Por" value={field.value || ''} onChange={field.onChange} options={partnerSelectOptions} />
+                )} />
+            </div>
+        </div>
+      )}
     </div>
   );
 }
