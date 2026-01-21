@@ -5,10 +5,10 @@ import {
   CalendarDays, CalendarRange, ArrowRight, Filter, BarChart3, Camera, FileSignature,
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
-  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch // <--- Importado FileSearch para Empty State
+  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch
 } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { EmptyState } from '../components/ui/EmptyState'; // <--- Importação do componente EmptyState
+import { EmptyState } from '../components/ui/EmptyState';
 
 export function Dashboard() {
   const {
@@ -817,6 +817,17 @@ export function Dashboard() {
                                     <span className="w-8 text-right text-gray-500">{item.rejected}</span>
                                 </div>
                             )}
+                            {/* --- CORREÇÃO: ADICIONADO O STATUS PROBONO --- */}
+                            {item.probono > 0 && (
+                                <div className="flex items-center text-[10px]">
+                                    <span className="w-16 text-purple-600 font-medium">Probono</span>
+                                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
+                                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(item.probono / item.total) * 100}%` }}></div>
+                                    </div>
+                                    <span className="w-8 text-right text-gray-500">{item.probono}</span>
+                                </div>
+                            )}
+                            {/* --------------------------------------------- */}
                         </div>
                     </div>
                  ))}
