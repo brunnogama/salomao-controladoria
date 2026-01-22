@@ -81,7 +81,7 @@ export function ContractFormModal(props: Props) {
       if (!formData.other_fees_installments) setFormData(prev => ({...prev, other_fees_installments: '1x'}));
 
       // Define "Selecione" como padrão se a posição estiver vazia ao abrir
-      setCurrentProcess(prev => ({ ...prev, position: prev.position || 'Selecione' }));
+      setCurrentProcess(prev => ({ ...prev, position: prev.position || '' }));
 
     } else {
       setDocuments([]);
@@ -91,7 +91,7 @@ export function ContractFormModal(props: Props) {
       setIsStandardCNJ(true);
       setOtherProcessType('');
       // Reseta a posição para "Selecione"
-      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: 'Selecione' })); 
+      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: '' })); 
       setNewSubject('');
       setDuplicateClientCases([]);
       setDuplicateOpponentCases([]);
