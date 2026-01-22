@@ -7,11 +7,15 @@ import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
 import { CustomSelect } from '../ui/CustomSelect';
 
-// Componentes Modularizados
+// Componentes Modularizados Existentes
 import { OptionManager } from './components/OptionManager';
 import { FinancialInputWithInstallments } from './components/FinancialInputWithInstallments';
 import { ContractDocuments } from './components/ContractDocuments';
 import { ProcessDetailsModal } from './components/ProcessDetailsModal';
+
+// Novos Componentes Modularizados (Serão criados a seguir)
+import { StatusAndDatesSection } from './components/StatusAndDatesSection';
+import { ClientFormSection } from './components/ClientFormSection';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
@@ -24,7 +28,7 @@ const DEFAULT_POSITIONS = ['Autor', 'Réu', 'Terceiro Interessado', 'Exequente',
 const DEFAULT_VARAS = ['Cível', 'Criminal', 'Família', 'Trabalho', 'Fazenda Pública', 'Juizado Especial', 'Execuções Fiscais'];
 const DEFAULT_JUSTICES = ['Estadual', 'Federal', 'Trabalho', 'Eleitoral', 'Militar'];
 
-const formatForInput = (val: string | number | undefined) => {
+export const formatForInput = (val: string | number | undefined) => {
   if (val === undefined || val === null) return '';
   if (typeof val === 'number') return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   if (typeof val === 'string' && !val.includes('R$') && !isNaN(parseFloat(val)) && val.trim() !== '') {
@@ -33,7 +37,7 @@ const formatForInput = (val: string | number | undefined) => {
   return val;
 };
 
-const ensureDateValue = (dateStr?: string | null) => {
+export const ensureDateValue = (dateStr?: string | null) => {
     if (!dateStr) return '';
     return dateStr.split('T')[0];
 };
@@ -62,7 +66,7 @@ const safeParseFloat = (value: string | number | undefined | null): number => {
 };
 
 // HELPER ESSENCIAL: Garante que o valor seja um array, mesmo que venha como string JSON do banco
-const ensureArray = (val: any): string[] => {
+export const ensureArray = (val: any): string[] => {
     if (Array.isArray(val)) return val;
     if (typeof val === 'string') {
         const trimmed = val.trim();
@@ -1351,328 +1355,51 @@ export function ContractFormModal(props: Props) {
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
             
-           <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50 mb-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                 <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
-                 {/* Campo de Data Movido para o lado do Status */}
-                 {formData.status && (
-                    <div className="animate-in fade-in slide-in-from-left-2">
-                        <label className="text-xs font-medium block mb-1">
-                             {formData.status === 'analysis' ? 'Data do Prospect' :
-                              formData.status === 'proposal' ? 'Data da Proposta' :
-                              formData.status === 'active' ? 'Data da Assinatura' :
-                              formData.status === 'rejected' ? 'Data da Rejeição' :
-                              formData.status === 'probono' ? 'Data Probono' : 'Data do Status'}
-                        </label>
-                        <input 
-                            type="date" 
-                            className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
-                            value={ensureDateValue(
-                                formData.status === 'analysis' ? formData.prospect_date :
-                                formData.status === 'proposal' ? formData.proposal_date :
-                                formData.status === 'active' ? formData.contract_date :
-                                formData.status === 'rejected' ? formData.rejection_date :
-                                formData.status === 'probono' ? formData.probono_date : ''
-                            )} 
-                            onChange={e => {
-                                const val = e.target.value;
-                                if(formData.status === 'analysis') setFormData({...formData, prospect_date: val});
-                                else if(formData.status === 'proposal') setFormData({...formData, proposal_date: val});
-                                else if(formData.status === 'active') setFormData({...formData, contract_date: val});
-                                else if(formData.status === 'rejected') setFormData({...formData, rejection_date: val});
-                                else if(formData.status === 'probono') setFormData({...formData, probono_date: val});
-                            }} 
-                        />
-                    </div>
-                 )}
-             </div>
+           {/* Componente Modularizado de Status, Datas e Financeiro */}
+           <StatusAndDatesSection
+             formData={formData}
+             setFormData={setFormData}
+             statusOptions={statusOptions}
+             handleCreateStatus={handleCreateStatus}
+             ensureDateValue={ensureDateValue}
+             analystSelectOptions={analystSelectOptions}
+             onOpenAnalystManager={onOpenAnalystManager}
+             rejectionByOptions={rejectionByOptions}
+             rejectionReasonOptions={rejectionReasonOptions}
+             partnerSelectOptions={partnerSelectOptions}
+             billingOptions={billingOptions}
+             maskHon={maskHon}
+             setActiveManager={setActiveManager}
+             signatureOptions={signatureOptions}
+             formatForInput={formatForInput}
+             handleAddToList={handleAddToList}
+             removeExtra={removeExtra}
+             newIntermediateFee={newIntermediateFee}
+             setNewIntermediateFee={setNewIntermediateFee}
+             interimInstallments={interimInstallments}
+             setInterimInstallments={setInterimInstallments}
+             handleAddIntermediateFee={handleAddIntermediateFee}
+             interimClause={interimClause}
+             setInterimClause={setInterimClause}
+             handleRemoveIntermediateFee={handleRemoveIntermediateFee}
+             ensureArray={ensureArray}
+           />
 
-             {/* BLOCOS ESPECÍFICOS DE CADA STATUS (MOVIDOS PARA CÁ) */}
-             {formData.status === 'analysis' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
-                    {/* Data removida daqui */}
-                    <div>
-                        <CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
-                    </div>
-                </div>
-             )}
-
-             {formData.status === 'rejected' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 animate-in fade-in slide-in-from-top-2">
-                    {/* Data removida daqui */}
-                    <div>
-                        <CustomSelect label="Analisado por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
-                    </div>
-                    <div>
-                        <CustomSelect label="Quem rejeitou" value={formData.rejection_by || ''} onChange={(val: string) => setFormData({...formData, rejection_by: val})} options={rejectionByOptions} />
-                    </div>
-                    <div>
-                        <CustomSelect label="Motivo da Rejeição" value={formData.rejection_reason || ''} onChange={(val: string) => setFormData({...formData, rejection_reason: val})} options={rejectionReasonOptions} />
-                    </div>
-                </div>
-             )}
-
-             {formData.status === 'probono' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
-                    {/* Data removida daqui */}
-                    <div>
-                        <CustomSelect label="Enviado Por" value={formData.partner_id || ''} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} />
-                    </div>
-                </div>
-             )}
-
-             {(formData.status === 'proposal' || formData.status === 'active') && (
-              <div className="space-y-6 animate-in slide-in-from-top-2 pt-4 border-t border-gray-100">
-                
-                {/* BLOCO HON MOVIDO PARA CÁ (TOPO DA SEÇÃO DE VALORES) */}
-                {formData.status === 'active' && (
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4 animate-in fade-in">
-                        <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
-                        <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Gerenciar Locais" actionIcon={Settings} /></div>
-                        <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
-                    </div>
-                )}
-
-                {/* Linha 2: Pró-Labore | Outros Honorários | Fixo Mensal */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
-                    {/* Pró-Labore */}
-                    <div>
-                      <FinancialInputWithInstallments 
-                        label="Pró-Labore (R$)" 
-                        value={formatForInput(formData.pro_labore)} 
-                        onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
-                        installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
-                        onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore', 'pro_labore_extras_installments', 'pro_labore_installments')}
-                        clause={(formData as any).pro_labore_clause}
-                        onChangeClause={(v: any) => setFormData({...formData, pro_labore_clause: v} as any)}
-                      />
-                      <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
-                        {(formData as any).pro_labore_extras?.map((val: string, idx: number) => {
-                           const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
-                           const installments = ensureArray((formData as any).pro_labore_extras_installments);
-                           return (
-                              <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                  <div className="flex items-center gap-1">
-                                      {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
-                                      <span className="font-medium">{val}</span>
-                                      {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
-                                  </div>
-                                  <button onClick={() => removeExtra('pro_labore_extras', idx, 'pro_labore_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
-                              </div>
-                           );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Outros Honorários */}
-                    <div>
-                        <FinancialInputWithInstallments 
-                          label="Outros Honorários (R$)" 
-                          value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
-                          installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
-                          onAdd={() => handleAddToList('other_fees_extras', 'other_fees', 'other_fees_extras_installments', 'other_fees_installments')}
-                          clause={(formData as any).other_fees_clause}
-                          onChangeClause={(v: any) => setFormData({...formData, other_fees_clause: v} as any)}
-                        />
-                        <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
-                            {(formData as any).other_fees_extras?.map((val: string, idx: number) => {
-                               const clauses = ensureArray((formData as any).other_fees_extras_clauses);
-                               const installments = ensureArray((formData as any).other_fees_extras_installments);
-                               return (
-                                  <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                      <div className="flex items-center gap-1">
-                                          {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
-                                          <span className="font-medium">{val}</span>
-                                          {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
-                                      </div>
-                                      <button onClick={() => removeExtra('other_fees_extras', idx, 'other_fees_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
-                                  </div>
-                               );
-                            })}
-                          </div>
-                    </div>
-
-                    {/* Fixo Mensal */}
-                    <div>
-                        <FinancialInputWithInstallments 
-                          label="Fixo Mensal (R$)" 
-                          value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
-                          installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
-                          onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee', 'fixed_monthly_extras_installments', 'fixed_monthly_fee_installments')}
-                          clause={(formData as any).fixed_monthly_fee_clause}
-                          onChangeClause={(v: any) => setFormData({...formData, fixed_monthly_fee_clause: v} as any)}
-                        />
-                        <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
-                            {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => {
-                               const clauses = ensureArray((formData as any).fixed_monthly_extras_clauses);
-                               const installments = ensureArray((formData as any).fixed_monthly_extras_installments);
-                               return (
-                                  <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                      <div className="flex items-center gap-1">
-                                          {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
-                                          <span className="font-medium">{val}</span>
-                                          {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
-                                      </div>
-                                      <button onClick={() => removeExtra('fixed_monthly_extras', idx, 'fixed_monthly_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
-                                  </div>
-                               );
-                            })}
-                          </div>
-                    </div>
-                </div>
-
-                {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
-                    {/* Êxito Intermediário */}
-                    <div>
-                      <FinancialInputWithInstallments 
-                        label="Êxito Intermediário" 
-                        value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
-                        installments={interimInstallments} onChangeInstallments={setInterimInstallments}
-                        onAdd={handleAddIntermediateFee}
-                        clause={interimClause}
-                        onChangeClause={setInterimClause}
-                      />
-                      <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
-                        {formData.intermediate_fees?.map((fee, idx) => {
-                          const clauses = ensureArray((formData as any).intermediate_fees_clauses);
-                          const installments = ensureArray((formData as any).intermediate_fees_installments);
-                          return (
-                              <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                  <div className="flex items-center gap-1">
-                                      {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
-                                      <span className="font-medium">{fee}</span>
-                                      {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
-                                  </div>
-                                  <button onClick={() => handleRemoveIntermediateFee(idx)} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
-                              </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Êxito Final */}
-                    <div>
-                      <FinancialInputWithInstallments 
-                        label="Êxito Final (R$)" 
-                        value={formatForInput(formData.final_success_fee)} 
-                        onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
-                        installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
-                        onAdd={() => handleAddToList('final_success_extras', 'final_success_fee', 'final_success_extras_installments', 'final_success_fee_installments')}
-                        clause={(formData as any).final_success_fee_clause}
-                        onChangeClause={(v: any) => setFormData({...formData, final_success_fee_clause: v} as any)}
-                      />
-                      <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
-                        {(formData as any).final_success_extras?.map((val: string, idx: number) => {
-                           const clauses = ensureArray((formData as any).final_success_extras_clauses);
-                           const installments = ensureArray((formData as any).final_success_extras_installments);
-                           return (
-                              <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                  <div className="flex items-center gap-1">
-                                      {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
-                                      <span className="font-medium">{val}</span>
-                                      {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
-                                  </div>
-                                  <button onClick={() => removeExtra('final_success_extras', idx, 'final_success_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
-                              </div>
-                           );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Êxito % */}
-                    <div>
-                        <label className="text-xs font-medium block mb-1">Êxito %</label>
-                        <div className="flex rounded-lg shadow-sm">
-                          <input 
-                            type="text" 
-                            className="w-14 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-gray-50 focus:border-salomao-blue outline-none border-r-0 placeholder-gray-400 text-center"
-                            value={(formData as any).final_success_percent_clause || ''} 
-                            onChange={(e) => setFormData({...formData, final_success_percent_clause: e.target.value} as any)}
-                            placeholder="Cl."
-                            title="Cláusula (ex: 2.1)"
-                          />
-                          <input type="text" className="flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
-                          <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
-                        </div>
-                        <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
-                            {(formData as any).percent_extras?.map((val: string, idx: number) => {
-                               const clauses = ensureArray((formData as any).percent_extras_clauses);
-                               return (
-                                  <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
-                                      <div className="flex items-center gap-1">
-                                          {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
-                                          <span className="font-medium">{val}</span>
-                                      </div>
-                                      <button onClick={() => removeExtra('percent_extras', idx)} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
-                                  </div>
-                               );
-                            })}
-                          </div>
-                    </div>
-                </div>
-                  
-                {/* Linha 4: Timesheet */}
-                <div>
-                      <label className="text-xs font-medium block mb-1">Timesheet</label>
-                      <div className="flex items-center h-[42px] border border-gray-300 rounded-lg px-3 bg-white">
-                        <input
-                            type="checkbox"
-                            id="timesheet_check"
-                            checked={(formData as any).timesheet || false}
-                            onChange={(e) => setFormData({...formData, timesheet: e.target.checked} as any)}
-                            className="w-4 h-4 text-salomao-blue rounded focus:ring-salomao-blue"
-                        />
-                        <label htmlFor="timesheet_check" className="ml-2 text-sm text-gray-700">Utilizar Timesheet</label>
-                      </div>
-                </div>
-              </div>
-             )}
-           </div>
-
-          <section className="space-y-5">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b border-black/5 pb-2">Dados do Cliente</h3>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-              <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
-                <div className="flex gap-2 items-center">
-                  <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
-                  <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
-                </div>
-                <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
-              </div>
-              <div className="md:col-span-9">
-                <CustomSelect 
-                    label="Nome do Cliente *" 
-                    value={formData.client_name} 
-                    onChange={handleClientChange} 
-                    options={clientSelectOptions}
-                    onAction={() => setActiveManager('client')}
-                    actionIcon={Settings}
-                    actionLabel="Gerenciar Clientes"
-                    placeholder="Selecione ou digite o nome"
-                />
-                {duplicateClientCases.length > 0 && (
-                    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex flex-col gap-1">
-                        <span className="text-xs text-blue-700 font-bold flex items-center">
-                            <AlertCircle className="w-3 h-3 mr-1" /> Já há casos para este cliente:
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                            {duplicateClientCases.map(c => (
-                                <a key={c.id} href={`/contracts/${c.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline bg-white px-2 py-0.5 rounded border border-blue-100 flex items-center">
-                                    <LinkIcon className="w-2.5 h-2.5 mr-1"/> {c.hon_number || 'Sem HON'} ({getStatusLabel(c.status)})
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setActiveManager('area')} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
-              <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
-            </div>
-          </section>
+          {/* Componente Modularizado de Dados do Cliente */}
+          <ClientFormSection
+             formData={formData}
+             setFormData={setFormData}
+             maskCNPJ={maskCNPJ}
+             handleCNPJSearch={handleCNPJSearch}
+             clientSelectOptions={clientSelectOptions}
+             handleClientChange={handleClientChange}
+             setActiveManager={setActiveManager}
+             duplicateClientCases={duplicateClientCases}
+             getStatusLabel={getStatusLabel}
+             areaOptions={areaOptions}
+             partnerSelectOptions={partnerSelectOptions}
+             onOpenPartnerManager={onOpenPartnerManager}
+          />
 
           {/* SESSÃO DE PROCESSOS (UI RICA DO SEGUNDO CODIGO) */}
           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30">
@@ -1822,7 +1549,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                                {c.contracts?.client_name}
+                                                    {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
