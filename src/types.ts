@@ -76,7 +76,6 @@ export interface Contract {
   cases?: ContractCase[];
   responsavel_socio?: string;
   
-  // --- CAMPO ADICIONADO PARA CORRIGIR O ERRO ---
   processes?: ContractProcess[]; 
 }
 
@@ -116,6 +115,7 @@ export interface Analyst {
 
 export interface ContractProcess {
   id?: string;
+  created_at?: string; // Adicionado para corrigir o erro de build
   contract_id?: string;
   process_number: string;
   court?: string; 
