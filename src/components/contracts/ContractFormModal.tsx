@@ -136,13 +136,14 @@ export function ContractFormModal(props: Props) {
   // EFEITO: Auto-preenchimento de CNPJ do Autor
   useEffect(() => {
     const fetchAuthorCNPJ = async () => {
-        if (!currentProcess.author || currentProcess.author.length < 3) return;
-        const { data } = await supabase.from('authors').select('cnpj').eq('name', currentProcess.author).single();
+        const authorName = (currentProcess as any).author;
+        if (!authorName || authorName.length < 3) return;
+        const { data } = await supabase.from('authors').select('cnpj').eq('name', authorName).single();
         if (data && data.cnpj) setCurrentProcess(prev => ({ ...prev, author_cnpj: maskCNPJ(data.cnpj) }));
     };
     const timer = setTimeout(fetchAuthorCNPJ, 800);
     return () => clearTimeout(timer);
-  }, [currentProcess.author]);
+  }, [(currentProcess as any).author]);
 
   // EFEITO: Auto-preenchimento de CNPJ do Contrário
   useEffect(() => {
