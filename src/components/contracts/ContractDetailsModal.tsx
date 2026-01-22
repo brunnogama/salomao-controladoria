@@ -185,7 +185,9 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
           </div>
           
           <div className="flex gap-2 items-start">
-            <span className="text-gray-300 font-mono text-xs mt-3 mr-2">#{(contract as any).id}</span>
+            <span className="text-gray-300 font-mono text-xs mt-3 mr-2">
+                #{String((contract as any).id).padStart(6, '0')}
+            </span>
             <button onClick={onEdit} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Editar">
               <Edit className="w-5 h-5" />
             </button>
