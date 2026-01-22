@@ -319,16 +319,23 @@ export function ContractFormModal(props: Props) {
             if (processes.length > 0) {
                 await supabase.from('contract_processes').delete().eq('contract_id', savedId);
                 const processesToInsert = processes.map(p => { 
-                    const { id, created_at, author_cnpj, opponent_cnpj, ...rest } = p as any; 
+                    const { 
+                        id, 
+                        created_at, 
+                        author_cnpj, 
+                        opponent_cnpj, 
+                        cause_value, // Extrai cause_value para removê-lo do objeto enviado
+                        ...rest 
+                    } = p as any; 
+                    
                     return { 
                         ...rest, 
                         contract_id: savedId,
-                        // Garantir que campos numéricos sejam salvos como números e não strings formatadas
-                        value_of_cause: rest.value_of_cause ? safeParseFloat(rest.value_of_cause) : 0
+                        // Mapeia cause_value (string com R$) para value_of_cause (number no banco)
+                        value_of_cause: cause_value ? safeParseFloat(cause_value) : 0
                     }; 
                 });
                 
-                // Tratamento de erro explícito no INSERT dos processos
                 const { error: processError } = await supabase.from('contract_processes').insert(processesToInsert);
                 if (processError) throw processError;
             }
