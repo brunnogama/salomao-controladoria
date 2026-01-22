@@ -318,7 +318,10 @@ export function ContractFormModal(props: Props) {
             await generateFinancialInstallments(savedId, formData);
             if (processes.length > 0) {
                 await supabase.from('contract_processes').delete().eq('contract_id', savedId);
-                const processesToInsert = processes.map(p => { const { id, created_at, ...rest } = p; return { ...rest, contract_id: savedId }; });
+                const processesToInsert = processes.map(p => { 
+                    const { id, created_at, author_cnpj, opponent_cnpj, ...rest } = p as any; 
+                    return { ...rest, contract_id: savedId }; 
+                });
                 await supabase.from('contract_processes').insert(processesToInsert);
             }
             if (formData.status === 'active' && formData.physical_signature === false) {
