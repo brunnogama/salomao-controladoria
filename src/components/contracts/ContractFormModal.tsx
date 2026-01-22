@@ -80,6 +80,9 @@ export function ContractFormModal(props: Props) {
       if (!formData.fixed_monthly_fee_installments) setFormData(prev => ({...prev, fixed_monthly_fee_installments: '1x'}));
       if (!formData.other_fees_installments) setFormData(prev => ({...prev, other_fees_installments: '1x'}));
 
+      // Define "Selecione" como padrão se a posição estiver vazia ao abrir
+      setCurrentProcess(prev => ({ ...prev, position: prev.position || 'Selecione' }));
+
     } else {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
@@ -87,7 +90,8 @@ export function ContractFormModal(props: Props) {
       setInterimClause('');
       setIsStandardCNJ(true);
       setOtherProcessType('');
-      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: '' })); 
+      // Reseta a posição para "Selecione"
+      setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: 'Selecione' })); 
       setNewSubject('');
       setDuplicateClientCases([]);
       setDuplicateOpponentCases([]);

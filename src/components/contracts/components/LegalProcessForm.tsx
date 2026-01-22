@@ -246,12 +246,12 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
             {/* Contrário */}
             <div className="md:col-span-4">
                 <CustomSelect 
-                    label="Contrário (Parte Oposta) *" 
+                    label="Contrário" 
                     value={currentProcess.opponent || formData.company_name || ''} 
                     onChange={(val: string) => setCurrentProcess({...currentProcess, opponent: val})} 
                     options={opponentOptions.map(o => ({ label: o, value: o }))}
                     onAction={() => setActiveManager('opponent')}
-                    actionLabel="Gerenciar Parte Oposta"
+                    actionLabel="Gerenciar Contrário"
                     actionIcon={Settings}
                     placeholder="Selecione ou adicione"
                 />
