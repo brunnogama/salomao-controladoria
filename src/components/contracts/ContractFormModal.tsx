@@ -1,3 +1,4 @@
+src/components/contracts/ContractFormModal.tsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye, AlertTriangle, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
@@ -1191,9 +1192,9 @@ export function ContractFormModal(props: Props) {
         const name = toTitleCase(data.razao_social || data.nome_fantasia || '');
 
         if (type === 'author') {
-             setCurrentProcess(prev => ({ ...prev, author: name } as any));
+              setCurrentProcess(prev => ({ ...prev, author: name } as any));
         } else {
-             setCurrentProcess(prev => ({ ...prev, opponent: name }));
+              setCurrentProcess(prev => ({ ...prev, opponent: name }));
         }
     } catch (error: any) {
         alert(`Erro ao buscar CNPJ: ${error.message}`);
@@ -1654,7 +1655,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                            {c.contracts?.client_name}
+                                                    {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
@@ -1732,7 +1733,6 @@ export function ContractFormModal(props: Props) {
                             options={comarcaSelectOptions} 
                             onAction={() => setActiveManager('comarca')}
                             actionLabel="Gerenciar Comarcas"
-                            actionIcon={Settings}
                             actionIcon={Settings}
                             placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
                             disabled={!currentProcess.uf}
