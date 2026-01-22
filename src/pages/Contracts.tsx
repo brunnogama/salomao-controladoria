@@ -3,7 +3,7 @@ import {
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase,
   CheckCircle2, Clock, Scale, Tag, Loader2,
   LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
-  FileSignature, ChevronDown, X, FileSearch
+  FileSignature, ChevronDown, X, FileSearch, Paperclip
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -173,7 +173,7 @@ export function Contracts() {
   const fetchData = async () => {
     setLoading(true);
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
-      supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*)`).order('created_at', { ascending: false }),
+      supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*), documents:contract_documents(id)`).order('created_at', { ascending: false }),
       supabase.from('partners').select('*').eq('active', true).order('name'),
       supabase.from('analysts').select('*').eq('active', true).order('name')
     ]);
@@ -263,11 +263,11 @@ export function Contracts() {
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
-     
+      
     const toastId = toast.loading('Excluindo contrato...');
 
     const { error } = await supabase.from('contracts').delete().eq('id', deleteTargetId);
-     
+      
     if (!error) {
       toast.success('Contrato excluído com sucesso!', { id: toastId });
       setIsDetailsModalOpen(false);
@@ -364,7 +364,7 @@ export function Contracts() {
         matchesDate = false; 
       }
     }
-     
+      
     return matchesSearch && matchesStatus && matchesPartner && matchesDate;
   }).sort((a: Contract, b: Contract) => {
     if (sortBy === 'name') {
@@ -679,6 +679,7 @@ export function Contracts() {
                     <th className="p-3">Sócio</th>
                     <th className="p-3">HON</th>
                     <th className="p-3 text-right">Data Relevante</th>
+                    <th className="p-3 text-center">Arquivo</th>
                     <th className="p-3 text-right">Ações</th>
                   </tr>
                 </thead>
@@ -696,6 +697,13 @@ export function Contracts() {
                       <td className="p-3 text-gray-600">{contract.partner_name}</td>
                       <td className="p-3 font-mono text-gray-500">{contract.hon_number || '-'}</td>
                       <td className="p-3 text-right text-gray-500">{new Date(getRelevantDate(contract) || '').toLocaleDateString()}</td>
+                      <td className="p-3 text-center">
+                        {(contract as any).documents?.length > 0 && (
+                          <div className="flex justify-center">
+                            <Paperclip className="w-4 h-4 text-gray-500" />
+                          </div>
+                        )}
+                      </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
                           <button onClick={(e) => { e.stopPropagation(); handleView(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
