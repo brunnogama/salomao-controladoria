@@ -10,6 +10,8 @@ import { CustomSelect } from '../ui/CustomSelect';
 // Componentes Modularizados
 import { OptionManager } from './components/OptionManager';
 import { FinancialInputWithInstallments } from './components/FinancialInputWithInstallments';
+import { ContractDocuments } from './components/ContractDocuments';
+import { ProcessDetailsModal } from './components/ProcessDetailsModal';
 
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
@@ -1752,7 +1754,7 @@ export function ContractFormModal(props: Props) {
                                       className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
                                       title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
                                   >
-                                                      {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                                  {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                   </button>
                               </div>
                             )}
@@ -1820,7 +1822,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                                    {c.contracts?.client_name}
+                                                                {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
@@ -2009,10 +2011,17 @@ export function ContractFormModal(props: Props) {
                     </div>
                 )}
 
-                <div className="mb-8 mt-6">
-                    <div className="flex items-center justify-between mb-4"><label className="text-xs font-bold text-gray-500 uppercase flex items-center"><FileText className="w-4 h-4 mr-2" />Arquivos & Documentos</label>{!isEditing ? (<span className="text-xs text-orange-500 flex items-center"><AlertCircle className="w-3 h-3 mr-1" /> Salve o caso para anexar arquivos</span>) : (<label className="cursor-pointer bg-white border border-dashed border-salomao-blue text-salomao-blue px-4 py-2 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors flex items-center">{uploading ? 'Enviando...' : <><Upload className="w-3 h-3 mr-2" /> Anexar PDF</>}<input type="file" accept="application/pdf" className="hidden" disabled={uploading} onChange={(e) => handleFileUpload(e, formData.status === 'active' ? 'contract' : 'proposal')} /></label>)}</div>
-                    {documents.length > 0 ? (<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{documents.map((doc) => (<div key={doc.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 group"><div className="flex items-center overflow-hidden"><div className="bg-red-100 p-2 rounded text-red-600 mr-3"><FileText className="w-4 h-4" /></div><div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700 truncate" title={doc.file_name}>{doc.file_name}</p><div className="flex items-center text-[10px] text-gray-400 mt-0.5"><span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>{doc.hon_number_ref && (<span className="ml-2 bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-200">HON: {maskHon(doc.hon_number_ref)}</span>)}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => handleDownload(doc.file_path)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><Download className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id, doc.file_path)} className="p-1.5 text-red-600 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4" /></button></div></div>))}</div>) : (isEditing && <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-lg text-xs text-gray-400">Nenhum arquivo anexado.</div>)}
-                </div>
+                {/* Componente Modularizado de Documentos */}
+                <ContractDocuments 
+                    documents={documents} 
+                    isEditing={isEditing} 
+                    uploading={uploading} 
+                    status={formData.status} 
+                    onUpload={handleFileUpload} 
+                    onDownload={handleDownload} 
+                    onDelete={handleDeleteDocument} 
+                />
+
               </>
             )}
 
@@ -2072,120 +2081,17 @@ export function ContractFormModal(props: Props) {
          />
        )}
        
-      {/* Modal de Visualização Detalhada do Processo */}
-      {viewProcess && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
-                <div className="bg-salomao-blue text-white p-6 flex justify-between items-center shrink-0">
-                    <div>
-                        <h3 className="text-lg font-bold">Detalhes do Processo</h3>
-                        <p className="text-xs text-blue-200 mt-1 font-mono">{viewProcess.process_number}</p>
-                    </div>
-                    <button onClick={() => setViewProcess(null)} className="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
-                </div>
-                
-                <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tribunal</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.court || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Estado (UF)</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.uf || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Vara</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.vara || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Comarca</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.comarca || '-'}</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                        <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Magistrados</span>
-                        {viewProcess.magistrates && viewProcess.magistrates.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {viewProcess.magistrates.map((m, idx) => (
-                                    <span key={idx} className="inline-flex items-center px-2 py-1 rounded bg-white border border-gray-200 text-xs text-gray-700">
-                                        <Gavel size={10} className="mr-1 text-gray-400" />
-                                        <span className="font-semibold mr-1">{m.title}:</span> {m.name}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <span className="text-sm text-gray-500 italic">Nenhum magistrado cadastrado.</span>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Parte Oposta</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.opponent || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Posição</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.position || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Tipo de Ação</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.action_type || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Data Distribuição</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.distribution_date ? new Date(viewProcess.distribution_date).toLocaleDateString('pt-BR') : '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Justiça</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.justice_type || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Instância</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.instance || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Classe</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.process_class || '-'}</span>
-                        </div>
-                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                            <span className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Assunto</span>
-                            <span className="text-sm font-medium text-gray-800">{viewProcess.subject || '-'}</span>
-                        </div>
-                    </div>
-
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
-                        <span className="text-xs uppercase font-bold text-blue-600">Valor da Causa</span>
-                        <span className="text-lg font-bold text-blue-900">{viewProcess.cause_value || 'R$ 0,00'}</span>
-                    </div>
-                </div>
-                
-                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                    <button 
-                        onClick={() => setViewProcess(null)} 
-                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                        Fechar
-                    </button>
-                    <button 
-                        onClick={() => {
-                            if (viewProcessIndex !== null) {
-                                setViewProcess(null); // Fecha o modal de visualização
-                                editProcess(viewProcessIndex); // Abre o modo de edição do formulário
-                            }
-                        }} 
-                        className="px-4 py-2 bg-salomao-blue text-white rounded-lg text-sm font-medium hover:bg-blue-900 transition-colors flex items-center"
-                    >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Editar
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
+      {/* Componente Modularizado de Detalhes do Processo */}
+      <ProcessDetailsModal 
+        process={viewProcess} 
+        onClose={() => setViewProcess(null)} 
+        onEdit={() => {
+            if (viewProcessIndex !== null) {
+                setViewProcess(null);
+                editProcess(viewProcessIndex);
+            }
+        }} 
+      />
     </div>
   );
 }
