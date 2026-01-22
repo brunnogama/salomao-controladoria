@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, X, Settings } from 'lucide-react';
-import { Contract } from '../../../../types';
-import { CustomSelect } from '../../../ui/CustomSelect';
+import { Contract } from '../../../types'; // Caminho corrigido
+import { CustomSelect } from '../../ui/CustomSelect'; // Caminho corrigido
 import { FinancialInputWithInstallments } from './FinancialInputWithInstallments';
 
 interface StatusAndDatesSectionProps {
@@ -20,7 +20,8 @@ interface StatusAndDatesSectionProps {
   setActiveManager: (manager: string) => void;
   signatureOptions: { label: string; value: string }[];
   formatForInput: (val: string | number | undefined) => string | number;
-  handleAddToList: (listField: string, valueField: keyof Contract, installmentsListField?: string, installmentsSourceField?: keyof Contract) => void;
+  // Alterado para 'any' para evitar conflito estrito de tipagem com o pai durante o build
+  handleAddToList: (listField: string, valueField: any, installmentsListField?: string, installmentsSourceField?: any) => void;
   removeExtra: (field: string, index: number, installmentsListField?: string) => void;
   newIntermediateFee: string;
   setNewIntermediateFee: (v: string) => void;
@@ -42,6 +43,12 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     newIntermediateFee, setNewIntermediateFee, interimInstallments, setInterimInstallments,
     handleAddIntermediateFee, interimClause, setInterimClause, handleRemoveIntermediateFee, ensureArray
   } = props;
+
+  // Helper para garantir string no input financeiro
+  const safeString = (val: string | number | undefined) => {
+      if (val === undefined || val === null) return '';
+      return String(val);
+  };
 
   return (
     <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50 mb-6">
@@ -83,7 +90,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       {/* BLOCOS ESPECÍFICOS DE CADA STATUS (MOVIDOS PARA CÁ) */}
       {formData.status === 'analysis' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
-            {/* Data removida daqui */}
             <div>
                 <CustomSelect label="Analisado Por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
             </div>
@@ -92,7 +98,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
 
       {formData.status === 'rejected' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 animate-in fade-in slide-in-from-top-2">
-            {/* Data removida daqui */}
             <div>
                 <CustomSelect label="Analisado por" value={formData.analyst_id || ''} onChange={(val: string) => setFormData({...formData, analyst_id: val})} options={analystSelectOptions} onAction={onOpenAnalystManager} actionIcon={Settings} actionLabel="Gerenciar Analistas" />
             </div>
@@ -107,7 +112,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
 
       {formData.status === 'probono' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
-            {/* Data removida daqui */}
             <div>
                 <CustomSelect label="Enviado Por" value={formData.partner_id || ''} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} />
             </div>
@@ -117,7 +121,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       {(formData.status === 'proposal' || formData.status === 'active') && (
       <div className="space-y-6 animate-in slide-in-from-top-2 pt-4 border-t border-gray-100">
         
-        {/* BLOCO HON MOVIDO PARA CÁ (TOPO DA SEÇÃO DE VALORES) */}
         {formData.status === 'active' && (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4 animate-in fade-in">
                 <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
@@ -132,7 +135,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             <div>
               <FinancialInputWithInstallments 
                 label="Pró-Labore (R$)" 
-                value={formatForInput(formData.pro_labore)} 
+                value={safeString(formatForInput(formData.pro_labore))} 
                 onChangeValue={(v: any) => setFormData({...formData, pro_labore: v})}
                 installments={formData.pro_labore_installments} onChangeInstallments={(v: any) => setFormData({...formData, pro_labore_installments: v})}
                 onAdd={() => handleAddToList('pro_labore_extras', 'pro_labore', 'pro_labore_extras_installments', 'pro_labore_installments')}
@@ -161,7 +164,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             <div>
                 <FinancialInputWithInstallments 
                   label="Outros Honorários (R$)" 
-                  value={formatForInput(formData.other_fees)} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
+                  value={safeString(formatForInput(formData.other_fees))} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
                   installments={formData.other_fees_installments} onChangeInstallments={(v: any) => setFormData({...formData, other_fees_installments: v})}
                   onAdd={() => handleAddToList('other_fees_extras', 'other_fees', 'other_fees_extras_installments', 'other_fees_installments')}
                   clause={(formData as any).other_fees_clause}
@@ -189,7 +192,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             <div>
                 <FinancialInputWithInstallments 
                   label="Fixo Mensal (R$)" 
-                  value={formatForInput(formData.fixed_monthly_fee)} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
+                  value={safeString(formatForInput(formData.fixed_monthly_fee))} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
                   installments={formData.fixed_monthly_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, fixed_monthly_fee_installments: v})}
                   onAdd={() => handleAddToList('fixed_monthly_extras', 'fixed_monthly_fee', 'fixed_monthly_extras_installments', 'fixed_monthly_fee_installments')}
                   clause={(formData as any).fixed_monthly_fee_clause}
@@ -227,7 +230,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                 onChangeClause={setInterimClause}
               />
               <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
-                {formData.intermediate_fees?.map((fee, idx) => {
+                {formData.intermediate_fees?.map((fee: string, idx: number) => {
                   const clauses = ensureArray((formData as any).intermediate_fees_clauses);
                   const installments = ensureArray((formData as any).intermediate_fees_installments);
                   return (
@@ -248,7 +251,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             <div>
               <FinancialInputWithInstallments 
                 label="Êxito Final (R$)" 
-                value={formatForInput(formData.final_success_fee)} 
+                value={safeString(formatForInput(formData.final_success_fee))} 
                 onChangeValue={(v: any) => setFormData({...formData, final_success_fee: v})}
                 installments={formData.final_success_fee_installments} onChangeInstallments={(v: any) => setFormData({...formData, final_success_fee_installments: v})}
                 onAdd={() => handleAddToList('final_success_extras', 'final_success_fee', 'final_success_extras_installments', 'final_success_fee_installments')}

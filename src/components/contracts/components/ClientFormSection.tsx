@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Settings, AlertCircle, Link as LinkIcon } from 'lucide-react';
-import { Contract } from '../../../../types';
-import { CustomSelect } from '../../../ui/CustomSelect';
+import { Contract } from '../../../types'; // Caminho corrigido
+import { CustomSelect } from '../../ui/CustomSelect'; // Caminho corrigido
 
 interface ClientFormSectionProps {
   formData: Contract;
