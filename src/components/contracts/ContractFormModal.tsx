@@ -1090,7 +1090,11 @@ export function ContractFormModal(props: Props) {
             // Salvar processos
             if (processes.length > 0) {
                 await supabase.from('contract_processes').delete().eq('contract_id', savedId);
-                const processesToInsert = processes.map(p => ({ ...p, contract_id: savedId }));
+                // FIX: Destructure to remove ID to prevent Primary Key conflicts or dirty data on re-insertion
+                const processesToInsert = processes.map(p => {
+                    const { id, created_at, ...rest } = p;
+                    return { ...rest, contract_id: savedId };
+                });
                 await supabase.from('contract_processes').insert(processesToInsert);
             }
             
@@ -1191,9 +1195,19 @@ export function ContractFormModal(props: Props) {
         const name = toTitleCase(data.razao_social || data.nome_fantasia || '');
 
         if (type === 'author') {
-              setCurrentProcess(prev => ({ ...prev, author: name } as any));
+             // Atualizar tabela de autores e options se não existir
+             if (!authorOptions.includes(name)) {
+                  await supabase.from('authors').insert({ name });
+                  setAuthorOptions(prev => [...prev, name].sort((a,b)=>a.localeCompare(b)));
+             }
+             setCurrentProcess(prev => ({ ...prev, author: name } as any));
         } else {
-              setCurrentProcess(prev => ({ ...prev, opponent: name }));
+             // Atualizar tabela de oponentes e options se não existir
+             if (!opponentOptions.includes(name)) {
+                  await supabase.from('opponents').insert({ name });
+                  setOpponentOptions(prev => [...prev, name].sort((a,b)=>a.localeCompare(b)));
+             }
+             setCurrentProcess(prev => ({ ...prev, opponent: name }));
         }
     } catch (error: any) {
         alert(`Erro ao buscar CNPJ: ${error.message}`);
