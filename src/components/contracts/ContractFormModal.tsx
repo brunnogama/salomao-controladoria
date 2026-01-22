@@ -143,7 +143,7 @@ export function ContractFormModal(props: Props) {
   const [legalAreas, setLegalAreas] = useState<string[]>(['Trabalhista', 'Cível', 'Tributário', 'Empresarial', 'Previdenciário', 'Família', 'Criminal', 'Consumidor']);
   
   // Estado Unificado de Gerenciamento
-  const [activeManager, setActiveManager] = useState<string | null>(null); // 'area', 'position', 'court', 'vara', 'comarca', 'class', 'subject', 'justice', 'magistrate', 'opponent', 'location', 'client'
+  const [activeManager, setActiveManager] = useState<string | null>(null); // 'area', 'position', 'court', 'vara', 'comarca', 'class', 'subject', 'justice', 'magistrate', 'opponent', 'location', 'client', 'author'
   
   const [initialFormData, setInitialFormData] = useState<Contract | null>(null);
     
@@ -171,6 +171,7 @@ export function ContractFormModal(props: Props) {
   const [positionsList, setPositionsList] = useState<string[]>(DEFAULT_POSITIONS);
   const [magistrateOptions, setMagistrateOptions] = useState<string[]>([]);
   const [opponentOptions, setOpponentOptions] = useState<string[]>([]);
+  const [authorOptions, setAuthorOptions] = useState<string[]>([]); // New Author Options
   const [clientOptions, setClientOptions] = useState<string[]>([]);
 
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
@@ -307,6 +308,10 @@ export function ContractFormModal(props: Props) {
 
     const { data: opps } = await supabase.from('opponents').select('name').order('name');
     if (opps) setOpponentOptions(opps.map(o => o.name));
+    
+    // Fetch Authors
+    const { data: authors } = await supabase.from('authors').select('name').order('name');
+    if (authors) setAuthorOptions(authors.map(a => a.name));
 
     const { data: clients } = await supabase.from('clients').select('name').order('name');
     if (clients) setClientOptions(clients.map(c => c.name));
@@ -630,6 +635,16 @@ export function ContractFormModal(props: Props) {
                  }
              }
              break;
+        case 'author':
+             if (!authorOptions.includes(cleanValue)) {
+                 const { error: err } = await supabase.from('authors').insert({ name: cleanValue });
+                 error = err;
+                 if (!err) {
+                     setAuthorOptions(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
+                     setCurrentProcess(prev => ({ ...prev, author: cleanValue } as any));
+                 }
+             }
+             break;
         case 'location':
              if (!billingLocations.includes(cleanValue)) {
                  setBillingLocations(prev => [...prev, cleanValue].sort((a,b)=>a.localeCompare(b)));
@@ -733,6 +748,14 @@ export function ContractFormModal(props: Props) {
                     if(currentProcess.opponent === cleanOld) setCurrentProcess(prev => ({...prev, opponent: cleanNew}));
                 }
                 break;
+            case 'author':
+                const { error: errAuth } = await supabase.from('authors').update({ name: cleanNew }).eq('name', cleanOld);
+                error = errAuth;
+                if (!errAuth) {
+                    setAuthorOptions(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
+                    if((currentProcess as any).author === cleanOld) setCurrentProcess(prev => ({...prev, author: cleanNew} as any));
+                }
+                break;
             case 'location':
                 setBillingLocations(prev => prev.map(i => i === cleanOld ? cleanNew : i).sort((a,b)=>a.localeCompare(b)));
                 if(formData.billing_location === cleanOld) setFormData(prev => ({...prev, billing_location: cleanNew}));
@@ -769,6 +792,7 @@ export function ContractFormModal(props: Props) {
           case 'justice': setJusticeOptions(prev => prev.filter(i => i !== value)); break;
           case 'magistrate': setMagistrateOptions(prev => prev.filter(i => i !== value)); break;
           case 'opponent': setOpponentOptions(prev => prev.filter(i => i !== value)); break;
+          case 'author': setAuthorOptions(prev => prev.filter(i => i !== value)); break;
           case 'client': setClientOptions(prev => prev.filter(i => i !== value)); break;
       }
   };
@@ -1150,6 +1174,34 @@ export function ContractFormModal(props: Props) {
     }
   };
 
+  const handlePartyCNPJSearch = async (type: 'author' | 'opponent') => {
+    const cnpj = type === 'author' ? (currentProcess as any).author_cnpj : (currentProcess as any).opponent_cnpj;
+    if (!cnpj) return;
+    const cleanCNPJ = cnpj.replace(/\D/g, '');
+    if (cleanCNPJ.length !== 14) {
+        alert('CNPJ inválido. Digite 14 dígitos.');
+        return;
+    }
+
+    setLocalLoading(true);
+    try {
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
+        if (!response.ok) throw new Error('CNPJ não encontrado.');
+        const data = await response.json();
+        const name = toTitleCase(data.razao_social || data.nome_fantasia || '');
+
+        if (type === 'author') {
+             setCurrentProcess(prev => ({ ...prev, author: name } as any));
+        } else {
+             setCurrentProcess(prev => ({ ...prev, opponent: name }));
+        }
+    } catch (error: any) {
+        alert(`Erro ao buscar CNPJ: ${error.message}`);
+    } finally {
+        setLocalLoading(false);
+    }
+  };
+
   const handleCNJSearch = async () => {
     if (!currentProcess.process_number) return;
     
@@ -1528,12 +1580,65 @@ export function ContractFormModal(props: Props) {
                         />
                     </div>
                     <div className="md:col-span-2"><CustomSelect label="Estado (UF) *" value={currentProcess.uf || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, uf: val})} options={ufOptions} placeholder="UF" className="custom-select-small" /></div>
-                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição no Processo" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" onAction={() => setActiveManager('position')} actionLabel="Gerenciar Posições" actionIcon={Settings} /></div>
+                    <div className={isStandardCNJ ? "md:col-span-3" : "md:col-span-2"}><CustomSelect label="Posição do Cliente" value={currentProcess.position || formData.client_position || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, position: val})} options={positionOptions} className="custom-select-small" onAction={() => setActiveManager('position')} actionLabel="Gerenciar Posições" actionIcon={Settings} /></div>
                   </div>
 
-                  {/* Linha 2: Parte Oposta, Magistrado */}
+                  {/* Linha 2: Partes (Autor e Contrário) com CNPJ */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                    <div className="md:col-span-5">
+                    {/* CNPJ Autor */}
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">CNPJ</label>
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm"
+                                value={(currentProcess as any).author_cnpj || ''}
+                                onChange={(e) => setCurrentProcess({ ...currentProcess, author_cnpj: maskCNPJ(e.target.value) } as any)}
+                            />
+                            <button 
+                                onClick={() => handlePartyCNPJSearch('author')}
+                                className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold"
+                            >
+                                <Search className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Autor */}
+                    <div className="md:col-span-4">
+                        <CustomSelect 
+                            label="Autor" 
+                            value={(currentProcess as any).author || ''} 
+                            onChange={(val: string) => setCurrentProcess({...currentProcess, author: val} as any)} 
+                            options={authorOptions.map(o => ({ label: o, value: o }))}
+                            onAction={() => setActiveManager('author')}
+                            actionLabel="Gerenciar Autores"
+                            actionIcon={Settings}
+                            placeholder="Selecione ou adicione"
+                        />
+                    </div>
+
+                    {/* CNPJ Contrário */}
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold">CNPJ</label>
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm"
+                                value={(currentProcess as any).opponent_cnpj || ''}
+                                onChange={(e) => setCurrentProcess({ ...currentProcess, opponent_cnpj: maskCNPJ(e.target.value) } as any)}
+                            />
+                            <button 
+                                onClick={() => handlePartyCNPJSearch('opponent')}
+                                className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold"
+                            >
+                                <Search className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Contrário */}
+                    <div className="md:col-span-4">
                         <CustomSelect 
                             label="Contrário (Parte Oposta) *" 
                             value={currentProcess.opponent || formData.company_name || ''} 
@@ -1549,13 +1654,17 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                    {c.contracts?.client_name}
+                                                            {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
                         )}
                     </div>
-                    <div className="md:col-span-7">
+                  </div>
+
+                  {/* Linha 3: Magistrado */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
+                    <div className="md:col-span-12">
                         <label className="text-[10px] text-gray-500 uppercase font-bold">Magistrado</label>
                         <div className="flex gap-2">
                             <div className="w-40">
@@ -1590,7 +1699,7 @@ export function ContractFormModal(props: Props) {
                     </div>
                   </div>
 
-                  {/* Linha 3: Numeral | Vara | Comarca */}
+                  {/* Linha 4: Numeral | Vara | Comarca */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-3">
                         <CustomSelect 
@@ -1624,20 +1733,21 @@ export function ContractFormModal(props: Props) {
                             onAction={() => setActiveManager('comarca')}
                             actionLabel="Gerenciar Comarcas"
                             actionIcon={Settings}
+                            actionIcon={Settings}
                             placeholder={currentProcess.uf ? "Selecione a Comarca" : "Selecione o Estado Primeiro"}
                             disabled={!currentProcess.uf}
                         />
                     </div>
                   </div>
 
-                  {/* Linha 4: Data Distribuição, Justiça, Valor da Causa */}
+                  {/* Linha 5: Data Distribuição, Justiça, Valor da Causa */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                     <div className="md:col-span-3"><label className="text-[10px] text-gray-500 uppercase font-bold">Data da Distribuição</label><input type="date" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm bg-transparent" value={ensureDateValue(currentProcess.distribution_date)} onChange={(e) => setCurrentProcess({...currentProcess, distribution_date: e.target.value})} /></div>
                     <div className="md:col-span-4"><CustomSelect label="Justiça" value={currentProcess.justice_type || ''} onChange={(val: string) => setCurrentProcess({...currentProcess, justice_type: val})} options={justiceSelectOptions} onAction={() => setActiveManager('justice')} actionLabel="Gerenciar Justiças" actionIcon={Settings} /></div>
                     <div className="md:col-span-5"><label className="text-[10px] text-gray-500 uppercase font-bold">Valor da Causa (R$)</label><input type="text" className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1 text-sm" value={currentProcess.cause_value || ''} onChange={(e) => setCurrentProcess({...currentProcess, cause_value: maskMoney(e.target.value)})} /></div>
                   </div>
 
-                  {/* Linha 5: Classe, Assunto */}
+                  {/* Linha 6: Classe, Assunto */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     {/* CLASSE COMO MENU SUSPENSO */}
                     <div>
@@ -1768,44 +1878,46 @@ export function ContractFormModal(props: Props) {
        {/* Modal Genérico de Gerenciamento */}
        {activeManager && (
          <OptionManager 
-            title={
-                activeManager === 'area' ? "Gerenciar Áreas" :
-                activeManager === 'position' ? "Gerenciar Posições" :
-                activeManager === 'court' ? "Gerenciar Tribunais" :
-                activeManager === 'vara' ? "Gerenciar Varas" :
-                activeManager === 'comarca' ? "Gerenciar Comarcas" :
-                activeManager === 'class' ? "Gerenciar Classes" :
-                activeManager === 'subject' ? "Gerenciar Assuntos" :
-                activeManager === 'justice' ? "Gerenciar Justiças" :
-                activeManager === 'magistrate' ? "Gerenciar Magistrados" :
-                activeManager === 'opponent' ? "Gerenciar Parte Oposta" :
-                activeManager === 'location' ? "Gerenciar Locais de Faturamento" :
-                activeManager === 'client' ? "Gerenciar Clientes" :
-                "Gerenciar"
-            }
-            options={
-                activeManager === 'area' ? legalAreas :
-                activeManager === 'position' ? positionsList :
-                activeManager === 'court' ? courtOptions :
-                activeManager === 'vara' ? varaOptions :
-                activeManager === 'comarca' ? comarcaOptions :
-                activeManager === 'class' ? classOptions :
-                activeManager === 'subject' ? subjectOptions :
-                activeManager === 'justice' ? justiceOptions :
-                activeManager === 'magistrate' ? magistrateOptions :
-                activeManager === 'opponent' ? opponentOptions :
-                activeManager === 'location' ? billingLocations :
-                activeManager === 'client' ? clientOptions :
-                []
-            }
-            onAdd={handleGenericAdd}
-            onRemove={handleGenericRemove}
-            onEdit={handleGenericEdit}
-            onClose={() => setActiveManager(null)}
-            placeholder={
-                activeManager === 'comarca' && !currentProcess.uf ? "Selecione a UF primeiro" : "Digite o nome"
-            }
-         />
+           title={
+               activeManager === 'area' ? "Gerenciar Áreas" :
+               activeManager === 'position' ? "Gerenciar Posições" :
+               activeManager === 'court' ? "Gerenciar Tribunais" :
+               activeManager === 'vara' ? "Gerenciar Varas" :
+               activeManager === 'comarca' ? "Gerenciar Comarcas" :
+               activeManager === 'class' ? "Gerenciar Classes" :
+               activeManager === 'subject' ? "Gerenciar Assuntos" :
+               activeManager === 'justice' ? "Gerenciar Justiças" :
+               activeManager === 'magistrate' ? "Gerenciar Magistrados" :
+               activeManager === 'opponent' ? "Gerenciar Parte Oposta" :
+               activeManager === 'author' ? "Gerenciar Autores" :
+               activeManager === 'location' ? "Gerenciar Locais de Faturamento" :
+               activeManager === 'client' ? "Gerenciar Clientes" :
+               "Gerenciar"
+           }
+           options={
+               activeManager === 'area' ? legalAreas :
+               activeManager === 'position' ? positionsList :
+               activeManager === 'court' ? courtOptions :
+               activeManager === 'vara' ? varaOptions :
+               activeManager === 'comarca' ? comarcaOptions :
+               activeManager === 'class' ? classOptions :
+               activeManager === 'subject' ? subjectOptions :
+               activeManager === 'justice' ? justiceOptions :
+               activeManager === 'magistrate' ? magistrateOptions :
+               activeManager === 'opponent' ? opponentOptions :
+               activeManager === 'author' ? authorOptions :
+               activeManager === 'location' ? billingLocations :
+               activeManager === 'client' ? clientOptions :
+               []
+           }
+           onAdd={handleGenericAdd}
+           onRemove={handleGenericRemove}
+           onEdit={handleGenericEdit}
+           onClose={() => setActiveManager(null)}
+           placeholder={
+               activeManager === 'comarca' && !currentProcess.uf ? "Selecione a UF primeiro" : "Digite o nome"
+           }
+        />
        )}
        
       {/* Componente Modularizado de Detalhes do Processo */}
