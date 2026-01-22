@@ -207,7 +207,8 @@ export function ContractFormModal(props: Props) {
     };
 
     if (clientData.cnpj) {
-      const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).single();
+      // FIX: Use maybeSingle instead of single to avoid 406 error
+      const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).maybeSingle();
       if (existingClient) {
         await supabase.from('clients').update(clientData).eq('id', existingClient.id);
         return existingClient.id;
@@ -367,7 +368,8 @@ export function ContractFormModal(props: Props) {
                 if (processError) throw processError;
             }
             if (formData.status === 'active' && formData.physical_signature === false) {
-                const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').single();
+                // FIX: Use maybeSingle instead of single
+                const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').maybeSingle();
                 if (!data) await supabase.from('kanban_tasks').insert({ title: `Coletar Assinatura: ${formData.client_name}`, description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`, priority: 'Alta', status: 'signature', contract_id: savedId, due_date: addDays(new Date(), 5).toISOString(), position: 0 });
             }
         }
@@ -394,7 +396,9 @@ export function ContractFormModal(props: Props) {
       const data = await response.json();
       setFormData(prev => ({ ...prev, client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''), uf: data.uf || prev.uf }));
       setClientExtraData({ address: toTitleCase(data.logradouro || ''), number: data.numero || '', complement: toTitleCase(data.complemento || ''), city: toTitleCase(data.municipio || ''), email: data.email || '', is_person: false });
-      const { data: existingClient } = await supabase.from('clients').select('id, name').eq('cnpj', cnpjLimpo).single();
+      
+      // FIX: Use maybeSingle instead of single
+      const { data: existingClient } = await supabase.from('clients').select('id, name').eq('cnpj', cnpjLimpo).maybeSingle();
       if (existingClient) setFormData(prev => ({ ...prev, client_id: existingClient.id }));
     } catch (error: any) { alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente.`); } finally { setLocalLoading(false); }
   };
