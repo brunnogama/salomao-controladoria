@@ -7,6 +7,10 @@ import { decodeCNJ } from '../../utils/cnjDecoder';
 import { addDays, addMonths } from 'date-fns';
 import { CustomSelect } from '../ui/CustomSelect';
 
+// Componentes Modularizados
+import { OptionManager } from './components/OptionManager';
+import { FinancialInputWithInstallments } from './components/FinancialInputWithInstallments';
+
 const UFS = [ { sigla: 'AC', nome: 'Acre' }, { sigla: 'AL', nome: 'Alagoas' }, { sigla: 'AP', nome: 'Amapá' }, { sigla: 'AM', nome: 'Amazonas' }, { sigla: 'BA', nome: 'Bahia' }, { sigla: 'CE', nome: 'Ceará' }, { sigla: 'DF', nome: 'Distrito Federal' }, { sigla: 'ES', nome: 'Espírito Santo' }, { sigla: 'GO', nome: 'Goiás' }, { sigla: 'MA', nome: 'Maranhão' }, { sigla: 'MT', nome: 'Mato Grosso' }, { sigla: 'MS', nome: 'Mato Grosso do Sul' }, { sigla: 'MG', nome: 'Minas Gerais' }, { sigla: 'PA', nome: 'Pará' }, { sigla: 'PB', nome: 'Paraíba' }, { sigla: 'PR', nome: 'Paraná' }, { sigla: 'PE', nome: 'Pernambuco' }, { sigla: 'PI', nome: 'Piauí' }, { sigla: 'RJ', nome: 'Rio de Janeiro' }, { sigla: 'RN', nome: 'Rio Grande do Norte' }, { sigla: 'RS', nome: 'Rio Grande do Sul' }, { sigla: 'RO', nome: 'Rondônia' }, { sigla: 'RR', nome: 'Roraima' }, { sigla: 'SC', nome: 'Santa Catarina' }, { sigla: 'SP', nome: 'São Paulo' }, { sigla: 'SE', nome: 'Sergipe' }, { sigla: 'TO', nome: 'Tocantins' } ];
 
 // Dados Padrão
@@ -67,68 +71,6 @@ const ensureArray = (val: any): string[] => {
     return [];
 };
 
-const MinimalSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: string[] }) => {
-    return (
-        <div className="relative h-full w-full">
-            <select
-                className="w-full h-full appearance-none bg-transparent pl-3 pr-8 text-xs font-medium text-gray-700 outline-none cursor-pointer focus:bg-gray-50 transition-colors"
-                value={value || '1x'}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                {options.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
-        </div>
-    );
-};
-
-const FinancialInputWithInstallments = ({ 
-  label, value, onChangeValue, installments, onChangeInstallments, onAdd, clause, onChangeClause
-}: { 
-  label: string, value: string | undefined, onChangeValue: (val: string) => void, installments: string | undefined, onChangeInstallments: (val: string) => void, onAdd?: () => void, clause?: string, onChangeClause?: (val: string) => void
-}) => {
-  const installmentOptions = Array.from({ length: 24 }, (_, i) => `${i + 1}x`);
-  return (
-    <div>
-      <label className="text-xs font-medium block mb-1 text-gray-600">{label}</label>
-      <div className="flex rounded-lg shadow-sm">
-        {onChangeClause && (
-             <input 
-                type="text" 
-                className="w-14 border border-gray-300 rounded-l-lg p-2.5 text-sm bg-gray-50 focus:border-salomao-blue outline-none border-r-0 placeholder-gray-400 text-center"
-                value={clause || ''} 
-                onChange={(e) => onChangeClause(e.target.value)}
-                placeholder="Cl."
-                title="Cláusula (ex: 2.1)"
-             />
-        )}
-        <input 
-          type="text" 
-          className={`flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0 ${!onChangeClause ? 'rounded-l-lg' : ''} ${!onAdd ? 'rounded-r-none border-r-0' : ''}`}
-          value={value || ''} 
-          onChange={(e) => onChangeValue(maskMoney(e.target.value))}
-          placeholder="R$ 0,00"
-        />
-        <div className={`w-16 border-y border-r border-gray-300 bg-gray-50 ${!onAdd ? 'rounded-r-lg' : ''}`}>
-           <MinimalSelect value={installments || '1x'} onChange={onChangeInstallments} options={installmentOptions} />
-        </div>
-        {onAdd && (
-          <button 
-            onClick={onAdd}
-            className="bg-salomao-blue text-white px-2 rounded-r-lg hover:bg-blue-900 transition-colors flex items-center justify-center border-l border-blue-800"
-            type="button"
-            title="Adicionar valor"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const getEffectiveDate = (status: string, fallbackDate: string, formData: Contract) => {
   let businessDateString = null;
   switch (status) {
@@ -166,122 +108,6 @@ const getThemeBackground = (status: string) => {
     case 'rejected': return 'bg-red-50';
     default: return 'bg-gray-50';
   }
-};
-
-// Componente Genérico de Gerenciamento de Opções
-const OptionManager = ({ 
-  title, 
-  options, 
-  onAdd, 
-  onRemove, 
-  onEdit,
-  onClose,
-  placeholder = "Digite o nome"
-}: { 
-  title: string, 
-  options: string[], 
-  onAdd: (val: string) => Promise<boolean>, 
-  onRemove: (val: string) => void,
-  onEdit: (oldVal: string, newVal: string) => Promise<boolean>,
-  onClose: () => void,
-  placeholder?: string
-}) => {
-    const [inputValue, setInputValue] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [editingItem, setEditingItem] = useState<string | null>(null);
-
-    const handleSubmit = async () => {
-        if (!inputValue.trim()) return;
-        setLoading(true);
-        let success = false;
-        
-        if (editingItem) {
-            success = await onEdit(editingItem, inputValue.trim());
-            if (success) setEditingItem(null);
-        } else {
-            success = await onAdd(inputValue.trim());
-            // Fechar janela se adicionou com sucesso (não fechar se estiver editando)
-            if (success) onClose();
-        }
-        
-        setLoading(false);
-        if (success) setInputValue('');
-    };
-
-    const handleEditClick = (item: string) => {
-        setEditingItem(item);
-        setInputValue(item);
-    };
-
-    const handleCancelEdit = () => {
-        setEditingItem(null);
-        setInputValue('');
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-gray-800">{title}</h3>
-              <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            
-            <div className="p-4">
-              <div className="flex gap-2 mb-4">
-                <input 
-                  type="text" 
-                  className="flex-1 border border-gray-300 rounded-lg p-2 text-sm"
-                  placeholder={placeholder}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-                />
-                {editingItem && (
-                    <button 
-                        onClick={handleCancelEdit}
-                        className="bg-gray-200 text-gray-600 p-2 rounded-lg hover:bg-gray-300"
-                        title="Cancelar edição"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                )}
-                <button 
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className={`${editingItem ? 'bg-green-600 hover:bg-green-700' : 'bg-salomao-blue'} text-white p-2 rounded-lg disabled:opacity-50 transition-colors`}
-                >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin"/> : (editingItem ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />)}
-                </button>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {options.map((opt, idx) => (
-                  <div key={idx} className={`flex items-center justify-between p-2 rounded-lg group ${editingItem === opt ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
-                    <span className="text-sm text-gray-700 truncate flex-1 mr-2">{opt}</span>
-                    <div className="flex items-center gap-1">
-                        <button 
-                            onClick={() => handleEditClick(opt)} 
-                            className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-100 rounded"
-                            title="Editar"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => onRemove(opt)} 
-                            className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded"
-                            title="Remover"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
-                  </div>
-                ))}
-                {options.length === 0 && <p className="text-xs text-center text-gray-400 py-4">Nenhum item cadastrado.</p>}
-              </div>
-            </div>
-          </div>
-        </div>
-    );
 };
 
 interface Props {
@@ -1926,7 +1752,7 @@ export function ContractFormModal(props: Props) {
                                       className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
                                       title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
                                   >
-                                                  {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                                      {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                   </button>
                               </div>
                             )}
@@ -1994,7 +1820,7 @@ export function ContractFormModal(props: Props) {
                                 <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
                                 {duplicateOpponentCases.map(c => (
                                     <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
-                                                            {c.contracts?.client_name}
+                                                                    {c.contracts?.client_name}
                                     </a>
                                 ))}
                             </div>
