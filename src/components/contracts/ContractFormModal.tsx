@@ -133,6 +133,28 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [currentProcess.process_number]);
 
+  // EFEITO: Auto-preenchimento de CNPJ do Autor
+  useEffect(() => {
+    const fetchAuthorCNPJ = async () => {
+        if (!currentProcess.author || currentProcess.author.length < 3) return;
+        const { data } = await supabase.from('authors').select('cnpj').eq('name', currentProcess.author).single();
+        if (data && data.cnpj) setCurrentProcess(prev => ({ ...prev, author_cnpj: maskCNPJ(data.cnpj) }));
+    };
+    const timer = setTimeout(fetchAuthorCNPJ, 800);
+    return () => clearTimeout(timer);
+  }, [currentProcess.author]);
+
+  // EFEITO: Auto-preenchimento de CNPJ do Contrário
+  useEffect(() => {
+    const fetchOpponentCNPJ = async () => {
+        if (!currentProcess.opponent || currentProcess.opponent.length < 3) return;
+        const { data } = await supabase.from('opponents').select('cnpj').eq('name', currentProcess.opponent).single();
+        if (data && data.cnpj) setCurrentProcess(prev => ({ ...prev, opponent_cnpj: maskCNPJ(data.cnpj) }));
+    };
+    const timer = setTimeout(fetchOpponentCNPJ, 800);
+    return () => clearTimeout(timer);
+  }, [currentProcess.opponent]);
+
   const fetchStatuses = async () => {
     const { data } = await supabase.from('contract_statuses').select('*');
     if (data) {
@@ -516,7 +538,7 @@ export function ContractFormModal(props: Props) {
 
        {activeManager && (
          <OptionManager 
-           title={activeManager === 'area' ? "Gerenciar Áreas" : activeManager === 'position' ? "Gerenciar Posições" : activeManager === 'court' ? "Gerenciar Tribunais" : activeManager === 'vara' ? "Gerenciar Varas" : activeManager === 'comarca' ? "Gerenciar Comarcas" : activeManager === 'class' ? "Gerenciar Classes" : activeManager === 'subject' ? "Gerenciar Assuntos" : activeManager === 'justice' ? "Gerenciar Justiças" : activeManager === 'magistrate' ? "Gerenciar Magistrados" : activeManager === 'opponent' ? "Gerenciar Parte Oposta" : activeManager === 'author' ? "Gerenciar Autores" : activeManager === 'location' ? "Gerenciar Locais de Faturamento" : activeManager === 'client' ? "Gerenciar Clientes" : "Gerenciar"}
+           title={activeManager === 'area' ? "Gerenciar Áreas" : activeManager === 'position' ? "Gerenciar Posições" : activeManager === 'court' ? "Gerenciar Tribunais" : activeManager === 'vara' ? "Gerenciar Varas" : activeManager === 'comarca' ? "Gerenciar Comarcas" : activeManager === 'class' ? "Gerenciar Classes" : activeManager === 'subject' ? "Gerenciar Assuntos" : activeManager === 'justice' ? "Gerenciar Justiças" : activeManager === 'magistrate' ? "Gerenciar Magistrados" : activeManager === 'opponent' ? "Gerenciar Contrário" : activeManager === 'author' ? "Gerenciar Autores" : activeManager === 'location' ? "Gerenciar Locais de Faturamento" : activeManager === 'client' ? "Gerenciar Clientes" : "Gerenciar"}
            options={activeManager === 'area' ? options.legalAreas : activeManager === 'position' ? options.positionsList : activeManager === 'court' ? options.courtOptions : activeManager === 'vara' ? options.varaOptions : activeManager === 'comarca' ? options.comarcaOptions : activeManager === 'class' ? options.classOptions : activeManager === 'subject' ? options.subjectOptions : activeManager === 'justice' ? options.justiceOptions : activeManager === 'magistrate' ? options.magistrateOptions : activeManager === 'opponent' ? options.opponentOptions : activeManager === 'author' ? options.authorOptions : activeManager === 'location' ? options.billingLocations : activeManager === 'client' ? options.clientOptions : []}
            onAdd={(v) => options.handleGenericAdd(v, { title: newMagistrateTitle, setNewSubject, setNewMagistrateName })}
            onRemove={options.handleGenericRemove}
