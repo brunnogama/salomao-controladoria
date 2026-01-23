@@ -50,7 +50,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       return String(val);
   };
 
-  // Helper para renderizar a tabela de parcelas
+  // Helper para renderizar a tabela de parcelas (Local neste componente para ficar logo abaixo)
   const renderInstallmentBreakdown = (
       label: string, 
       valueField: keyof Contract, 
@@ -69,12 +69,11 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
     }
 
-    // 2. TRAVA DE SEGURANÇA (CORREÇÃO CRÍTICA)
-    // Se o valor for <= 0 (campo limpo após adicionar extra) OU parcelas for '1x', 
-    // O BLOCO DEVE SUMIR IMEDIATAMENTE.
+    // 2. TRAVA DE SEGURANÇA (CORREÇÃO DOS BUGS)
+    // Se o valor for 0, NaN, indefinido, ou parcelas for '1x', O BLOCO DEVE SUMIR.
     const installmentsStr = formData[installmentField] as string;
     
-    if (!totalOriginal || totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
+    if (!totalOriginal || isNaN(totalOriginal) || totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
         return null;
     }
     
@@ -120,13 +119,14 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
+                            {/* Input sem span absoluto para evitar R$ duplicado */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
-                                    // CORREÇÃO: Limpa caractere não numérico antes da máscara para evitar R$ duplicado
+                                    // Remove tudo que não for dígito antes de mascarar, evita R$ duplicado
                                     const rawValue = e.target.value.replace(/\D/g, ''); 
                                     newBreakdown[idx].value = maskMoney(rawValue);
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
@@ -315,7 +315,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             </div>
         </div>
         
-        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 2 - CORRIGIDO: APENAS UMA VEZ */}
+        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 2 - SEM DUPLICIDADE */}
         <div className="space-y-2">
             {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown', 'pro_labore_installments')}
             {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
