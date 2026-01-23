@@ -63,6 +63,9 @@ export function ContractFormModal(props: Props) {
   const [viewProcessIndex, setViewProcessIndex] = useState<number | null>(null);
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
 
+  // Estado para controle das abas
+  const [activeTab, setActiveTab] = useState(1);
+
   // Novo Hook de Opções
   const options = useContractOptions({ formData, setFormData, currentProcess, setCurrentProcess, activeManager });
     
@@ -98,6 +101,7 @@ export function ContractFormModal(props: Props) {
       setDuplicateProcessWarning(false);
       setInitialFormData(null);
       setActiveManager(null);
+      setActiveTab(1); // Resetar para a primeira aba
     }
   }, [isOpen, formData.id]);
 
@@ -523,21 +527,79 @@ export function ContractFormModal(props: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
-           <StatusAndDatesSection formData={formData} setFormData={setFormData} statusOptions={statusOptions} handleCreateStatus={handleCreateStatus} ensureDateValue={ensureDateValue} analystSelectOptions={analystSelectOptions} onOpenAnalystManager={onOpenAnalystManager} rejectionByOptions={rejectionByOptions} rejectionReasonOptions={rejectionReasonOptions} partnerSelectOptions={partnerSelectOptions} billingOptions={billingOptions} maskHon={maskHon} setActiveManager={setActiveManager} signatureOptions={signatureOptions} formatForInput={formatForInput} handleAddToList={handleAddToList} removeExtra={removeExtra} newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} interimInstallments={interimInstallments} setInterimInstallments={setInterimInstallments} handleAddIntermediateFee={handleAddIntermediateFee} interimClause={interimClause} setInterimClause={setInterimClause} handleRemoveIntermediateFee={handleRemoveIntermediateFee} ensureArray={ensureArray} />
-           <ClientFormSection formData={formData} setFormData={setFormData} maskCNPJ={maskCNPJ} handleCNPJSearch={handleCNPJSearch} clientSelectOptions={clientSelectOptions} handleClientChange={handleClientChange} setActiveManager={setActiveManager} duplicateClientCases={duplicateClientCases} getStatusLabel={getStatusLabel} areaOptions={areaOptions} partnerSelectOptions={partnerSelectOptions} onOpenPartnerManager={onOpenPartnerManager} />
-           <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30">
-              <LegalProcessForm formData={formData} setFormData={setFormData} currentProcess={currentProcess} setCurrentProcess={setCurrentProcess} isStandardCNJ={isStandardCNJ} setIsStandardCNJ={setIsStandardCNJ} otherProcessType={otherProcessType} setOtherProcessType={setOtherProcessType} duplicateProcessWarning={duplicateProcessWarning} searchingCNJ={searchingCNJ} handleCNJSearch={handleCNJSearch} handleOpenJusbrasil={handleOpenJusbrasil} courtSelectOptions={courtSelectOptions} ufOptions={ufOptions} positionOptions={positionOptions} authorOptions={options.authorOptions} opponentOptions={options.opponentOptions} duplicateOpponentCases={duplicateOpponentCases} magistrateTypes={magistrateTypes} magistrateOptions={options.magistrateOptions} newMagistrateTitle={newMagistrateTitle} setNewMagistrateTitle={setNewMagistrateTitle} newMagistrateName={newMagistrateName} setNewMagistrateName={setNewMagistrateName} addMagistrate={addMagistrate} removeMagistrate={removeMagistrate} numeralOptions={numeralOptions} varaSelectOptions={varaSelectOptions} comarcaSelectOptions={comarcaSelectOptions} justiceSelectOptions={justiceSelectOptions} classSelectOptions={classSelectOptions} subjectSelectOptions={subjectSelectOptions} newSubject={newSubject} setNewSubject={setNewSubject} addSubjectToProcess={addSubjectToProcess} removeSubject={removeSubject} editingProcessIndex={editingProcessIndex} handleProcessAction={handleProcessAction} handlePartyCNPJSearch={handlePartyCNPJSearch} localMaskCNJ={localMaskCNJ} ensureDateValue={ensureDateValue} setActiveManager={setActiveManager} />
-              <LegalProcessList processes={processes} setViewProcess={setViewProcess} setViewProcessIndex={setViewProcessIndex} editProcess={editProcess} removeProcess={removeProcess} />
-           </section>
-           <section className="border-t border-black/5 pt-6">
-            {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
-              <>
-                {(formData.status === 'proposal' || formData.status === 'active') && ( <div className="mt-6 mb-2"> <label className="text-xs font-medium block mb-1">Referência</label> <textarea className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none h-24 resize-none" value={(formData as any).reference || ''} onChange={e => setFormData({...formData, reference: e.target.value} as any)} placeholder="Ex: Proposta 123/2025" /> </div> )}
-                <ContractDocuments documents={documents} isEditing={isEditing} uploading={uploading} status={formData.status} onUpload={handleFileUpload} onDownload={handleDownload} onDelete={handleDeleteDocument} />
-              </>
+            {/* Abas */}
+            <div className="flex gap-2 border-b border-gray-200 mb-6">
+                <button
+                    onClick={() => setActiveTab(1)}
+                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                        activeTab === 1 
+                        ? 'border-salomao-blue text-salomao-blue' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Status
+                </button>
+                <button
+                    onClick={() => setActiveTab(2)}
+                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                        activeTab === 2 
+                        ? 'border-salomao-blue text-salomao-blue' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Dados do Cliente
+                </button>
+                <button
+                    onClick={() => setActiveTab(3)}
+                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                        activeTab === 3 
+                        ? 'border-salomao-blue text-salomao-blue' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    Dados do Objeto
+                </button>
+            </div>
+
+            {/* Conteúdo da Aba 1: Status */}
+            {activeTab === 1 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <StatusAndDatesSection formData={formData} setFormData={setFormData} statusOptions={statusOptions} handleCreateStatus={handleCreateStatus} ensureDateValue={ensureDateValue} analystSelectOptions={analystSelectOptions} onOpenAnalystManager={onOpenAnalystManager} rejectionByOptions={rejectionByOptions} rejectionReasonOptions={rejectionReasonOptions} partnerSelectOptions={partnerSelectOptions} billingOptions={billingOptions} maskHon={maskHon} setActiveManager={setActiveManager} signatureOptions={signatureOptions} formatForInput={formatForInput} handleAddToList={handleAddToList} removeExtra={removeExtra} newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} interimInstallments={interimInstallments} setInterimInstallments={setInterimInstallments} handleAddIntermediateFee={handleAddIntermediateFee} interimClause={interimClause} setInterimClause={setInterimClause} handleRemoveIntermediateFee={handleRemoveIntermediateFee} ensureArray={ensureArray} />
+                    
+                    {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
+                        <div className="pt-6 border-t border-black/5 space-y-6">
+                            {(formData.status === 'proposal' || formData.status === 'active') && ( 
+                                <div className="mb-2"> 
+                                    <label className="text-xs font-medium block mb-1">Referência</label> 
+                                    <textarea className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none h-24 resize-none" value={(formData as any).reference || ''} onChange={e => setFormData({...formData, reference: e.target.value} as any)} placeholder="Ex: Proposta 123/2025" /> 
+                                </div> 
+                            )}
+                            <ContractDocuments documents={documents} isEditing={isEditing} uploading={uploading} status={formData.status} onUpload={handleFileUpload} onDownload={handleDownload} onDelete={handleDeleteDocument} />
+                        </div>
+                    )}
+                </div>
             )}
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label><textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea></div>
-           </section>
+
+            {/* Conteúdo da Aba 2: Dados do Cliente */}
+            {activeTab === 2 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <ClientFormSection formData={formData} setFormData={setFormData} maskCNPJ={maskCNPJ} handleCNPJSearch={handleCNPJSearch} clientSelectOptions={clientSelectOptions} handleClientChange={handleClientChange} setActiveManager={setActiveManager} duplicateClientCases={duplicateClientCases} getStatusLabel={getStatusLabel} areaOptions={areaOptions} partnerSelectOptions={partnerSelectOptions} onOpenPartnerManager={onOpenPartnerManager} />
+                </div>
+            )}
+
+            {/* Conteúdo da Aba 3: Dados do Objeto */}
+            {activeTab === 3 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30">
+                        <LegalProcessForm formData={formData} setFormData={setFormData} currentProcess={currentProcess} setCurrentProcess={setCurrentProcess} isStandardCNJ={isStandardCNJ} setIsStandardCNJ={setIsStandardCNJ} otherProcessType={otherProcessType} setOtherProcessType={setOtherProcessType} duplicateProcessWarning={duplicateProcessWarning} searchingCNJ={searchingCNJ} handleCNJSearch={handleCNJSearch} handleOpenJusbrasil={handleOpenJusbrasil} courtSelectOptions={courtSelectOptions} ufOptions={ufOptions} positionOptions={positionOptions} authorOptions={options.authorOptions} opponentOptions={options.opponentOptions} duplicateOpponentCases={duplicateOpponentCases} magistrateTypes={magistrateTypes} magistrateOptions={options.magistrateOptions} newMagistrateTitle={newMagistrateTitle} setNewMagistrateTitle={setNewMagistrateTitle} newMagistrateName={newMagistrateName} setNewMagistrateName={setNewMagistrateName} addMagistrate={addMagistrate} removeMagistrate={removeMagistrate} numeralOptions={numeralOptions} varaSelectOptions={varaSelectOptions} comarcaSelectOptions={comarcaSelectOptions} justiceSelectOptions={justiceSelectOptions} classSelectOptions={classSelectOptions} subjectSelectOptions={subjectSelectOptions} newSubject={newSubject} setNewSubject={setNewSubject} addSubjectToProcess={addSubjectToProcess} removeSubject={removeSubject} editingProcessIndex={editingProcessIndex} handleProcessAction={handleProcessAction} handlePartyCNPJSearch={handlePartyCNPJSearch} localMaskCNJ={localMaskCNJ} ensureDateValue={ensureDateValue} setActiveManager={setActiveManager} />
+                        <LegalProcessList processes={processes} setViewProcess={setViewProcess} setViewProcessIndex={setViewProcessIndex} editProcess={editProcess} removeProcess={removeProcess} />
+                    </section>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Observações Gerais</label>
+                        <textarea className="w-full border border-gray-300 rounded-lg p-3 text-sm h-24 focus:border-salomao-blue outline-none bg-white" value={formData.observations} onChange={(e) => setFormData({...formData, observations: toTitleCase(e.target.value)})}></textarea>
+                    </div>
+                </div>
+            )}
         </div>
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
