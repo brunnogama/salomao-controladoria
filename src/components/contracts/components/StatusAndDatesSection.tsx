@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Plus, X, Settings, AlertTriangle } from 'lucide-react';
 import { Contract } from '../../../types';
 import { CustomSelect } from '../../ui/CustomSelect';
@@ -51,8 +51,46 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       return String(val);
   };
 
+  // EFEITO: Gera/Atualiza o breakdown do Êxito Intermediário quando valor ou parcelas mudam
+  useEffect(() => {
+    const rawVal = newIntermediateFee;
+    const countStr = interimInstallments;
+    
+    // Se não tiver valor ou for 1x, limpa o breakdown temporário
+    if (!rawVal || !countStr || countStr === '1x') {
+        if ((formData as any).interim_breakdown) {
+             setFormData(prev => {
+                const newData = { ...prev };
+                delete (newData as any).interim_breakdown;
+                return newData;
+             });
+        }
+        return;
+    }
+
+    const totalOriginal = parseCurrency(rawVal);
+    if (totalOriginal <= 0) return;
+
+    const count = parseInt(countStr.replace(/\D/g, '')) || 1;
+    const currentBreakdown = (formData as any).interim_breakdown || [];
+
+    // Regenera apenas se a quantidade de parcelas mudar ou se não existir
+    // (Isso preserva edições manuais de valor/data se a quantidade de parcelas for a mesma)
+    // Se quiser forçar regeneração ao mudar o valor total, remova a verificação de length
+    if (currentBreakdown.length !== count) {
+        const partValue = totalOriginal / count;
+        const newBreakdown = Array.from({ length: count }, (_, i) => ({
+            date: addMonths(new Date(), i).toISOString().split('T')[0], 
+            value: maskMoney(partValue.toFixed(2))
+        }));
+        
+        setFormData(prev => ({ ...prev, interim_breakdown: newBreakdown } as any));
+    }
+  }, [newIntermediateFee, interimInstallments]);
+
+
   // ----------------------------------------------------------------------
-  // RENDERIZADOR PRINCIPAL DE PARCELAS (Para campos salvos no formData)
+  // RENDERIZADOR PRINCIPAL DE PARCELAS (Genérico)
   // ----------------------------------------------------------------------
   const renderInstallmentBreakdown = (
       label: string, 
@@ -65,12 +103,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     // 1. LEITURA ROBUSTA DO VALOR TOTAL
     const rawVal = formData[valueField];
     let totalOriginal = 0;
-    
-    if (typeof rawVal === 'number') {
-        totalOriginal = rawVal;
-    } else if (typeof rawVal === 'string') {
-        totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
-    }
+    if (typeof rawVal === 'number') totalOriginal = rawVal;
+    else if (typeof rawVal === 'string') totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
 
     // 2. TRAVA DE SEGURANÇA
     const installmentsStr = formData[installmentField] as string;
@@ -147,56 +181,82 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   };
 
   // ----------------------------------------------------------------------
-  // RENDERIZADOR DE PREVIEW PARA ÊXITO INTERMEDIÁRIO (Ad-hoc)
+  // RENDERIZADOR ESPECÍFICO PARA ÊXITO INTERMEDIÁRIO (EDITÁVEL)
   // ----------------------------------------------------------------------
-  const renderInterimBreakdownPreview = () => {
+  const renderInterimBreakdownEditable = () => {
+    // Lê do estado temporário interim_breakdown
+    const breakdown = (formData as any).interim_breakdown as { date: string, value: string }[] | undefined;
+    
+    // Leitura do valor total do input (newIntermediateFee)
     const rawVal = newIntermediateFee;
     let totalOriginal = 0;
     if (typeof rawVal === 'string') totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
     
     const countStr = interimInstallments;
     
-    // Safety check: Só mostra se houver valor e parcelas > 1
-    if (!totalOriginal || totalOriginal <= 0 || !countStr || countStr === '1x') {
+    // Safety check: Só mostra se houver valor, parcelas > 1 e breakdown gerado
+    if (!totalOriginal || totalOriginal <= 0 || !countStr || countStr === '1x' || !breakdown || breakdown.length === 0) {
         return null;
     }
 
-    const count = parseInt(countStr.replace(/\D/g, '')) || 1;
     const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const partValue = totalOriginal / count;
-    
-    // Gera preview simples (calculado na hora)
-    const previewItems = Array.from({ length: count }, (_, i) => ({
-        date: addMonths(new Date(), i).toISOString().split('T')[0], 
-        value: maskMoney(partValue.toFixed(2))
-    }));
+    const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
+    const diff = Math.abs(totalOriginal - totalCalculated);
+    const hasError = diff > 0.1;
 
     return (
         <div className="mt-3 bg-orange-50/50 border border-orange-200 rounded-lg p-3 animate-in fade-in slide-in-from-top-2 shadow-sm">
              <div className="flex items-center justify-between mb-3 border-b border-orange-200 pb-2">
                 <h4 className="text-xs font-bold text-orange-800 uppercase tracking-wide">
-                    Simulação - Êxito Intermediário
+                    Parcelamento (Novo)
                 </h4>
                 <span className="text-[10px] font-medium text-orange-600 bg-white px-2 py-0.5 rounded border border-orange-200">
                     Total: {totalValueStr}
                 </span>
             </div>
+             
              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
-                {previewItems.map((item, idx) => (
+                {breakdown.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-3 text-xs mb-1">
                         <span className="w-6 font-bold text-gray-500 text-right">{idx + 1}x</span>
                         <div className="flex-1">
-                             <input type="date" disabled className="w-full border border-gray-200 rounded px-2 py-1.5 bg-gray-50 text-gray-500 cursor-not-allowed" value={item.date} />
+                             <input 
+                                type="date" 
+                                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:border-orange-500 outline-none text-gray-600 bg-white hover:border-orange-300 transition-colors" 
+                                value={item.date} 
+                                onChange={(e) => {
+                                    const newBreakdown = [...breakdown];
+                                    newBreakdown[idx].date = e.target.value;
+                                    setFormData(prev => ({...prev, interim_breakdown: newBreakdown} as any));
+                                }}
+                             />
                         </div>
                         <div className="flex-1">
-                             <input type="text" disabled className="w-full border border-gray-200 rounded px-2 py-1.5 bg-gray-50 text-gray-500 text-right cursor-not-allowed" value={item.value} />
+                             <input 
+                                type="text" 
+                                className={`w-full border rounded px-2 py-1.5 outline-none font-medium text-right transition-colors ${hasError ? 'border-red-300 text-red-600 bg-red-50 focus:border-red-500' : 'border-gray-300 text-gray-700 bg-white hover:border-orange-300 focus:border-orange-500'}`}
+                                value={item.value} 
+                                onChange={(e) => {
+                                    const newBreakdown = [...breakdown];
+                                    const rawValue = e.target.value.replace(/\D/g, ''); 
+                                    newBreakdown[idx].value = maskMoney(rawValue);
+                                    setFormData(prev => ({...prev, interim_breakdown: newBreakdown} as any));
+                                }}
+                             />
                         </div>
                     </div>
                 ))}
              </div>
-             <div className="mt-2 text-[10px] text-orange-600 italic text-center">
-                * As datas são calculadas automaticamente ao adicionar.
-             </div>
+
+             {hasError && (
+                <div className="mt-3 flex items-start gap-2 text-[11px] text-red-600 bg-red-50 p-2 rounded border border-red-100 leading-tight">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span>
+                        Soma (R$ {totalCalculated.toLocaleString('pt-BR', {minimumFractionDigits: 2})}) difere do total.
+                        <br/><span className="font-bold">Diferença: R$ {diff.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                    </span>
+                </div>
+            )}
         </div>
     );
   };
@@ -400,8 +460,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   );
                 })}
               </div>
-              {/* Preview de Parcelamento para Êxito Intermediário (Antes de adicionar) */}
-              {renderInterimBreakdownPreview()}
+              {/* Preview de Parcelamento para Êxito Intermediário (Editável) */}
+              {renderInterimBreakdownEditable()}
             </div>
 
             {/* Êxito Final */}
