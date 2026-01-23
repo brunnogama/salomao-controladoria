@@ -51,7 +51,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   };
 
   // Helper para renderizar a tabela de parcelas (Local neste componente para ficar logo abaixo)
-  // ATUALIZADO: Agora recebe installmentField para validar se é '1x'
   const renderInstallmentBreakdown = (
       label: string, 
       valueField: keyof Contract, 
@@ -115,13 +114,14 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
+                            {/* Input sem span absoluto para evitar R$ duplicado */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
-                                    const rawValue = e.target.value.replace(/\D/g, ''); // Limpa R$ duplicado
+                                    const rawValue = e.target.value.replace(/\D/g, ''); // Limpa caractere não numérico antes da máscara
                                     newBreakdown[idx].value = maskMoney(rawValue);
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
                                 }}
@@ -309,8 +309,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             </div>
         </div>
         
-        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 2 */}
-        {/* Passando o 4º argumento (campo de parcelas) para validação */}
+        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 2 (UMA VEZ SÓ) */}
         <div className="space-y-2">
             {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown', 'pro_labore_installments')}
             {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
