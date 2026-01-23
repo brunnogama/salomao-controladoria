@@ -54,12 +54,18 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   const renderInstallmentBreakdown = (label: string, valueField: keyof Contract, breakdownField: string) => {
     const breakdown = (formData as any)[breakdownField] as { date: string, value: string }[] | undefined;
     
-    // CORREÇÃO 1: Leitura robusta do valor total usando parseCurrency direto no valor bruto
-    // Isso evita problemas onde a string formatada vinha vazia ou incompatível
+    // CORREÇÃO 1: Leitura robusta do valor total (numérico ou string)
     const rawVal = formData[valueField];
-    const totalOriginal = parseCurrency(rawVal);
+    let totalOriginal = 0;
+
+    if (typeof rawVal === 'number') {
+        totalOriginal = rawVal;
+    } else if (typeof rawVal === 'string') {
+        // Se for string vazia ou inválida, assume 0
+        totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
+    }
     
-    // Formata o valor total para exibição na mensagem de erro (R$ 0.000,00)
+    // Formata o valor total para exibição na mensagem de erro
     const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
     // Só renderiza se houver breakdown e mais de 1 parcela (ou se o array existir)
@@ -101,14 +107,16 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
-                            {/* CORREÇÃO 2: Removido o span com 'R$' duplicado. O maskMoney já inclui o símbolo no valor. */}
+                            {/* CORREÇÃO 2: Limpeza do valor antes da máscara para evitar 'R$ R$' */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
-                                    newBreakdown[idx].value = maskMoney(e.target.value);
+                                    // Remove tudo que não for dígito para garantir uma máscara limpa
+                                    const rawValue = e.target.value.replace(/\D/g, '');
+                                    newBreakdown[idx].value = maskMoney(rawValue);
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
                                 }}
                             />
@@ -134,7 +142,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     <div className="bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-50 mb-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
           <CustomSelect label="Status Atual do Caso" value={formData.status} onChange={(val: any) => setFormData({...formData, status: val})} options={statusOptions} onAction={handleCreateStatus} actionIcon={Plus} actionLabel="Adicionar Novo Status" />
-          {/* Campo de Data Movido para o lado do Status */}
           {formData.status && (
             <div className="animate-in fade-in slide-in-from-left-2">
                 <label className="text-xs font-medium block mb-1">
@@ -167,7 +174,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
           )}
       </div>
 
-      {/* BLOCOS ESPECÍFICOS DE CADA STATUS (MOVIDOS PARA CÁ) */}
       {formData.status === 'analysis' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-top-2">
             <div>
