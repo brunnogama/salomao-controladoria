@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { Contract } from '../types';
 import { addMonths } from 'date-fns';
 import { safeParseFloat, ensureArray } from '../utils/contractHelpers';
+import { parseCurrency } from '../utils/masks'; // Import necessário para ler o valor formatado do breakdown
 
 export const generateFinancialInstallments = async (contractId: string, sourceData: Contract) => {
     if (sourceData.status !== 'active') return;
@@ -10,10 +11,39 @@ export const generateFinancialInstallments = async (contractId: string, sourceDa
     
     const installmentsToInsert: any[] = [];
     
-    const addInstallments = (totalValueStr: string | undefined, installmentsStr: string | undefined, type: string, clause?: string) => {
+    // Atualizado para aceitar o array de detalhamento (breakdown)
+    const addInstallments = (
+        totalValueStr: string | undefined, 
+        installmentsStr: string | undefined, 
+        type: string, 
+        clause?: string,
+        breakdown?: { date: string, value: string }[]
+    ) => {
       const totalValue = safeParseFloat(totalValueStr);
       if (totalValue <= 0) return;
       
+      // LÓGICA 1: Se existir detalhamento manual, usa ele (Datas e Valores exatos)
+      if (breakdown && breakdown.length > 0) {
+        breakdown.forEach((item, index) => {
+            const itemValue = parseCurrency(item.value);
+            // Ignora parcelas zeradas ou datas inválidas se houver
+            if (itemValue > 0 && item.date) {
+                installmentsToInsert.push({
+                    contract_id: contractId,
+                    type: type,
+                    installment_number: index + 1,
+                    total_installments: breakdown.length,
+                    amount: itemValue,
+                    status: 'pending',
+                    due_date: item.date, // Usa a data exata do input
+                    clause: clause || null
+                });
+            }
+        });
+        return; // Encerra aqui para não rodar a lógica automática
+      }
+
+      // LÓGICA 2: Cálculo Automático (Legado)
       // Força garantia de valor numérico válido ANTES de qualquer processamento
       const numInstallments = (() => {
         if (!installmentsStr) return 1;
@@ -40,11 +70,38 @@ export const generateFinancialInstallments = async (contractId: string, sourceDa
       }
     };
 
-    // Main values com cláusulas
-    addInstallments(sourceData.pro_labore, sourceData.pro_labore_installments, 'pro_labore', (sourceData as any).pro_labore_clause);
-    addInstallments(sourceData.final_success_fee, sourceData.final_success_fee_installments, 'final_success_fee', (sourceData as any).final_success_fee_clause);
-    addInstallments(sourceData.fixed_monthly_fee, sourceData.fixed_monthly_fee_installments, 'fixed', (sourceData as any).fixed_monthly_fee_clause);
-    addInstallments(sourceData.other_fees, sourceData.other_fees_installments, 'other', (sourceData as any).other_fees_clause);
+    // Main values com cláusulas e PASSANDO O BREAKDOWN
+    addInstallments(
+        sourceData.pro_labore, 
+        sourceData.pro_labore_installments, 
+        'pro_labore', 
+        (sourceData as any).pro_labore_clause,
+        (sourceData as any).pro_labore_breakdown
+    );
+
+    addInstallments(
+        sourceData.final_success_fee, 
+        sourceData.final_success_fee_installments, 
+        'final_success_fee', 
+        (sourceData as any).final_success_fee_clause,
+        (sourceData as any).final_success_fee_breakdown
+    );
+
+    addInstallments(
+        sourceData.fixed_monthly_fee, 
+        sourceData.fixed_monthly_fee_installments, 
+        'fixed', 
+        (sourceData as any).fixed_monthly_fee_clause,
+        (sourceData as any).fixed_monthly_fee_breakdown
+    );
+
+    addInstallments(
+        sourceData.other_fees, 
+        sourceData.other_fees_installments, 
+        'other', 
+        (sourceData as any).other_fees_clause,
+        (sourceData as any).other_fees_breakdown
+    );
 
     // Helper para processar extras com parcelamento individual
     const addExtraInstallments = (
@@ -137,6 +194,13 @@ export const forceUpdateFinancials = async (contractId: string, sourceData: Cont
       final_success_fee_installments: (sourceData as any).final_success_fee_installments,
       fixed_monthly_fee_installments: (sourceData as any).fixed_monthly_fee_installments,
       other_fees_installments: (sourceData as any).other_fees_installments,
+
+      // --- NOVOS CAMPOS DE DETALHAMENTO (BREAKDOWN) ---
+      pro_labore_breakdown: (sourceData as any).pro_labore_breakdown,
+      final_success_fee_breakdown: (sourceData as any).final_success_fee_breakdown,
+      fixed_monthly_fee_breakdown: (sourceData as any).fixed_monthly_fee_breakdown,
+      other_fees_breakdown: (sourceData as any).other_fees_breakdown,
+      // ------------------------------------------------
 
       // Garantindo que os extras também sejam salvos
       pro_labore_extras: (sourceData as any).pro_labore_extras,

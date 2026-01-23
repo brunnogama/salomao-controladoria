@@ -7,12 +7,19 @@ import {
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
   ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // Importação adicionada
+import { useNavigate } from 'react-router-dom';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { EmptyState } from '../components/ui/EmptyState';
 
+// Tipagem para o componente interno FinItem
+interface FinItemProps {
+  label: string;
+  value: number;
+  colorClass?: string;
+}
+
 export function Dashboard() {
-  const navigate = useNavigate(); // Hook de navegação
+  const navigate = useNavigate();
   const {
     loading, metrics, funil, evolucaoMensal, financeiro12Meses, statsFinanceiro,
     propostas12Meses, statsPropostas, mediasFinanceiras, mediasPropostas,
@@ -67,10 +74,14 @@ export function Dashboard() {
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
   
-  const FinItem = ({ label, value, colorClass = 'text-gray-700' }: any) => {
+  const FinItem = ({ label, value, colorClass = 'text-gray-700' }: FinItemProps) => {
     if (!value || value === 0) return null;
-    // Melhorada legibilidade da fonte do label
-    return <div className='flex justify-between items-end text-sm mt-1 border-b border-gray-100 pb-1 last:border-0 last:pb-0'><span className='text-gray-600 text-xs'>{label}</span><span className={`font-bold ${colorClass}`}>{formatMoney(value)}</span></div>;
+    return (
+        <div className='flex justify-between items-end text-sm mt-1 border-b border-gray-100 pb-1 last:border-0 last:pb-0'>
+            <span className='text-gray-600 text-xs'>{label}</span>
+            <span className={`font-bold ${colorClass}`}>{formatMoney(value)}</span>
+        </div>
+    );
   };
 
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
@@ -112,10 +123,6 @@ export function Dashboard() {
   const ultimoQtd = evolucaoMensal.length > 0 ? evolucaoMensal[evolucaoMensal.length - 1].qtd : 0;
   const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
   const diffEntrada = ultimoQtd - penultimoQtd;
-
-  // Cálculos manuais para exibir apenas mudanças de status + novos (ignorando edições)
-  const calculoAtividadeSemana = metrics.semana.novos + metrics.semana.propQtd + metrics.semana.fechQtd + metrics.semana.rejeitados + metrics.semana.probono;
-  const calculoAtividadeMes = metrics.mes.analysis + metrics.mes.propQtd + metrics.mes.fechQtd + metrics.mes.rejected + metrics.mes.probono;
 
   return (
     <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
@@ -204,7 +211,7 @@ export function Dashboard() {
                     </div>
                 </div>
 
-                {/* Card 3 - Instrumentos Contratuais Firmados -> Alterado para Contratos Fechados */}
+                {/* Card 3 - Contratos Fechados */}
                 <div className="bg-green-50/50 rounded-xl p-5 border border-green-100 relative overflow-hidden group">
                     <div className="flex justify-between items-start mb-2">
                         <div>
@@ -429,8 +436,8 @@ export function Dashboard() {
                         </div>
                         <p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.mes.totalUnico}</p>
                     </div>
-                     {/* Insight adicionado */}
-                     <div className='mt-2 pt-2 border-t border-blue-100'>
+                      {/* Insight adicionado */}
+                      <div className='mt-2 pt-2 border-t border-blue-100'>
                         <p className='text-[10px] text-gray-500 leading-tight italic'>
                             Casos movimentados (que tiveram atividade), e não apenas novos cadastros.
                         </p>

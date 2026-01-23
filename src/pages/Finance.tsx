@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt } from 'lucide-react'; // <--- Importado Receipt
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { EmptyState } from '../components/ui/EmptyState'; // <--- Importado EmptyState
+import { EmptyState } from '../components/ui/EmptyState';
 import * as XLSX from 'xlsx';
 
 export function Finance() {
@@ -113,8 +113,10 @@ export function Finance() {
       case 'success_fee': return 'Êxito (Geral)';
       case 'final_success_fee': return 'Êxito Final';
       case 'intermediate_fee': return 'Êxito Intermediário';
-      case 'fixed': return 'Valor Fixo';
-      case 'other': return 'Outros';
+      case 'fixed': 
+      case 'fixed_monthly_fee': return 'Honorários Mensais';
+      case 'other': 
+      case 'other_fees': return 'Outros Honorários';
       default: return type;
     }
   };
@@ -165,11 +167,11 @@ export function Finance() {
 
     const pendingProLabore = partnerInstallments.filter(i => i.status === 'pending' && i.type === 'pro_labore').reduce((acc, curr) => acc + curr.amount, 0);
     const pendingExitos = partnerInstallments.filter(i => i.status === 'pending' && ['success_fee', 'final_success_fee', 'intermediate_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
-    const pendingFixed = partnerInstallments.filter(i => i.status === 'pending' && i.type === 'fixed').reduce((acc, curr) => acc + curr.amount, 0);
+    const pendingFixed = partnerInstallments.filter(i => i.status === 'pending' && ['fixed', 'fixed_monthly_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
 
     const paidProLabore = partnerInstallments.filter(i => i.status === 'paid' && i.type === 'pro_labore').reduce((acc, curr) => acc + curr.amount, 0);
     const paidExitos = partnerInstallments.filter(i => i.status === 'paid' && ['success_fee', 'final_success_fee', 'intermediate_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
-    const paidFixed = partnerInstallments.filter(i => i.status === 'paid' && i.type === 'fixed').reduce((acc, curr) => acc + curr.amount, 0);
+    const paidFixed = partnerInstallments.filter(i => i.status === 'paid' && ['fixed', 'fixed_monthly_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
 
     return { 
       name: p.name, 
@@ -252,7 +254,6 @@ export function Finance() {
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : filteredInstallments.length === 0 ? (
-          // --- EMPTY STATE ---
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-96">
                <EmptyState
                   icon={Receipt}

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Plus, X, Settings } from 'lucide-react';
-import { Contract } from '../../../types'; // Caminho corrigido
-import { CustomSelect } from '../../ui/CustomSelect'; // Caminho corrigido
+import { Plus, X, Settings, AlertTriangle } from 'lucide-react';
+import { Contract } from '../../../types';
+import { CustomSelect } from '../../ui/CustomSelect';
 import { FinancialInputWithInstallments } from './FinancialInputWithInstallments';
+import { maskMoney, parseCurrency } from '../../../utils/masks';
 
 interface StatusAndDatesSectionProps {
   formData: Contract;
@@ -48,6 +49,78 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   const safeString = (val: string | number | undefined) => {
       if (val === undefined || val === null) return '';
       return String(val);
+  };
+
+  // Helper para renderizar a tabela de parcelas (Local neste componente para ficar logo abaixo)
+  const renderInstallmentBreakdown = (label: string, valueField: keyof Contract, breakdownField: string) => {
+    const breakdown = (formData as any)[breakdownField] as { date: string, value: string }[] | undefined;
+    const totalValueStr = safeString(formatForInput(formData[valueField]));
+    
+    // Só renderiza se houver breakdown e mais de 1 parcela (ou se o array existir)
+    if (!breakdown || breakdown.length <= 1) return null;
+
+    const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
+    const totalOriginal = parseCurrency(totalValueStr);
+    const diff = Math.abs(totalOriginal - totalCalculated);
+    const hasError = diff > 0.05;
+
+    return (
+        <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center justify-between">
+                <span>Detalhamento de Parcelas - {label}</span>
+                <span className="text-xs font-normal text-gray-500">Total: {totalValueStr}</span>
+            </h4>
+            
+            <div className="grid grid-cols-12 gap-3 mb-2 px-2">
+                <div className="col-span-2 text-xs font-medium text-gray-500">Parcela</div>
+                <div className="col-span-5 text-xs font-medium text-gray-500">Data de Vencimento</div>
+                <div className="col-span-5 text-xs font-medium text-gray-500">Valor</div>
+            </div>
+
+            <div className="space-y-2">
+                {breakdown.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-3 items-center">
+                        <div className="col-span-2 text-xs font-bold text-gray-600 pl-2">{idx + 1}ª</div>
+                        <div className="col-span-5">
+                            <input 
+                                type="date" 
+                                className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:border-salomao-blue outline-none"
+                                value={item.date}
+                                onChange={(e) => {
+                                    const newBreakdown = [...breakdown];
+                                    newBreakdown[idx].date = e.target.value;
+                                    setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
+                                }}
+                            />
+                        </div>
+                        <div className="col-span-5 relative">
+                            <input 
+                                type="text" 
+                                className={`w-full text-xs border rounded px-2 py-1.5 outline-none pl-6 ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
+                                value={item.value}
+                                onChange={(e) => {
+                                    const newBreakdown = [...breakdown];
+                                    newBreakdown[idx].value = maskMoney(e.target.value);
+                                    setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
+                                }}
+                            />
+                            <span className="absolute left-2 top-1.5 text-xs text-gray-500">R$</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {hasError && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>
+                        O valor total das parcelas (R$ {totalCalculated.toLocaleString('pt-BR', {minimumFractionDigits: 2})}) 
+                        não bate com o valor contratado ({totalValueStr}). Diferença: R$ {diff.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
   };
 
   return (
@@ -216,6 +289,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   </div>
             </div>
         </div>
+        
+        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 2 */}
+        <div className="space-y-2">
+            {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown')}
+            {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown')}
+            {renderInstallmentBreakdown('Fixo Mensal', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown')}
+        </div>
 
         {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
@@ -306,6 +386,11 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                     })}
                   </div>
             </div>
+        </div>
+        
+        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 3 */}
+        <div className="space-y-2">
+            {renderInstallmentBreakdown('Êxito Final', 'final_success_fee', 'final_success_fee_breakdown')}
         </div>
           
         {/* Linha 4: Timesheet */}

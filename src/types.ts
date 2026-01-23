@@ -48,6 +48,12 @@ export interface Contract {
   other_fees_installments?: string;
   other_fees_clause?: string;
 
+  // Campos de Detalhamento de Parcelas (Breakdown)
+  pro_labore_breakdown?: { date: string; value: string }[];
+  final_success_fee_breakdown?: { date: string; value: string }[];
+  fixed_monthly_fee_breakdown?: { date: string; value: string }[];
+  other_fees_breakdown?: { date: string; value: string }[];
+
   pro_labore_extras?: string[];
   final_success_extras?: string[];
   fixed_monthly_extras?: string[];
@@ -61,6 +67,13 @@ export interface Contract {
   other_fees_extras_clauses?: string[];
   intermediate_fees_clauses?: string[];
   percent_extras_clauses?: string[];
+
+  // Campos de Parcelas dos Extras
+  pro_labore_extras_installments?: string[];
+  final_success_extras_installments?: string[];
+  fixed_monthly_extras_installments?: string[];
+  other_fees_extras_installments?: string[];
+  intermediate_fees_installments?: string[];
 
   company_name?: string; 
   reference?: string;
@@ -77,6 +90,9 @@ export interface Contract {
   responsavel_socio?: string;
   
   processes?: ContractProcess[]; 
+  
+  // Snapshot para histórico
+  proposal_snapshot?: any;
 }
 
 export interface Client {
@@ -115,7 +131,7 @@ export interface Analyst {
 
 export interface ContractProcess {
   id?: string;
-  created_at?: string; // Adicionado para corrigir o erro de build
+  created_at?: string;
   contract_id?: string;
   process_number: string;
   court?: string; 
@@ -131,8 +147,14 @@ export interface ContractProcess {
   action_type?: string; 
   distribution_date?: string;
   cause_value?: string;
+  value_of_cause?: number; // Valor numérico para cálculos
   justice_type?: string; 
   magistrates?: Magistrate[]; 
+  
+  // Campos para busca automática de CNPJ
+  author?: string;
+  author_cnpj?: string;
+  opponent_cnpj?: string;
 }
 
 export interface Magistrate {
@@ -163,7 +185,7 @@ export interface ContractDocument {
 export interface FinancialInstallment {
   id: string;
   contract_id: string;
-  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'fixed' | 'other';
+  type: 'pro_labore' | 'success_fee' | 'final_success_fee' | 'intermediate_fee' | 'fixed' | 'other' | 'fixed_monthly_fee' | 'other_fees'; // Adicionado tipos extras para compatibilidade
   installment_number: number;
   total_installments: number;
   amount: number;
