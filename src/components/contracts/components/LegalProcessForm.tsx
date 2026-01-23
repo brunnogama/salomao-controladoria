@@ -60,30 +60,60 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
     editingProcessIndex, handleProcessAction, handlePartyCNPJSearch, localMaskCNJ, ensureDateValue, setActiveManager
   } = props;
 
-  // Verifica se é um dos tipos especiais que exibe apenas o campo Assunto
-  const isSpecialCase = ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'Caso sem Processo Judicial'].includes(otherProcessType);
+  // Atualizado para incluir 'Outros' e os tipos corretos vindos do ContractFormModal
+  const isSpecialCase = ['Consultoria', 'Assessoria Jurídica', 'Processo Administrativo', 'Outros', 'CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO'].includes(otherProcessType);
 
   return (
     <div className="space-y-4">
-      {/* Botões de seleção foram movidos para o ContractFormModal, mantendo aqui apenas o conteúdo do formulário */}
-
       {isSpecialCase ? (
-        /* BLOCO SIMPLIFICADO: ASSUNTO (Para Consultoria, Assessoria, Administrativo e Sem Processo) */
+        /* BLOCO SIMPLIFICADO: ASSUNTO (Para Consultoria, Assessoria, Administrativo e Outros) */
         <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm animate-in fade-in duration-300">
-            <div className="mb-4">
-                <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
-                    Assunto ({otherProcessType}) *
-                </label>
-                <input 
-                    type="text" 
-                    className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-2 text-sm font-medium" 
-                    placeholder={`Descreva o assunto...`}
-                    value={currentProcess.process_number} 
-                    onChange={(e) => setCurrentProcess({ ...currentProcess, process_number: e.target.value })} 
-                    autoFocus
-                />
-                <p className="text-[10px] text-gray-400 mt-1">Este campo substitui o número do processo para fins de identificação.</p>
-            </div>
+            {otherProcessType === 'Processo Administrativo' ? (
+                /* Layout Específico para Processo Administrativo */
+                <div className="space-y-3 mb-4">
+                    <div>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
+                            Número *
+                        </label>
+                        <input 
+                            type="text" 
+                            className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-2 text-sm font-medium" 
+                            placeholder="Número do processo..."
+                            value={currentProcess.process_number || ''} 
+                            onChange={(e) => setCurrentProcess({ ...currentProcess, process_number: e.target.value })} 
+                            autoFocus
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
+                            Assunto *
+                        </label>
+                        <input 
+                            type="text" 
+                            className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-2 text-sm font-medium" 
+                            placeholder="Descreva o assunto..."
+                            value={currentProcess.subject || ''} 
+                            onChange={(e) => setCurrentProcess({ ...currentProcess, subject: e.target.value })} 
+                        />
+                    </div>
+                </div>
+            ) : (
+                /* Layout para Outros, Consultoria e Assessoria */
+                <div className="mb-4">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold flex justify-between mb-1">
+                        Assunto ({otherProcessType}) *
+                    </label>
+                    <input 
+                        type="text" 
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-2 text-sm font-medium" 
+                        placeholder={`Descreva o assunto...`}
+                        value={currentProcess.process_number || ''} 
+                        onChange={(e) => setCurrentProcess({ ...currentProcess, process_number: e.target.value })} 
+                        autoFocus
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Este campo substitui o número do processo para fins de identificação.</p>
+                </div>
+            )}
             
             {/* Botão de Ação para o Bloco Simplificado */}
             <div className="flex justify-end mt-4">

@@ -135,7 +135,7 @@ export function ContractFormModal(props: Props) {
     const checkProcessNumber = async () => {
         // Se houver um otherProcessType definido (Consultoria, Administrativo, etc), não valida duplicidade de processo
         if (otherProcessType) return setDuplicateProcessWarning(false);
-        if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'CASO SEM PROCESSO JUDICIAL'].includes(currentProcess.process_number)) return setDuplicateProcessWarning(false);
+        if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'OUTROS'].includes(currentProcess.process_number)) return setDuplicateProcessWarning(false);
         const { data } = await supabase.from('contract_processes').select('id').eq('process_number', currentProcess.process_number).limit(1);
         setDuplicateProcessWarning(!!(data && data.length > 0));
     };
@@ -660,19 +660,46 @@ export function ContractFormModal(props: Props) {
                             <button onClick={() => handleTypeChange('Processo Administrativo')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Processo Administrativo' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Processo Administrativo</button>
                             <button onClick={() => handleTypeChange('Consultoria')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Consultoria' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Consultoria</button>
                             <button onClick={() => handleTypeChange('Assessoria Jurídica')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Assessoria Jurídica' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Assessoria Jurídica</button>
-                            <button onClick={() => handleTypeChange('Caso sem Processo Judicial')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Caso sem Processo Judicial' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Caso sem Processo Judicial</button>
+                            <button onClick={() => handleTypeChange('Outros')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Outros' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Outros</button>
                         </div>
 
                         {otherProcessType && (
                             <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
-                                <input
-                                    type="text"
-                                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
-                                    placeholder="Descreva o assunto do caso..."
-                                    value={currentProcess.process_number || ''}
-                                    onChange={(e) => setCurrentProcess(prev => ({ ...prev, process_number: e.target.value }))}
-                                />
+                                {otherProcessType === 'Processo Administrativo' ? (
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                                            <input
+                                                type="text"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
+                                                placeholder="Número do processo..."
+                                                value={currentProcess.process_number || ''}
+                                                onChange={(e) => setCurrentProcess(prev => ({ ...prev, process_number: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
+                                            <input
+                                                type="text"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
+                                                placeholder="Descreva o assunto do caso..."
+                                                value={currentProcess.subject || ''}
+                                                onChange={(e) => setCurrentProcess(prev => ({ ...prev, subject: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
+                                            placeholder="Descreva o assunto do caso..."
+                                            value={currentProcess.process_number || ''}
+                                            onChange={(e) => setCurrentProcess(prev => ({ ...prev, process_number: e.target.value }))}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 
