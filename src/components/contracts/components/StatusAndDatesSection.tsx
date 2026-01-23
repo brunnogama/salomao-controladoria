@@ -4,6 +4,7 @@ import { Contract } from '../../../types';
 import { CustomSelect } from '../../ui/CustomSelect';
 import { FinancialInputWithInstallments } from './FinancialInputWithInstallments';
 import { maskMoney, parseCurrency } from '../../../utils/masks';
+import { addMonths } from 'date-fns';
 
 interface StatusAndDatesSectionProps {
   formData: Contract;
@@ -50,7 +51,9 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       return String(val);
   };
 
-  // Helper para renderizar a tabela de parcelas (UI Melhorada)
+  // ----------------------------------------------------------------------
+  // RENDERIZADOR PRINCIPAL DE PARCELAS (Para campos salvos no formData)
+  // ----------------------------------------------------------------------
   const renderInstallmentBreakdown = (
       label: string, 
       valueField: keyof Contract, 
@@ -97,13 +100,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
                 {breakdown.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs">
-                        <span className="w-6 font-bold text-gray-500 text-right mr-1">{idx + 1}x</span>
+                    <div key={idx} className="flex items-center gap-3 text-xs mb-1">
+                        <span className="w-6 font-bold text-gray-500 text-right">{idx + 1}x</span>
                         
                         <div className="flex-1">
                             <input 
                                 type="date" 
-                                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:border-salomao-blue outline-none text-gray-600 bg-white"
+                                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:border-salomao-blue outline-none text-gray-600 bg-white transition-colors hover:border-blue-300"
                                 value={item.date}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
@@ -116,7 +119,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                         <div className="flex-1 relative">
                             <input 
                                 type="text" 
-                                className={`w-full border rounded px-2 py-1.5 outline-none font-medium text-right ${hasError ? 'border-red-300 text-red-600 bg-red-50 focus:border-red-500' : 'border-gray-300 text-gray-700 bg-white focus:border-salomao-blue'}`}
+                                className={`w-full border rounded px-2 py-1.5 outline-none font-medium text-right transition-colors ${hasError ? 'border-red-300 text-red-600 bg-red-50 focus:border-red-500' : 'border-gray-300 text-gray-700 bg-white hover:border-blue-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
@@ -139,6 +142,61 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                     </span>
                 </div>
             )}
+        </div>
+    );
+  };
+
+  // ----------------------------------------------------------------------
+  // RENDERIZADOR DE PREVIEW PARA ÊXITO INTERMEDIÁRIO (Ad-hoc)
+  // ----------------------------------------------------------------------
+  const renderInterimBreakdownPreview = () => {
+    const rawVal = newIntermediateFee;
+    let totalOriginal = 0;
+    if (typeof rawVal === 'string') totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
+    
+    const countStr = interimInstallments;
+    
+    // Safety check: Só mostra se houver valor e parcelas > 1
+    if (!totalOriginal || totalOriginal <= 0 || !countStr || countStr === '1x') {
+        return null;
+    }
+
+    const count = parseInt(countStr.replace(/\D/g, '')) || 1;
+    const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const partValue = totalOriginal / count;
+    
+    // Gera preview simples (calculado na hora)
+    const previewItems = Array.from({ length: count }, (_, i) => ({
+        date: addMonths(new Date(), i).toISOString().split('T')[0], 
+        value: maskMoney(partValue.toFixed(2))
+    }));
+
+    return (
+        <div className="mt-3 bg-orange-50/50 border border-orange-200 rounded-lg p-3 animate-in fade-in slide-in-from-top-2 shadow-sm">
+             <div className="flex items-center justify-between mb-3 border-b border-orange-200 pb-2">
+                <h4 className="text-xs font-bold text-orange-800 uppercase tracking-wide">
+                    Simulação - Êxito Intermediário
+                </h4>
+                <span className="text-[10px] font-medium text-orange-600 bg-white px-2 py-0.5 rounded border border-orange-200">
+                    Total: {totalValueStr}
+                </span>
+            </div>
+             <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                {previewItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3 text-xs mb-1">
+                        <span className="w-6 font-bold text-gray-500 text-right">{idx + 1}x</span>
+                        <div className="flex-1">
+                             <input type="date" disabled className="w-full border border-gray-200 rounded px-2 py-1.5 bg-gray-50 text-gray-500 cursor-not-allowed" value={item.date} />
+                        </div>
+                        <div className="flex-1">
+                             <input type="text" disabled className="w-full border border-gray-200 rounded px-2 py-1.5 bg-gray-50 text-gray-500 text-right cursor-not-allowed" value={item.value} />
+                        </div>
+                    </div>
+                ))}
+             </div>
+             <div className="mt-2 text-[10px] text-orange-600 italic text-center">
+                * As datas são calculadas automaticamente ao adicionar.
+             </div>
         </div>
     );
   };
@@ -342,9 +400,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   );
                 })}
               </div>
-               {/* Obs: Êxito Intermediário não tem detalhamento de parcelas aqui, 
-                  pois ele é adicionado à lista de extras imediatamente.
-               */}
+              {/* Preview de Parcelamento para Êxito Intermediário (Antes de adicionar) */}
+              {renderInterimBreakdownPreview()}
             </div>
 
             {/* Êxito Final */}
