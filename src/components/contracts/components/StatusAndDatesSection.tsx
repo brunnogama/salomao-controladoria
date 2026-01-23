@@ -54,15 +54,18 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   const renderInstallmentBreakdown = (label: string, valueField: keyof Contract, breakdownField: string) => {
     const breakdown = (formData as any)[breakdownField] as { date: string, value: string }[] | undefined;
     
-    // CORREÇÃO: Garante que o valor total seja lido corretamente, mesmo se for numérico ou undefined
+    // CORREÇÃO 1: Leitura robusta do valor total usando parseCurrency direto no valor bruto
+    // Isso evita problemas onde a string formatada vinha vazia ou incompatível
     const rawVal = formData[valueField];
-    const totalValueStr = formatForInput(rawVal) ? String(formatForInput(rawVal)) : 'R$ 0,00';
+    const totalOriginal = parseCurrency(rawVal);
+    
+    // Formata o valor total para exibição na mensagem de erro (R$ 0.000,00)
+    const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
     // Só renderiza se houver breakdown e mais de 1 parcela (ou se o array existir)
     if (!breakdown || breakdown.length <= 1) return null;
 
     const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
-    const totalOriginal = parseCurrency(totalValueStr);
     
     // Tolerância para erros de arredondamento de centavos
     const diff = Math.abs(totalOriginal - totalCalculated);
@@ -98,7 +101,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
-                            {/* CORREÇÃO: Input sem span absoluto para evitar R$ duplicado */}
+                            {/* CORREÇÃO 2: Removido o span com 'R$' duplicado. O maskMoney já inclui o símbolo no valor. */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
