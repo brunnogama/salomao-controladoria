@@ -70,19 +70,22 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     }
 
     // 2. TRAVA DE SEGURANÇA
+    // Se o valor for <= 0 (campo limpo) OU parcelas for '1x', não renderiza nada.
     const installmentsStr = formData[installmentField] as string;
     
-    // Se o valor for <= 0 ou parcelas for '1x', não renderiza
     if (!totalOriginal || totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
         return null;
     }
     
+    // Formata o valor total para exibição
     const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
+    // Só renderiza se houver breakdown
     if (!breakdown || breakdown.length <= 1) return null;
 
     const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
     
+    // Tolerância para erros de arredondamento
     const diff = Math.abs(totalOriginal - totalCalculated);
     const hasError = diff > 0.1;
 
@@ -116,12 +119,14 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
+                            {/* Input direto sem span extra */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
+                                    // Remove não dígitos para evitar duplicação da máscara
                                     const rawValue = e.target.value.replace(/\D/g, ''); 
                                     newBreakdown[idx].value = maskMoney(rawValue);
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
@@ -251,7 +256,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    );
                 })}
               </div>
-              {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+              {/* CHAMADA ÚNICA */}
               {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown', 'pro_labore_installments')}
             </div>
 
@@ -281,7 +286,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        );
                     })}
                   </div>
-                  {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+                  {/* CHAMADA ÚNICA */}
                   {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
             </div>
 
@@ -311,12 +316,12 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        );
                     })}
                   </div>
-                  {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+                  {/* CHAMADA ÚNICA */}
                   {renderInstallmentBreakdown('Fixo Mensal', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown', 'fixed_monthly_fee_installments')}
             </div>
         </div>
         
-        {/* BLOCO DUPLICADO REMOVIDO DAQUI */}
+        {/* BLOCOS DUPLICADOS FORAM REMOVIDOS DAQUI */}
 
         {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
@@ -375,7 +380,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    );
                 })}
               </div>
-              {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+              {/* CHAMADA ÚNICA */}
               {renderInstallmentBreakdown('Êxito Final', 'final_success_fee', 'final_success_fee_breakdown', 'final_success_fee_installments')}
             </div>
 
@@ -411,7 +416,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             </div>
         </div>
         
-        {/* BLOCO DUPLICADO REMOVIDO DAQUI */}
+        {/* BLOCO DUPLICADO REMOVIDO DAQUI TAMBÉM */}
           
         {/* Linha 4: Timesheet */}
         <div>
