@@ -51,6 +51,44 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       return String(val);
   };
 
+  // --- NOVA FUNÇÃO: Editar Item da Lista (Traz de volta para os inputs) ---
+  const handleEditExtra = (
+    listField: string,
+    valueField: keyof Contract,
+    installmentsListField: string,
+    installmentsSourceField: keyof Contract,
+    clauseListField: string,
+    clauseSourceField: keyof Contract,
+    index: number
+  ) => {
+    setFormData((prev: any) => {
+        // 1. Captura os valores do item clicado
+        const valueToEdit = prev[listField][index];
+        const installmentToEdit = prev[installmentsListField]?.[index] || '1x';
+        const clauseToEdit = prev[clauseListField]?.[index] || '';
+
+        // 2. Remove da lista (cópia dos arrays) - Comportamento de "Mover para Edição"
+        const newList = [...(prev[listField] || [])];
+        const newClausesList = [...ensureArray(prev[clauseListField])];
+        const newInstList = [...ensureArray(prev[installmentsListField])];
+
+        newList.splice(index, 1);
+        newClausesList.splice(index, 1);
+        newInstList.splice(index, 1);
+
+        // 3. Atualiza o estado: define nos inputs principais e atualiza as listas
+        return {
+            ...prev,
+            [valueField]: valueToEdit, // Joga valor pro input principal
+            [installmentsSourceField]: installmentToEdit, // Joga parcelas pro select
+            [clauseSourceField]: clauseToEdit, // Joga cláusula pro input
+            [listField]: newList, // Atualiza lista removendo o item
+            [clauseListField]: newClausesList,
+            [installmentsListField]: newInstList
+        };
+    });
+  };
+
   // EFEITO: Gera/Atualiza o breakdown do Êxito Intermediário quando valor ou parcelas mudam
   useEffect(() => {
     const rawVal = newIntermediateFee;
@@ -74,9 +112,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     const count = parseInt(countStr.replace(/\D/g, '')) || 1;
     const currentBreakdown = (formData as any).interim_breakdown || [];
 
-    // Regenera apenas se a quantidade de parcelas mudar ou se não existir
-    // (Isso preserva edições manuais de valor/data se a quantidade de parcelas for a mesma)
-    // Se quiser forçar regeneração ao mudar o valor total, remova a verificação de length
     if (currentBreakdown.length !== count) {
         const partValue = totalOriginal / count;
         const newBreakdown = Array.from({ length: count }, (_, i) => ({
@@ -356,13 +391,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
                    const installments = ensureArray((formData as any).pro_labore_extras_installments);
                    return (
-                      <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                      <div key={idx} onClick={() => handleEditExtra('pro_labore_extras', 'pro_labore', 'pro_labore_extras_installments', 'pro_labore_installments', 'pro_labore_extras_clauses', 'pro_labore_clause', idx)} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm cursor-pointer hover:bg-blue-50 transition-colors" title="Clique para editar">
                           <div className="flex items-center gap-1">
                               {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
                               <span className="font-medium">{val}</span>
                               {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
                           </div>
-                          <button onClick={() => removeExtra('pro_labore_extras', idx, 'pro_labore_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
+                          <div className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></div>
                       </div>
                    );
                 })}
@@ -386,13 +421,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        const clauses = ensureArray((formData as any).other_fees_extras_clauses);
                        const installments = ensureArray((formData as any).other_fees_extras_installments);
                        return (
-                          <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                          <div key={idx} onClick={() => handleEditExtra('other_fees_extras', 'other_fees', 'other_fees_extras_installments', 'other_fees_installments', 'other_fees_extras_clauses', 'other_fees_clause', idx)} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm cursor-pointer hover:bg-blue-50 transition-colors" title="Clique para editar">
                               <div className="flex items-center gap-1">
                                   {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
                                   <span className="font-medium">{val}</span>
                                   {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
                               </div>
-                              <button onClick={() => removeExtra('other_fees_extras', idx, 'other_fees_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
+                              <div className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></div>
                           </div>
                        );
                     })}
@@ -416,13 +451,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        const clauses = ensureArray((formData as any).fixed_monthly_extras_clauses);
                        const installments = ensureArray((formData as any).fixed_monthly_extras_installments);
                        return (
-                          <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                          <div key={idx} onClick={() => handleEditExtra('fixed_monthly_extras', 'fixed_monthly_fee', 'fixed_monthly_extras_installments', 'fixed_monthly_fee_installments', 'fixed_monthly_extras_clauses', 'fixed_monthly_fee_clause', idx)} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm cursor-pointer hover:bg-blue-50 transition-colors" title="Clique para editar">
                               <div className="flex items-center gap-1">
                                   {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
                                   <span className="font-medium">{val}</span>
                                   {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
                               </div>
-                              <button onClick={() => removeExtra('fixed_monthly_extras', idx, 'fixed_monthly_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
+                              <div className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></div>
                           </div>
                        );
                     })}
@@ -449,13 +484,18 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   const clauses = ensureArray((formData as any).intermediate_fees_clauses);
                   const installments = ensureArray((formData as any).intermediate_fees_installments);
                   return (
-                      <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                      <div key={idx} onClick={() => {
+                          setNewIntermediateFee(fee);
+                          setInterimInstallments(installments[idx] || '1x');
+                          setInterimClause(clauses[idx] || '');
+                          handleRemoveIntermediateFee(idx);
+                      }} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm cursor-pointer hover:bg-blue-50 transition-colors" title="Clique para editar">
                           <div className="flex items-center gap-1">
                               {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
                               <span className="font-medium">{fee}</span>
                               {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
                           </div>
-                          <button onClick={() => handleRemoveIntermediateFee(idx)} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
+                          <div className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></div>
                       </div>
                   );
                 })}
@@ -480,13 +520,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    const clauses = ensureArray((formData as any).final_success_extras_clauses);
                    const installments = ensureArray((formData as any).final_success_extras_installments);
                    return (
-                      <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                      <div key={idx} onClick={() => handleEditExtra('final_success_extras', 'final_success_fee', 'final_success_extras_installments', 'final_success_fee_installments', 'final_success_extras_clauses', 'final_success_fee_clause', idx)} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm cursor-pointer hover:bg-blue-50 transition-colors" title="Clique para editar">
                           <div className="flex items-center gap-1">
                               {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
                               <span className="font-medium">{val}</span>
                               {installments[idx] && <span className="text-gray-500 text-[10px]">({installments[idx]})</span>}
                           </div>
-                          <button onClick={() => removeExtra('final_success_extras', idx, 'final_success_extras_installments')} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
+                          <div className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></div>
                       </div>
                    );
                 })}
@@ -514,12 +554,20 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                     {(formData as any).percent_extras?.map((val: string, idx: number) => {
                        const clauses = ensureArray((formData as any).percent_extras_clauses);
                        return (
-                          <div key={idx} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm" title={clauses[idx] ? `Cláusula: ${clauses[idx]}` : ''}>
+                          <div key={idx} onClick={() => {
+                             const newList = [...(formData as any).percent_extras];
+                             const newClausesList = [...ensureArray((formData as any).percent_extras_clauses)];
+                             const valToEdit = newList[idx];
+                             const clauseToEdit = newClausesList[idx];
+                             newList.splice(idx, 1);
+                             newClausesList.splice(idx, 1);
+                             setFormData({...formData, final_success_percent: valToEdit, final_success_percent_clause: clauseToEdit, percent_extras: newList, percent_extras_clauses: newClausesList} as any);
+                          }} className="bg-white border border-blue-100 px-2 py-1.5 rounded-lg text-xs text-blue-800 flex items-center justify-between shadow-sm cursor-pointer hover:bg-blue-50 transition-colors" title="Clique para editar">
                               <div className="flex items-center gap-1">
                                   {clauses[idx] && <span className="text-gray-500 font-bold text-[10px] bg-gray-50 px-1 rounded border border-gray-100">Cl. {clauses[idx]}</span>}
                                   <span className="font-medium">{val}</span>
                               </div>
-                              <button onClick={() => removeExtra('percent_extras', idx)} className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></button>
+                              <div className="text-blue-300 hover:text-red-500 p-1"><X className="w-3 h-3" /></div>
                           </div>
                        );
                     })}
