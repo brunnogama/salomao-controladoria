@@ -50,7 +50,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       return String(val);
   };
 
-  // Helper para renderizar a tabela de parcelas (Local neste componente para ficar logo abaixo)
+  // Helper para renderizar a tabela de parcelas
   const renderInstallmentBreakdown = (
       label: string, 
       valueField: keyof Contract, 
@@ -69,23 +69,20 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
     }
 
-    // 2. TRAVA DE SEGURANÇA (CORREÇÃO DOS BUGS)
-    // Se o valor for 0, NaN, indefinido, ou parcelas for '1x', O BLOCO DEVE SUMIR.
+    // 2. TRAVA DE SEGURANÇA
     const installmentsStr = formData[installmentField] as string;
     
-    if (!totalOriginal || isNaN(totalOriginal) || totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
+    // Se o valor for <= 0 ou parcelas for '1x', não renderiza
+    if (!totalOriginal || totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
         return null;
     }
     
-    // Formata o valor total para exibição
     const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
-    // Só renderiza se houver breakdown
     if (!breakdown || breakdown.length <= 1) return null;
 
     const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
     
-    // Tolerância para erros de arredondamento
     const diff = Math.abs(totalOriginal - totalCalculated);
     const hasError = diff > 0.1;
 
@@ -119,14 +116,12 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
-                            {/* Input sem span absoluto para evitar R$ duplicado */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
-                                    // Remove tudo que não for dígito antes de mascarar, evita R$ duplicado
                                     const rawValue = e.target.value.replace(/\D/g, ''); 
                                     newBreakdown[idx].value = maskMoney(rawValue);
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
@@ -256,6 +251,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    );
                 })}
               </div>
+              {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+              {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown', 'pro_labore_installments')}
             </div>
 
             {/* Outros Honorários */}
@@ -284,6 +281,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        );
                     })}
                   </div>
+                  {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+                  {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
             </div>
 
             {/* Fixo Mensal */}
@@ -312,15 +311,12 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        );
                     })}
                   </div>
+                  {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+                  {renderInstallmentBreakdown('Fixo Mensal', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown', 'fixed_monthly_fee_installments')}
             </div>
         </div>
         
-        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 2 - SEM DUPLICIDADE */}
-        <div className="space-y-2">
-            {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown', 'pro_labore_installments')}
-            {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
-            {renderInstallmentBreakdown('Fixo Mensal', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown', 'fixed_monthly_fee_installments')}
-        </div>
+        {/* BLOCO DUPLICADO REMOVIDO DAQUI */}
 
         {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
@@ -379,6 +375,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    );
                 })}
               </div>
+              {/* BLOCO CORRETO - DENTRO DA COLUNA */}
+              {renderInstallmentBreakdown('Êxito Final', 'final_success_fee', 'final_success_fee_breakdown', 'final_success_fee_installments')}
             </div>
 
             {/* Êxito % */}
@@ -413,10 +411,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             </div>
         </div>
         
-        {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 3 */}
-        <div className="space-y-2">
-            {renderInstallmentBreakdown('Êxito Final', 'final_success_fee', 'final_success_fee_breakdown', 'final_success_fee_installments')}
-        </div>
+        {/* BLOCO DUPLICADO REMOVIDO DAQUI */}
           
         {/* Linha 4: Timesheet */}
         <div>
