@@ -50,7 +50,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
       return String(val);
   };
 
-  // Helper para renderizar a tabela de parcelas
+  // Helper para renderizar a tabela de parcelas (UI Melhorada)
   const renderInstallmentBreakdown = (
       label: string, 
       valueField: keyof Contract, 
@@ -70,46 +70,40 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     }
 
     // 2. TRAVA DE SEGURANÇA
-    // Se o valor for <= 0 (campo limpo) OU parcelas for '1x', não renderiza nada.
     const installmentsStr = formData[installmentField] as string;
     
-    if (!totalOriginal || totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
+    if (!totalOriginal || isNaN(totalOriginal) || totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
         return null;
     }
     
-    // Formata o valor total para exibição
     const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
-    // Só renderiza se houver breakdown
     if (!breakdown || breakdown.length <= 1) return null;
 
     const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
-    
-    // Tolerância para erros de arredondamento
     const diff = Math.abs(totalOriginal - totalCalculated);
     const hasError = diff > 0.1;
 
     return (
-        <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center justify-between">
-                <span>Detalhamento de Parcelas - {label}</span>
-                <span className="text-xs font-normal text-gray-500">Total: {totalValueStr}</span>
-            </h4>
-            
-            <div className="grid grid-cols-12 gap-3 mb-2 px-2">
-                <div className="col-span-2 text-xs font-medium text-gray-500">Parcela</div>
-                <div className="col-span-5 text-xs font-medium text-gray-500">Data de Vencimento</div>
-                <div className="col-span-5 text-xs font-medium text-gray-500">Valor</div>
+        <div className="mt-3 bg-gray-50/80 border border-gray-200 rounded-lg p-3 animate-in fade-in slide-in-from-top-2 shadow-sm">
+            <div className="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                    Parcelamento - {label}
+                </h4>
+                <span className="text-[10px] font-medium text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200">
+                    Total: {totalValueStr}
+                </span>
             </div>
-
-            <div className="space-y-2">
+            
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
                 {breakdown.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-3 items-center">
-                        <div className="col-span-2 text-xs font-bold text-gray-600 pl-2">{idx + 1}ª</div>
-                        <div className="col-span-5">
+                    <div key={idx} className="flex items-center gap-2 text-xs">
+                        <span className="w-6 font-bold text-gray-500 text-right mr-1">{idx + 1}x</span>
+                        
+                        <div className="flex-1">
                             <input 
                                 type="date" 
-                                className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:border-salomao-blue outline-none"
+                                className="w-full border border-gray-300 rounded px-2 py-1.5 focus:border-salomao-blue outline-none text-gray-600 bg-white"
                                 value={item.date}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
@@ -118,15 +112,14 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                                 }}
                             />
                         </div>
-                        <div className="col-span-5 relative">
-                            {/* Input direto sem span extra */}
+                        
+                        <div className="flex-1 relative">
                             <input 
                                 type="text" 
-                                className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
+                                className={`w-full border rounded px-2 py-1.5 outline-none font-medium text-right ${hasError ? 'border-red-300 text-red-600 bg-red-50 focus:border-red-500' : 'border-gray-300 text-gray-700 bg-white focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
-                                    // Remove não dígitos para evitar duplicação da máscara
                                     const rawValue = e.target.value.replace(/\D/g, ''); 
                                     newBreakdown[idx].value = maskMoney(rawValue);
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
@@ -138,11 +131,11 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
             </div>
 
             {hasError && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">
-                    <AlertTriangle className="w-4 h-4" />
+                <div className="mt-3 flex items-start gap-2 text-[11px] text-red-600 bg-red-50 p-2 rounded border border-red-100 leading-tight">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
                     <span>
-                        O valor total das parcelas (R$ {totalCalculated.toLocaleString('pt-BR', {minimumFractionDigits: 2})}) 
-                        não bate com o valor contratado ({totalValueStr}). Diferença: R$ {diff.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                        Soma das parcelas (R$ {totalCalculated.toLocaleString('pt-BR', {minimumFractionDigits: 2})}) difere do total.
+                        <br/><span className="font-bold">Diferença: R$ {diff.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                     </span>
                 </div>
             )}
@@ -230,7 +223,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         {/* Linha 2: Pró-Labore | Outros Honorários | Fixo Mensal */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
             {/* Pró-Labore */}
-            <div>
+            <div className="space-y-2">
               <FinancialInputWithInstallments 
                 label="Pró-Labore (R$)" 
                 value={safeString(formatForInput(formData.pro_labore))} 
@@ -240,7 +233,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                 clause={(formData as any).pro_labore_clause}
                 onChangeClause={(v: any) => setFormData({...formData, pro_labore_clause: v} as any)}
               />
-              <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
+              <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                 {(formData as any).pro_labore_extras?.map((val: string, idx: number) => {
                    const clauses = ensureArray((formData as any).pro_labore_extras_clauses);
                    const installments = ensureArray((formData as any).pro_labore_extras_installments);
@@ -256,12 +249,12 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    );
                 })}
               </div>
-              {/* CHAMADA ÚNICA */}
+              {/* Detalhamento Individual - Pró-Labore */}
               {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown', 'pro_labore_installments')}
             </div>
 
             {/* Outros Honorários */}
-            <div>
+            <div className="space-y-2">
                 <FinancialInputWithInstallments 
                   label="Outros Honorários (R$)" 
                   value={safeString(formatForInput(formData.other_fees))} onChangeValue={(v: any) => setFormData({...formData, other_fees: v})} 
@@ -270,7 +263,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   clause={(formData as any).other_fees_clause}
                   onChangeClause={(v: any) => setFormData({...formData, other_fees_clause: v} as any)}
                 />
-                <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
+                <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                     {(formData as any).other_fees_extras?.map((val: string, idx: number) => {
                        const clauses = ensureArray((formData as any).other_fees_extras_clauses);
                        const installments = ensureArray((formData as any).other_fees_extras_installments);
@@ -286,12 +279,12 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        );
                     })}
                   </div>
-                  {/* CHAMADA ÚNICA */}
-                  {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
+                  {/* Detalhamento Individual - Outros Honorários */}
+                  {renderInstallmentBreakdown('Outros', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
             </div>
 
             {/* Fixo Mensal */}
-            <div>
+            <div className="space-y-2">
                 <FinancialInputWithInstallments 
                   label="Fixo Mensal (R$)" 
                   value={safeString(formatForInput(formData.fixed_monthly_fee))} onChangeValue={(v: any) => setFormData({...formData, fixed_monthly_fee: v})}
@@ -300,7 +293,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   clause={(formData as any).fixed_monthly_fee_clause}
                   onChangeClause={(v: any) => setFormData({...formData, fixed_monthly_fee_clause: v} as any)}
                 />
-                <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
+                <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                     {(formData as any).fixed_monthly_extras?.map((val: string, idx: number) => {
                        const clauses = ensureArray((formData as any).fixed_monthly_extras_clauses);
                        const installments = ensureArray((formData as any).fixed_monthly_extras_installments);
@@ -316,17 +309,15 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                        );
                     })}
                   </div>
-                  {/* CHAMADA ÚNICA */}
+                  {/* Detalhamento Individual - Fixo Mensal */}
                   {renderInstallmentBreakdown('Fixo Mensal', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown', 'fixed_monthly_fee_installments')}
             </div>
         </div>
-        
-        {/* BLOCOS DUPLICADOS FORAM REMOVIDOS DAQUI */}
 
         {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
             {/* Êxito Intermediário */}
-            <div>
+            <div className="space-y-2">
               <FinancialInputWithInstallments 
                 label="Êxito Intermediário" 
                 value={newIntermediateFee} onChangeValue={setNewIntermediateFee}
@@ -335,7 +326,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                 clause={interimClause}
                 onChangeClause={setInterimClause}
               />
-              <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
+              <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                 {formData.intermediate_fees?.map((fee: string, idx: number) => {
                   const clauses = ensureArray((formData as any).intermediate_fees_clauses);
                   const installments = ensureArray((formData as any).intermediate_fees_installments);
@@ -351,10 +342,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   );
                 })}
               </div>
+               {/* Obs: Êxito Intermediário não tem detalhamento de parcelas aqui, 
+                  pois ele é adicionado à lista de extras imediatamente.
+               */}
             </div>
 
             {/* Êxito Final */}
-            <div>
+            <div className="space-y-2">
               <FinancialInputWithInstallments 
                 label="Êxito Final (R$)" 
                 value={safeString(formatForInput(formData.final_success_fee))} 
@@ -364,7 +358,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                 clause={(formData as any).final_success_fee_clause}
                 onChangeClause={(v: any) => setFormData({...formData, final_success_fee_clause: v} as any)}
               />
-              <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
+              <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                 {(formData as any).final_success_extras?.map((val: string, idx: number) => {
                    const clauses = ensureArray((formData as any).final_success_extras_clauses);
                    const installments = ensureArray((formData as any).final_success_extras_installments);
@@ -380,12 +374,12 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                    );
                 })}
               </div>
-              {/* CHAMADA ÚNICA */}
+              {/* Detalhamento Individual - Êxito Final */}
               {renderInstallmentBreakdown('Êxito Final', 'final_success_fee', 'final_success_fee_breakdown', 'final_success_fee_installments')}
             </div>
 
             {/* Êxito % */}
-            <div>
+            <div className="space-y-2">
                 <label className="text-xs font-medium block mb-1">Êxito %</label>
                 <div className="flex rounded-lg shadow-sm">
                   <input 
@@ -399,7 +393,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   <input type="text" className="flex-1 border border-gray-300 p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="Ex: 20%" value={formData.final_success_percent} onChange={e => setFormData({...formData, final_success_percent: e.target.value})} />
                   <button className="bg-salomao-blue text-white px-3 rounded-r-lg hover:bg-blue-900 border-l border-blue-800" type="button" onClick={() => handleAddToList('percent_extras', 'final_success_percent')}><Plus className="w-4 h-4" /></button>
                 </div>
-                <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
+                <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                     {(formData as any).percent_extras?.map((val: string, idx: number) => {
                        const clauses = ensureArray((formData as any).percent_extras_clauses);
                        return (
@@ -415,8 +409,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                   </div>
             </div>
         </div>
-        
-        {/* BLOCO DUPLICADO REMOVIDO DAQUI TAMBÉM */}
           
         {/* Linha 4: Timesheet */}
         <div>
