@@ -51,31 +51,39 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   };
 
   // Helper para renderizar a tabela de parcelas (Local neste componente para ficar logo abaixo)
-  const renderInstallmentBreakdown = (label: string, valueField: keyof Contract, breakdownField: string) => {
+  // ATUALIZADO: Agora recebe installmentField para validar se é '1x'
+  const renderInstallmentBreakdown = (
+      label: string, 
+      valueField: keyof Contract, 
+      breakdownField: string, 
+      installmentField: keyof Contract
+  ) => {
     const breakdown = (formData as any)[breakdownField] as { date: string, value: string }[] | undefined;
     
-    // CORREÇÃO 1: Leitura robusta do valor total (numérico ou string)
+    // 1. LEITURA ROBUSTA DO VALOR TOTAL
     const rawVal = formData[valueField];
     let totalOriginal = 0;
+    if (typeof rawVal === 'number') totalOriginal = rawVal;
+    else if (typeof rawVal === 'string') totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
 
-    if (typeof rawVal === 'number') {
-        totalOriginal = rawVal;
-    } else if (typeof rawVal === 'string') {
-        // Se for string vazia ou inválida, assume 0
-        totalOriginal = rawVal ? parseCurrency(rawVal) : 0;
+    // 2. TRAVA DE SEGURANÇA (CORREÇÃO DOS BUGS)
+    // Se o valor for 0 (campo limpo após adicionar extra) OU parcelas for '1x', NÃO RENDERIZA NADA.
+    const installmentsStr = formData[installmentField] as string;
+    if (totalOriginal <= 0 || !installmentsStr || installmentsStr === '1x') {
+        return null;
     }
     
-    // Formata o valor total para exibição na mensagem de erro
+    // Formata o valor total para exibição
     const totalValueStr = totalOriginal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     
-    // Só renderiza se houver breakdown e mais de 1 parcela (ou se o array existir)
+    // Só renderiza se houver breakdown
     if (!breakdown || breakdown.length <= 1) return null;
 
     const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
     
-    // Tolerância para erros de arredondamento de centavos
+    // Tolerância para erros de arredondamento
     const diff = Math.abs(totalOriginal - totalCalculated);
-    const hasError = diff > 0.1; // Margem de 10 centavos
+    const hasError = diff > 0.1;
 
     return (
         <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
@@ -107,15 +115,13 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
-                            {/* CORREÇÃO 2: Limpeza do valor antes da máscara para evitar 'R$ R$' */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
-                                    // Remove tudo que não for dígito para garantir uma máscara limpa
-                                    const rawValue = e.target.value.replace(/\D/g, '');
+                                    const rawValue = e.target.value.replace(/\D/g, ''); // Limpa R$ duplicado
                                     newBreakdown[idx].value = maskMoney(rawValue);
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
                                 }}
@@ -304,10 +310,11 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         </div>
         
         {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 2 */}
+        {/* Passando o 4º argumento (campo de parcelas) para validação */}
         <div className="space-y-2">
-            {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown')}
-            {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown')}
-            {renderInstallmentBreakdown('Fixo Mensal', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown')}
+            {renderInstallmentBreakdown('Pró-Labore', 'pro_labore', 'pro_labore_breakdown', 'pro_labore_installments')}
+            {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown', 'other_fees_installments')}
+            {renderInstallmentBreakdown('Fixo Mensal', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown', 'fixed_monthly_fee_installments')}
         </div>
 
         {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
@@ -403,7 +410,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         
         {/* RENDERIZAÇÃO DO DETALHAMENTO DA LINHA 3 */}
         <div className="space-y-2">
-            {renderInstallmentBreakdown('Êxito Final', 'final_success_fee', 'final_success_fee_breakdown')}
+            {renderInstallmentBreakdown('Êxito Final', 'final_success_fee', 'final_success_fee_breakdown', 'final_success_fee_installments')}
         </div>
           
         {/* Linha 4: Timesheet */}
