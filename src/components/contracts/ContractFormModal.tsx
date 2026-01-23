@@ -133,7 +133,7 @@ export function ContractFormModal(props: Props) {
 
   useEffect(() => {
     const checkProcessNumber = async () => {
-        if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA'].includes(currentProcess.process_number)) return setDuplicateProcessWarning(false);
+        if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'CASO SEM PROCESSO JUDICIAL'].includes(currentProcess.process_number)) return setDuplicateProcessWarning(false);
         const { data } = await supabase.from('contract_processes').select('id').eq('process_number', currentProcess.process_number).limit(1);
         setDuplicateProcessWarning(!!(data && data.length > 0));
     };
@@ -592,7 +592,7 @@ export function ContractFormModal(props: Props) {
                         : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    Status
+                    Dados do Cliente
                 </button>
                 <button
                     onClick={() => setActiveTab(2)}
@@ -602,7 +602,7 @@ export function ContractFormModal(props: Props) {
                         : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    Dados do Cliente
+                    Status
                 </button>
                 <button
                     onClick={() => setActiveTab(3)}
@@ -616,8 +616,15 @@ export function ContractFormModal(props: Props) {
                 </button>
             </div>
 
-            {/* Conteúdo da Aba 1: Status */}
+            {/* Conteúdo da Aba 1: Dados do Cliente */}
             {activeTab === 1 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <ClientFormSection formData={formData} setFormData={setFormData} maskCNPJ={maskCNPJ} handleCNPJSearch={handleCNPJSearch} clientSelectOptions={clientSelectOptions} handleClientChange={handleClientChange} setActiveManager={setActiveManager} duplicateClientCases={duplicateClientCases} getStatusLabel={getStatusLabel} areaOptions={areaOptions} partnerSelectOptions={partnerSelectOptions} onOpenPartnerManager={onOpenPartnerManager} />
+                </div>
+            )}
+
+            {/* Conteúdo da Aba 2: Status */}
+            {activeTab === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
                     <StatusAndDatesSection formData={formData} setFormData={setFormData} statusOptions={statusOptions} handleCreateStatus={handleCreateStatus} ensureDateValue={ensureDateValue} analystSelectOptions={analystSelectOptions} onOpenAnalystManager={onOpenAnalystManager} rejectionByOptions={rejectionByOptions} rejectionReasonOptions={rejectionReasonOptions} partnerSelectOptions={partnerSelectOptions} billingOptions={billingOptions} maskHon={maskHon} setActiveManager={setActiveManager} signatureOptions={signatureOptions} formatForInput={formatForInput} handleAddToList={handleAddToList} removeExtra={removeExtra} newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} interimInstallments={interimInstallments} setInterimInstallments={setInterimInstallments} handleAddIntermediateFee={handleAddIntermediateFee} interimClause={interimClause} setInterimClause={setInterimClause} handleRemoveIntermediateFee={handleRemoveIntermediateFee} ensureArray={ensureArray} />
                     
@@ -632,13 +639,6 @@ export function ContractFormModal(props: Props) {
                             <ContractDocuments documents={documents} isEditing={isEditing} uploading={uploading} status={formData.status} onUpload={handleFileUpload} onDownload={handleDownload} onDelete={handleDeleteDocument} />
                         </div>
                     )}
-                </div>
-            )}
-
-            {/* Conteúdo da Aba 2: Dados do Cliente */}
-            {activeTab === 2 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
-                    <ClientFormSection formData={formData} setFormData={setFormData} maskCNPJ={maskCNPJ} handleCNPJSearch={handleCNPJSearch} clientSelectOptions={clientSelectOptions} handleClientChange={handleClientChange} setActiveManager={setActiveManager} duplicateClientCases={duplicateClientCases} getStatusLabel={getStatusLabel} areaOptions={areaOptions} partnerSelectOptions={partnerSelectOptions} onOpenPartnerManager={onOpenPartnerManager} />
                 </div>
             )}
 
