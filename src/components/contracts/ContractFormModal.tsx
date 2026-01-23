@@ -184,11 +184,7 @@ export function ContractFormModal(props: Props) {
         
         // Se não houver valor ou parcelas, ou for 1x, limpa o breakdown se existir
         if (!valStr || !instStr || instStr === '1x' || valStr === 'R$ 0,00' || valStr === '') {
-            if ((newFormData as any)[breakdownField] && (newFormData as any)[breakdownField].length > 0) {
-                // (newFormData as any)[breakdownField] = []; 
-                // Comentado para não apagar dados históricos se o usuário mudar para 1x sem querer,
-                // mas a lógica de renderização não vai mostrar.
-            }
+            // (newFormData as any)[breakdownField] = []; // Opcional: limpar se necessário
             return;
         }
 
@@ -205,7 +201,6 @@ export function ContractFormModal(props: Props) {
                 value: maskMoney(baseValue.toFixed(2))
             }));
             
-            // Ajuste simples de centavos na última parcela se necessário pode ser feito aqui ou no backend
             (newFormData as any)[breakdownField] = newBreakdown;
             hasChanges = true;
         }
@@ -554,77 +549,6 @@ export function ContractFormModal(props: Props) {
     if (data && data.cnpj) setFormData(prev => ({ ...prev, client_name: newName, client_id: data.id, cnpj: maskCNPJ(data.cnpj) }));
   };
 
-  // Helper para renderizar a tabela de parcelas
-  const renderInstallmentBreakdown = (label: string, valueField: keyof Contract, breakdownField: string) => {
-    const breakdown = (formData as any)[breakdownField] as { date: string, value: string }[] | undefined;
-    const totalValueStr = formData[valueField] as string;
-    
-    if (!breakdown || breakdown.length <= 1) return null;
-
-    const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
-    const totalOriginal = parseCurrency(totalValueStr);
-    const diff = Math.abs(totalOriginal - totalCalculated);
-    const hasError = diff > 0.05;
-
-    return (
-        <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center justify-between">
-                <span>Detalhamento de Parcelas - {label}</span>
-                <span className="text-xs font-normal text-gray-500">Total: {totalValueStr}</span>
-            </h4>
-            
-            <div className="grid grid-cols-12 gap-3 mb-2 px-2">
-                <div className="col-span-2 text-xs font-medium text-gray-500">Parcela</div>
-                <div className="col-span-5 text-xs font-medium text-gray-500">Data de Vencimento</div>
-                <div className="col-span-5 text-xs font-medium text-gray-500">Valor</div>
-            </div>
-
-            <div className="space-y-2">
-                {breakdown.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-3 items-center">
-                        <div className="col-span-2 text-xs font-bold text-gray-600 pl-2">{idx + 1}ª</div>
-                        <div className="col-span-5">
-                            <input 
-                                type="date" 
-                                className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:border-salomao-blue outline-none"
-                                value={item.date}
-                                onChange={(e) => {
-                                    const newBreakdown = [...breakdown];
-                                    newBreakdown[idx].date = e.target.value;
-                                    setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
-                                }}
-                            />
-                        </div>
-                        <div className="col-span-5 relative">
-                            <input 
-                                type="text" 
-                                className={`w-full text-xs border rounded px-2 py-1.5 outline-none pl-6 ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
-                                value={item.value}
-                                onChange={(e) => {
-                                    const newBreakdown = [...breakdown];
-                                    newBreakdown[idx].value = maskMoney(e.target.value);
-                                    setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
-                                }}
-                            />
-                            <span className="absolute left-2 top-1.5 text-xs text-gray-500">R$</span>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {hasError && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>
-                        O valor total das parcelas (R$ {totalCalculated.toLocaleString('pt-BR', {minimumFractionDigits: 2})}) 
-                        não bate com o valor contratado ({totalValueStr}). Diferença: R$ {diff.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                    </span>
-                </div>
-            )}
-        </div>
-    );
-  };
-
   const partnerSelectOptions = [{ label: 'Selecione', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))];
   const analystSelectOptions = [{ label: 'Selecione', value: '' }, ...(analysts ? analysts.map(a => ({ label: a.name, value: a.id })) : [])];
   const ufOptions = [{ label: 'Selecione', value: '' }, ...UFS.map(uf => ({ label: uf.nome, value: uf.sigla }))];
@@ -696,16 +620,6 @@ export function ContractFormModal(props: Props) {
             {activeTab === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
                     <StatusAndDatesSection formData={formData} setFormData={setFormData} statusOptions={statusOptions} handleCreateStatus={handleCreateStatus} ensureDateValue={ensureDateValue} analystSelectOptions={analystSelectOptions} onOpenAnalystManager={onOpenAnalystManager} rejectionByOptions={rejectionByOptions} rejectionReasonOptions={rejectionReasonOptions} partnerSelectOptions={partnerSelectOptions} billingOptions={billingOptions} maskHon={maskHon} setActiveManager={setActiveManager} signatureOptions={signatureOptions} formatForInput={formatForInput} handleAddToList={handleAddToList} removeExtra={removeExtra} newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} interimInstallments={interimInstallments} setInterimInstallments={setInterimInstallments} handleAddIntermediateFee={handleAddIntermediateFee} interimClause={interimClause} setInterimClause={setInterimClause} handleRemoveIntermediateFee={handleRemoveIntermediateFee} ensureArray={ensureArray} />
-                    
-                    {/* Renderização Condicional do Detalhamento de Parcelas */}
-                    {(formData.status === 'proposal' || formData.status === 'active') && (
-                        <div className="space-y-2">
-                             {renderInstallmentBreakdown('Pro Labore', 'pro_labore', 'pro_labore_breakdown')}
-                             {renderInstallmentBreakdown('Honorários de Êxito', 'final_success_fee', 'final_success_fee_breakdown')}
-                             {renderInstallmentBreakdown('Honorários Mensais', 'fixed_monthly_fee', 'fixed_monthly_fee_breakdown')}
-                             {renderInstallmentBreakdown('Outros Honorários', 'other_fees', 'other_fees_breakdown')}
-                        </div>
-                    )}
                     
                     {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
                         <div className="pt-6 border-t border-black/5 space-y-6">
