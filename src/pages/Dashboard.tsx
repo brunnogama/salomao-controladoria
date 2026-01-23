@@ -72,7 +72,7 @@ export function Dashboard() {
     navigate('/contratos', { state: { status } });
   };
 
-  const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
+  const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0);
   
   const FinItem = ({ label, value, colorClass = 'text-gray-700' }: FinItemProps) => {
     if (!value || value === 0) return null;
@@ -86,37 +86,38 @@ export function Dashboard() {
 
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
-  const totalNegociacao = metrics.geral.valorEmNegociacaoPL + metrics.geral.valorEmNegociacaoExito;
-  const totalCarteira = metrics.geral.totalFechadoPL + metrics.geral.totalFechadoExito + metrics.geral.receitaRecorrenteAtiva;
+  // Cálculos protegidos com fallback para 0
+  const totalNegociacao = (metrics?.geral?.valorEmNegociacaoPL || 0) + (metrics?.geral?.valorEmNegociacaoExito || 0);
+  const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + (metrics?.geral?.totalFechadoExito || 0) + (metrics?.geral?.receitaRecorrenteAtiva || 0);
 
   const calcDelta = (atual: number, anterior: number) => {
       if (anterior === 0) return atual > 0 ? 100 : 0;
       return ((atual - anterior) / anterior) * 100;
   };
 
-  const valPropSemana = metrics.semana.propPL + metrics.semana.propExito + metrics.semana.propMensal;
-  const valPropSemanaAnt = metrics.semanaAnterior.propPL + metrics.semanaAnterior.propExito + metrics.semanaAnterior.propMensal;
+  const valPropSemana = (metrics?.semana?.propPL || 0) + (metrics?.semana?.propExito || 0) + (metrics?.semana?.propMensal || 0);
+  const valPropSemanaAnt = (metrics?.semanaAnterior?.propPL || 0) + (metrics?.semanaAnterior?.propExito || 0) + (metrics?.semanaAnterior?.propMensal || 0);
   const deltaPropSemana = calcDelta(valPropSemana, valPropSemanaAnt);
 
-  const valFechSemana = metrics.semana.fechPL + metrics.semana.fechExito + metrics.semana.fechMensal;
-  const valFechSemanaAnt = metrics.semanaAnterior.fechPL + metrics.semanaAnterior.fechExito + metrics.semanaAnterior.fechMensal;
+  const valFechSemana = (metrics?.semana?.fechPL || 0) + (metrics?.semana?.fechExito || 0) + (metrics?.semana?.fechMensal || 0);
+  const valFechSemanaAnt = (metrics?.semanaAnterior?.fechPL || 0) + (metrics?.semanaAnterior?.fechExito || 0) + (metrics?.semanaAnterior?.fechMensal || 0);
   const deltaFechSemana = calcDelta(valFechSemana, valFechSemanaAnt);
 
   const maxSemanaChart = Math.max(valPropSemana, valPropSemanaAnt, valFechSemana, valFechSemanaAnt, 100);
 
-  const valPropMes = metrics.executivo.mesAtual.propPL + metrics.executivo.mesAtual.propExito + metrics.executivo.mesAtual.propMensal;
-  const valPropMesAnt = metrics.executivo.mesAnterior.propPL + metrics.executivo.mesAnterior.propExito + metrics.executivo.mesAnterior.propMensal;
+  const valPropMes = (metrics?.executivo?.mesAtual?.propPL || 0) + (metrics?.executivo?.mesAtual?.propExito || 0) + (metrics?.executivo?.mesAtual?.propMensal || 0);
+  const valPropMesAnt = (metrics?.executivo?.mesAnterior?.propPL || 0) + (metrics?.executivo?.mesAnterior?.propExito || 0) + (metrics?.executivo?.mesAnterior?.propMensal || 0);
   const deltaPropMes = calcDelta(valPropMes, valPropMesAnt);
 
-  const valFechMes = metrics.executivo.mesAtual.fechPL + metrics.executivo.mesAtual.fechExito + metrics.executivo.mesAtual.fechMensal;
-  const valFechMesAnt = metrics.executivo.mesAnterior.fechPL + metrics.executivo.mesAnterior.fechExito + metrics.executivo.mesAnterior.fechMensal;
+  const valFechMes = (metrics?.executivo?.mesAtual?.fechPL || 0) + (metrics?.executivo?.mesAtual?.fechExito || 0) + (metrics?.executivo?.mesAtual?.fechMensal || 0);
+  const valFechMesAnt = (metrics?.executivo?.mesAnterior?.fechPL || 0) + (metrics?.executivo?.mesAnterior?.fechExito || 0) + (metrics?.executivo?.mesAnterior?.fechMensal || 0);
   const deltaFechMes = calcDelta(valFechMes, valFechMesAnt);
 
   const maxMesChart = Math.max(valPropMes, valPropMesAnt, valFechMes, valFechMesAnt, 100);
 
-  const deltaNovos = calcDelta(metrics.executivo.mesAtual.novos, metrics.executivo.mesAnterior.novos);
-  const deltaPropQtd = calcDelta(metrics.executivo.mesAtual.propQtd, metrics.executivo.mesAnterior.propQtd);
-  const deltaFechQtd = calcDelta(metrics.executivo.mesAtual.fechQtd, metrics.executivo.mesAnterior.fechQtd);
+  const deltaNovos = calcDelta(metrics?.executivo?.mesAtual?.novos || 0, metrics?.executivo?.mesAnterior?.novos || 0);
+  const deltaPropQtd = calcDelta(metrics?.executivo?.mesAtual?.propQtd || 0, metrics?.executivo?.mesAnterior?.propQtd || 0);
+  const deltaFechQtd = calcDelta(metrics?.executivo?.mesAtual?.fechQtd || 0, metrics?.executivo?.mesAnterior?.fechQtd || 0);
   
   const totalEntrada12 = evolucaoMensal.reduce((acc, curr) => acc + curr.qtd, 0);
   const mediaEntrada = evolucaoMensal.length > 0 ? (totalEntrada12 / evolucaoMensal.length).toFixed(1) : '0';
@@ -335,7 +336,7 @@ export function Dashboard() {
                         </div>
                         <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.propQtd}</p>
                     </div>
-                    <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.propPL + metrics.semana.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div>
+                    <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={(metrics.semana.propPL || 0) + (metrics.semana.propMensal || 0)} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.semana.propExito} colorClass='text-blue-700' /></div>
                 </div>
 
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
@@ -346,7 +347,7 @@ export function Dashboard() {
                         </div>
                         <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.semana.fechQtd}</p>
                     </div>
-                    <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.semana.fechPL + metrics.semana.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div>
+                    <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={(metrics.semana.fechPL || 0) + (metrics.semana.fechMensal || 0)} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.semana.fechExito} colorClass='text-green-700' /></div>
                 </div>
 
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>
@@ -462,7 +463,7 @@ export function Dashboard() {
                         </div>
                         <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.propQtd}</p>
                     </div>
-                    <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.propPL + metrics.mes.propMensal} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div>
+                    <div className='bg-blue-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={(metrics.mes.propPL || 0) + (metrics.mes.propMensal || 0)} colorClass='text-blue-700' /><FinItem label='Êxito' value={metrics.mes.propExito} colorClass='text-blue-700' /></div>
                 </div>
 
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-blue-100'>
@@ -473,7 +474,7 @@ export function Dashboard() {
                         </div>
                         <p className='text-3xl font-bold text-gray-800 mt-1'>{metrics.mes.fechQtd}</p>
                     </div>
-                    <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={metrics.mes.fechPL + metrics.mes.fechMensal} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div>
+                    <div className='bg-green-50/50 p-2 rounded-lg space-y-1'><FinItem label='PL + Fixos' value={(metrics.mes.fechPL || 0) + (metrics.mes.fechMensal || 0)} colorClass='text-green-700' /><FinItem label='Êxito' value={metrics.mes.fechExito} colorClass='text-green-700' /></div>
                 </div>
 
                 <div className='bg-white p-5 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between'>

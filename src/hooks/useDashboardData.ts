@@ -3,19 +3,29 @@ import { contractService } from '../services/contractService';
 import { partnerService } from '../services/partnerService';
 import { Contract, Partner, ContractCase } from '../types';
 
-// --- Funções Auxiliares ---
+// --- Funções Auxiliares de Parsing e Data ---
+
+// Garante que o valor monetário (string 'R$ 1.000,00' ou number) seja convertido corretamente para float
 const safeParseMoney = (value: string | number | undefined | null): number => {
   if (value === undefined || value === null || value === '') return 0;
   if (typeof value === 'number') return value;
+  
   const strVal = String(value).trim();
+  
+  // Se já for um número em string simples (ex: "1000.50"), retorna direto
   if (!strVal.includes('R$') && !strVal.includes(',') && !isNaN(Number(strVal))) {
     return parseFloat(strVal);
   }
+
+  // Remove tudo que não for dígito, vírgula ou sinal de menos
+  // Ex: "R$ 1.500,00" -> "1500,00"
   const cleanStr = strVal.replace(/[^\d,-]/g, '').replace(',', '.');
+  
   const floatVal = parseFloat(cleanStr);
   return isNaN(floatVal) ? 0 : floatVal;
 };
 
+// Helpers de Data
 const isDateInCurrentWeek = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); const cd = t.getDay(); const s = new Date(t); s.setDate(t.getDate() - cd); s.setHours(0,0,0,0); const e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59,999); return d >= s && d <= e; };
 const isDateInPreviousWeek = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); const cd = t.getDay(); const sc = new Date(t); sc.setDate(t.getDate() - cd); sc.setHours(0,0,0,0); const sp = new Date(sc); sp.setDate(sc.getDate() - 7); const ep = new Date(sp); ep.setDate(sp.getDate() + 6); ep.setHours(23,59,59,999); return d >= sp && d <= ep; };
 const isDateInCurrentMonth = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); return d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear(); };
@@ -37,7 +47,7 @@ export function useDashboardData() {
       setContracts(contratosData);
       setPartners(sociosData);
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao buscar dados do dashboard:", error);
     } finally {
       setLoading(false);
     }
@@ -51,13 +61,15 @@ export function useDashboardData() {
 
   const dashboardData = useMemo(() => {
     const hoje = new Date();
-    const dataInicioFixo = new Date(2025, 5, 1);
+    // Data de início para gráficos de 12 meses
+    const dataInicioFixo = new Date(2025, 5, 1); 
     
     const partnerMap = partners.reduce((acc: any, s: any) => {
         acc[s.id] = s.name;
         return acc;
     }, {});
 
+    // Inicialização das Métricas
     let mSemana = { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, rejeitados: 0, probono: 0, totalUnico: 0 };
     let mSemanaAnterior = { propPL: 0, propExito: 0, propMensal: 0, fechPL: 0, fechExito: 0, fechMensal: 0 };
     let mMes = { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, totalUnico: 0, analysis: 0, rejected: 0, probono: 0 };
@@ -78,6 +90,7 @@ export function useDashboardData() {
     let totalRejected = 0;
     const partnerCounts: Record<string, any> = {};
 
+    // Prepara mapa de meses vazio para os últimos 12 meses
     let iteradorMeses = new Date(dataInicioFixo);
     while (iteradorMeses <= hoje) {
       const key = iteradorMeses.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
@@ -87,18 +100,28 @@ export function useDashboardData() {
     }
     const dataLimite12Meses = dataInicioFixo;
 
+    // --- LOOP PRINCIPAL DE CÁLCULO ---
     contracts.forEach((c) => {
+      // 1. LEITURA DOS VALORES (Foco nos totais do placeholder)
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
       let mensal = safeParseMoney(c.fixed_monthly_fee);
       let outros = safeParseMoney(c.other_fees);
 
+      // 2. ADIÇÃO DE EXTRAS (Se existirem)
+      // Somente soma os extras explicitamente adicionados como listas de aditivos
       if (c.pro_labore_extras && Array.isArray(c.pro_labore_extras)) pl += c.pro_labore_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.final_success_extras && Array.isArray(c.final_success_extras)) exito += c.final_success_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) mensal += c.fixed_monthly_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.other_fees_extras && Array.isArray(c.other_fees_extras)) outros += c.other_fees_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
+      
+      // Agrega 'Outros Honorários' ao 'PL' para simplificação visual nos cards (opcional, padrão do dashboard)
       pl += outros;
+
+      // Extras Intermediários somam ao Êxito
       if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) exito += c.intermediate_fees.reduce((acc, val) => acc + safeParseMoney(val), 0);
+      
+      // Soma de casos anexados (se houver)
       if (c.cases && Array.isArray(c.cases)) {
         c.cases.forEach((caseItem: ContractCase) => {
           pl += safeParseMoney(caseItem.pro_labore);
@@ -106,6 +129,7 @@ export function useDashboardData() {
         });
       }
 
+      // 3. DATAS E FLUXO
       const statusDates = [c.prospect_date, c.proposal_date, c.contract_date, c.rejection_date, c.probono_date].filter(d => d && d !== '').map(d => new Date(d + 'T12:00:00'));
       let dataEntradaReal = null;
       if (statusDates.length > 0) dataEntradaReal = new Date(Math.min(...statusDates.map(d => d.getTime())));
@@ -124,6 +148,7 @@ export function useDashboardData() {
       if (isEntradaCurrentMonth) mExecutivo.mesAtual.novos++;
       if (isEntradaLastMonth) mExecutivo.mesAnterior.novos++;
 
+      // 4. MÉTODOS DE CÁLCULO POR STATUS
       if (c.proposal_date) {
          if (isDateInCurrentMonth(c.proposal_date)) { mExecutivo.mesAtual.propQtd++; mExecutivo.mesAtual.propPL += pl; mExecutivo.mesAtual.propExito += exito; mExecutivo.mesAtual.propMensal += mensal; }
          if (isDateInLastMonth(c.proposal_date)) { mExecutivo.mesAnterior.propQtd++; mExecutivo.mesAnterior.propPL += pl; mExecutivo.mesAnterior.propExito += exito; mExecutivo.mesAnterior.propMensal += mensal; }
@@ -133,6 +158,7 @@ export function useDashboardData() {
          if (isDateInLastMonth(c.contract_date)) { mExecutivo.mesAnterior.fechQtd++; mExecutivo.mesAnterior.fechPL += pl; mExecutivo.mesAnterior.fechExito += exito; mExecutivo.mesAnterior.fechMensal += mensal; }
       }
 
+      // Contagem por Sócio
       const pName = (c.partner_id && partnerMap[c.partner_id]) || c.responsavel_socio || 'Não Informado';
       if (!partnerCounts[pName]) partnerCounts[pName] = { total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0 };
       partnerCounts[pName].total++;
@@ -142,6 +168,7 @@ export function useDashboardData() {
       else if (c.status === 'rejected') partnerCounts[pName].rejected++;
       else if (c.status === 'probono') partnerCounts[pName].probono++;
 
+      // Rejeições
       if (c.status === 'rejected') {
           totalRejected++;
           const reason = c.rejection_reason || 'Não informado';
@@ -150,6 +177,7 @@ export function useDashboardData() {
           sourceCounts[source] = (sourceCounts[source] || 0) + 1;
       }
 
+      // Mapas Financeiros (Gráficos)
       if (c.status === 'active' && c.contract_date) {
         const dContrato = new Date(c.contract_date + 'T12:00:00');
         dContrato.setDate(1); dContrato.setHours(0,0,0,0);
@@ -168,6 +196,7 @@ export function useDashboardData() {
         }
       }
 
+      // Tempos Médios (Funil)
       const dProspect = c.prospect_date ? new Date(c.prospect_date + 'T12:00:00') : null;
       const dProposal = c.proposal_date ? new Date(c.proposal_date + 'T12:00:00') : null;
       const dContract = c.contract_date ? new Date(c.contract_date + 'T12:00:00') : null;
@@ -183,6 +212,7 @@ export function useDashboardData() {
           qtdPropostaFechamento++;
       }
 
+      // Totais Gerais
       mGeral.totalCasos++;
       if (c.status === 'analysis') mGeral.emAnalise++;
       if (c.status === 'rejected') mGeral.rejeitados++;
@@ -191,21 +221,25 @@ export function useDashboardData() {
       if (c.status === 'proposal') { mGeral.propostasAtivas++; mGeral.valorEmNegociacaoPL += (pl + mensal); mGeral.valorEmNegociacaoExito += exito; }
       if (c.status === 'active') { mGeral.fechados++; mGeral.receitaRecorrenteAtiva += mensal; mGeral.totalFechadoPL += pl; mGeral.totalFechadoExito += exito; c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++; }
 
+      // Semana Atual
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;
       if (c.status === 'proposal' && isDateInCurrentWeek(c.proposal_date)) { mSemana.propQtd++; mSemana.propPL += pl; mSemana.propExito += exito; mSemana.propMensal += mensal; }
       if (c.status === 'active' && isDateInCurrentWeek(c.contract_date)) { mSemana.fechQtd++; mSemana.fechPL += pl; mSemana.fechExito += exito; mSemana.fechMensal += mensal; }
       if (c.status === 'rejected' && isDateInCurrentWeek(c.rejection_date)) mSemana.rejeitados++;
       if (c.status === 'probono' && isDateInCurrentWeek(c.probono_date || c.contract_date)) mSemana.probono++;
 
+      // Semana Anterior
       if (c.status === 'proposal' && isDateInPreviousWeek(c.proposal_date)) { mSemanaAnterior.propPL += pl; mSemanaAnterior.propExito += exito; mSemanaAnterior.propMensal += mensal; }
       if (c.status === 'active' && isDateInPreviousWeek(c.contract_date)) { mSemanaAnterior.fechPL += pl; mSemanaAnterior.fechExito += exito; mSemanaAnterior.fechMensal += mensal; }
 
+      // Mês Atual
       if (c.status === 'analysis' && isDateInCurrentMonth(c.prospect_date)) mMes.analysis++;
       if (c.status === 'proposal' && isDateInCurrentMonth(c.proposal_date)) { mMes.propQtd++; mMes.propPL += pl; mMes.propExito += exito; mMes.propMensal += mensal; }
       if (c.status === 'active' && isDateInCurrentMonth(c.contract_date)) { mMes.fechQtd++; mMes.fechPL += pl; mMes.fechExito += exito; mMes.fechMensal += mensal; }
       if (c.status === 'rejected' && isDateInCurrentMonth(c.rejection_date)) mMes.rejected++;
       if (c.status === 'probono' && isDateInCurrentMonth(c.probono_date || c.contract_date)) mMes.probono++;
 
+      // Funil
       fTotal++;
       const chegouEmProposta = c.status === 'proposal' || c.status === 'active' || (c.status === 'rejected' && c.proposal_date);
       if (chegouEmProposta) fQualificados++;
@@ -213,12 +247,11 @@ export function useDashboardData() {
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
     });
 
-    // --- CÁLCULO ATUALIZADO DO TOTAL ÚNICO (SOMA DAS ATIVIDADES) ---
-    // Agora o total reflete a soma exata dos cards do dashboard, garantindo consistência visual.
+    // Totais Calculados
     mSemana.totalUnico = mSemana.novos + mSemana.propQtd + mSemana.fechQtd + mSemana.rejeitados + mSemana.probono;
     mMes.totalUnico = mMes.analysis + mMes.propQtd + mMes.fechQtd + mMes.rejected + mMes.probono;
-    // ---------------------------------------------------------------
 
+    // Processamento dos Gráficos
     const finArray = Object.entries(financeiroMap).map(([mes, vals]) => ({ mes, ...vals })).sort((a, b) => a.data.getTime() - b.data.getTime());
     const totalPL12 = finArray.reduce((acc, curr) => acc + curr.pl + curr.fixo, 0); const totalExito12 = finArray.reduce((acc, curr) => acc + curr.exito, 0);
     const monthsCount = finArray.length || 1;
