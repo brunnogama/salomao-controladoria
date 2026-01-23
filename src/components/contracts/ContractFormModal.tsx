@@ -133,13 +133,15 @@ export function ContractFormModal(props: Props) {
 
   useEffect(() => {
     const checkProcessNumber = async () => {
+        // Se houver um otherProcessType definido (Consultoria, Administrativo, etc), não valida duplicidade de processo
+        if (otherProcessType) return setDuplicateProcessWarning(false);
         if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'CASO SEM PROCESSO JUDICIAL'].includes(currentProcess.process_number)) return setDuplicateProcessWarning(false);
         const { data } = await supabase.from('contract_processes').select('id').eq('process_number', currentProcess.process_number).limit(1);
         setDuplicateProcessWarning(!!(data && data.length > 0));
     };
     const timer = setTimeout(checkProcessNumber, 800);
     return () => clearTimeout(timer);
-  }, [currentProcess.process_number]);
+  }, [currentProcess.process_number, otherProcessType]);
 
   // EFEITO: Auto-preenchimento de CNPJ do Autor
   useEffect(() => {
@@ -568,6 +570,11 @@ export function ContractFormModal(props: Props) {
   const subjectSelectOptions = [{ label: 'Selecione', value: '' }, ...options.subjectOptions.map(s => ({ label: s, value: s }))];
   const clientSelectOptions = [{ label: 'Selecione', value: '' }, ...options.clientOptions.map(c => ({ label: c, value: c }))];
 
+  const handleTypeChange = (type: string) => {
+    setOtherProcessType(type);
+    setCurrentProcess(prev => ({ ...prev, process_number: '' }));
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -646,6 +653,29 @@ export function ContractFormModal(props: Props) {
             {activeTab === 3 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
                     <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">Casos</h3>
+                        
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <button onClick={() => { handleTypeChange(''); setIsStandardCNJ(true); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!otherProcessType ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Processos Judiciais</button>
+                            <button onClick={() => handleTypeChange('Processo Administrativo')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Processo Administrativo' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Processo Administrativo</button>
+                            <button onClick={() => handleTypeChange('Consultoria')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Consultoria' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Consultoria</button>
+                            <button onClick={() => handleTypeChange('Assessoria Jurídica')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Assessoria Jurídica' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Assessoria Jurídica</button>
+                            <button onClick={() => handleTypeChange('Caso sem Processo Judicial')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Caso sem Processo Judicial' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Caso sem Processo Judicial</button>
+                        </div>
+
+                        {otherProcessType && (
+                            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
+                                    placeholder="Descreva o assunto do caso..."
+                                    value={currentProcess.process_number || ''}
+                                    onChange={(e) => setCurrentProcess(prev => ({ ...prev, process_number: e.target.value }))}
+                                />
+                            </div>
+                        )}
+
                         <LegalProcessForm formData={formData} setFormData={setFormData} currentProcess={currentProcess} setCurrentProcess={setCurrentProcess} isStandardCNJ={isStandardCNJ} setIsStandardCNJ={setIsStandardCNJ} otherProcessType={otherProcessType} setOtherProcessType={setOtherProcessType} duplicateProcessWarning={duplicateProcessWarning} searchingCNJ={searchingCNJ} handleCNJSearch={handleCNJSearch} handleOpenJusbrasil={handleOpenJusbrasil} courtSelectOptions={courtSelectOptions} ufOptions={ufOptions} positionOptions={positionOptions} authorOptions={options.authorOptions} opponentOptions={options.opponentOptions} duplicateOpponentCases={duplicateOpponentCases} magistrateTypes={magistrateTypes} magistrateOptions={options.magistrateOptions} newMagistrateTitle={newMagistrateTitle} setNewMagistrateTitle={setNewMagistrateTitle} newMagistrateName={newMagistrateName} setNewMagistrateName={setNewMagistrateName} addMagistrate={addMagistrate} removeMagistrate={removeMagistrate} numeralOptions={numeralOptions} varaSelectOptions={varaSelectOptions} comarcaSelectOptions={comarcaSelectOptions} justiceSelectOptions={justiceSelectOptions} classSelectOptions={classSelectOptions} subjectSelectOptions={subjectSelectOptions} newSubject={newSubject} setNewSubject={setNewSubject} addSubjectToProcess={addSubjectToProcess} removeSubject={removeSubject} editingProcessIndex={editingProcessIndex} handleProcessAction={handleProcessAction} handlePartyCNPJSearch={handlePartyCNPJSearch} localMaskCNJ={localMaskCNJ} ensureDateValue={ensureDateValue} setActiveManager={setActiveManager} />
                         <LegalProcessList processes={processes} setViewProcess={setViewProcess} setViewProcessIndex={setViewProcessIndex} editProcess={editProcess} removeProcess={removeProcess} />
                     </section>
