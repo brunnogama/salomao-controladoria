@@ -663,46 +663,6 @@ export function ContractFormModal(props: Props) {
                             <button onClick={() => handleTypeChange('Outros')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Outros' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Outros</button>
                         </div>
 
-                        {otherProcessType && (
-                            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-4">
-                                {otherProcessType === 'Processo Administrativo' ? (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
-                                            <input
-                                                type="text"
-                                                className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
-                                                placeholder="Número do processo..."
-                                                value={currentProcess.process_number || ''}
-                                                onChange={(e) => setCurrentProcess(prev => ({ ...prev, process_number: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
-                                            <input
-                                                type="text"
-                                                className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
-                                                placeholder="Descreva o assunto do caso..."
-                                                value={currentProcess.subject || ''}
-                                                onChange={(e) => setCurrentProcess(prev => ({ ...prev, subject: e.target.value }))}
-                                            />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
-                                        <input
-                                            type="text"
-                                            className="w-full border border-gray-300 rounded-lg p-2.5 focus:border-salomao-blue outline-none"
-                                            placeholder="Descreva o assunto do caso..."
-                                            value={currentProcess.process_number || ''}
-                                            onChange={(e) => setCurrentProcess(prev => ({ ...prev, process_number: e.target.value }))}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         <LegalProcessForm formData={formData} setFormData={setFormData} currentProcess={currentProcess} setCurrentProcess={setCurrentProcess} isStandardCNJ={isStandardCNJ} setIsStandardCNJ={setIsStandardCNJ} otherProcessType={otherProcessType} setOtherProcessType={setOtherProcessType} duplicateProcessWarning={duplicateProcessWarning} searchingCNJ={searchingCNJ} handleCNJSearch={handleCNJSearch} handleOpenJusbrasil={handleOpenJusbrasil} courtSelectOptions={courtSelectOptions} ufOptions={ufOptions} positionOptions={positionOptions} authorOptions={options.authorOptions} opponentOptions={options.opponentOptions} duplicateOpponentCases={duplicateOpponentCases} magistrateTypes={magistrateTypes} magistrateOptions={options.magistrateOptions} newMagistrateTitle={newMagistrateTitle} setNewMagistrateTitle={setNewMagistrateTitle} newMagistrateName={newMagistrateName} setNewMagistrateName={setNewMagistrateName} addMagistrate={addMagistrate} removeMagistrate={removeMagistrate} numeralOptions={numeralOptions} varaSelectOptions={varaSelectOptions} comarcaSelectOptions={comarcaSelectOptions} justiceSelectOptions={justiceSelectOptions} classSelectOptions={classSelectOptions} subjectSelectOptions={subjectSelectOptions} newSubject={newSubject} setNewSubject={setNewSubject} addSubjectToProcess={addSubjectToProcess} removeSubject={removeSubject} editingProcessIndex={editingProcessIndex} handleProcessAction={handleProcessAction} handlePartyCNPJSearch={handlePartyCNPJSearch} localMaskCNJ={localMaskCNJ} ensureDateValue={ensureDateValue} setActiveManager={setActiveManager} />
                         <LegalProcessList processes={processes} setViewProcess={setViewProcess} setViewProcessIndex={setViewProcessIndex} editProcess={editProcess} removeProcess={removeProcess} />
                     </section>
