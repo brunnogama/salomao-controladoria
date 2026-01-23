@@ -54,9 +54,9 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   const renderInstallmentBreakdown = (label: string, valueField: keyof Contract, breakdownField: string) => {
     const breakdown = (formData as any)[breakdownField] as { date: string, value: string }[] | undefined;
     
-    // CORREÇÃO 1: Leitura robusta do valor total para evitar erro de comparação
-    const rawValue = formData[valueField];
-    const totalValueStr = rawValue ? String(rawValue) : 'R$ 0,00';
+    // CORREÇÃO: Garante que o valor total seja lido corretamente, mesmo se for numérico ou undefined
+    const rawVal = formData[valueField];
+    const totalValueStr = formatForInput(rawVal) ? String(formatForInput(rawVal)) : 'R$ 0,00';
     
     // Só renderiza se houver breakdown e mais de 1 parcela (ou se o array existir)
     if (!breakdown || breakdown.length <= 1) return null;
@@ -98,7 +98,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
-                            {/* CORREÇÃO 2: Removido o span com 'R$' duplicado e ajustado padding */}
+                            {/* CORREÇÃO: Input sem span absoluto para evitar R$ duplicado */}
                             <input 
                                 type="text" 
                                 className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
