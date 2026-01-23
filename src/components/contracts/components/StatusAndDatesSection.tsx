@@ -21,7 +21,6 @@ interface StatusAndDatesSectionProps {
   setActiveManager: (manager: string) => void;
   signatureOptions: { label: string; value: string }[];
   formatForInput: (val: string | number | undefined) => string | number;
-  // Alterado para 'any' para evitar conflito estrito de tipagem com o pai durante o build
   handleAddToList: (listField: string, valueField: any, installmentsListField?: string, installmentsSourceField?: any) => void;
   removeExtra: (field: string, index: number, installmentsListField?: string) => void;
   newIntermediateFee: string;
@@ -54,15 +53,20 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
   // Helper para renderizar a tabela de parcelas (Local neste componente para ficar logo abaixo)
   const renderInstallmentBreakdown = (label: string, valueField: keyof Contract, breakdownField: string) => {
     const breakdown = (formData as any)[breakdownField] as { date: string, value: string }[] | undefined;
-    const totalValueStr = safeString(formatForInput(formData[valueField]));
+    
+    // CORREÇÃO 1: Leitura robusta do valor total para evitar erro de comparação
+    const rawValue = formData[valueField];
+    const totalValueStr = rawValue ? String(rawValue) : 'R$ 0,00';
     
     // Só renderiza se houver breakdown e mais de 1 parcela (ou se o array existir)
     if (!breakdown || breakdown.length <= 1) return null;
 
     const totalCalculated = breakdown.reduce((acc, curr) => acc + parseCurrency(curr.value), 0);
     const totalOriginal = parseCurrency(totalValueStr);
+    
+    // Tolerância para erros de arredondamento de centavos
     const diff = Math.abs(totalOriginal - totalCalculated);
-    const hasError = diff > 0.05;
+    const hasError = diff > 0.1; // Margem de 10 centavos
 
     return (
         <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
@@ -94,9 +98,10 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                             />
                         </div>
                         <div className="col-span-5 relative">
+                            {/* CORREÇÃO 2: Removido o span com 'R$' duplicado e ajustado padding */}
                             <input 
                                 type="text" 
-                                className={`w-full text-xs border rounded px-2 py-1.5 outline-none pl-6 ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
+                                className={`w-full text-xs border rounded px-2 py-1.5 outline-none ${hasError ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                                 value={item.value}
                                 onChange={(e) => {
                                     const newBreakdown = [...breakdown];
@@ -104,7 +109,6 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                                     setFormData(prev => ({...prev, [breakdownField]: newBreakdown} as any));
                                 }}
                             />
-                            <span className="absolute left-2 top-1.5 text-xs text-gray-500">R$</span>
                         </div>
                     </div>
                 ))}
