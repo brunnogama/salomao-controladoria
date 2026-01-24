@@ -66,6 +66,13 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
     }
   };
 
+  const handleDownloadLatest = (e: React.MouseEvent) => {
+      if (documents && documents.length > 0) {
+          // Assume que o primeiro é o mais recente ou relevante
+          handleDownload(e, documents[0]);
+      }
+  };
+
   // 1. CONSTRUÇÃO DA TIMELINE BASEADA NAS DATAS INTERNAS
   const buildInternalTimeline = (): InternalTimelineEvent[] => {
     const events: InternalTimelineEvent[] = [];
@@ -235,7 +242,24 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block">Documento (CNPJ/CPF)</label>
-                  <div className="text-gray-800 font-mono mt-1">{contract.cnpj || 'Não informado'}</div>
+                  <div className="text-gray-800 font-mono mt-1 mb-2">{contract.cnpj || 'Não informado'}</div>
+                  
+                  {/* ÍCONE DE CLIPE PARA DOWNLOAD - CONDICIONAL */}
+                  <div className="flex items-center">
+                      <button 
+                        onClick={handleDownloadLatest}
+                        disabled={!documents || documents.length === 0}
+                        className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors ${
+                            documents && documents.length > 0 
+                            ? 'text-blue-600 hover:bg-blue-50 cursor-pointer' 
+                            : 'text-gray-300 cursor-not-allowed'
+                        }`}
+                        title={documents && documents.length > 0 ? "Baixar arquivo mais recente" : "Nenhum arquivo anexado"}
+                      >
+                          <Paperclip className="w-4 h-4" /> 
+                          {documents && documents.length > 0 ? 'Baixar Anexo' : 'Sem Anexo'}
+                      </button>
+                  </div>
                 </div>
                 {(contract as any).reference_text && (
                   <div className="mt-4 bg-gray-50 p-3 rounded-lg border border-gray-200">
@@ -378,11 +402,8 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           )}
 
-          {/* SECTION INFERIOR: TIMELINE E GED */}
-          <div className="border-t border-gray-100 pt-6 flex flex-col lg:flex-row gap-8">
-            
-            {/* Esquerda: TIMELINE HORIZONTAL (50%) */}
-            <div className="flex-1 lg:w-1/2">
+          {/* SECTION INFERIOR: TIMELINE EXPANDIDA (FULL WIDTH) */}
+          <div className="border-t border-gray-100 pt-6">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center">
                     <HistoryIcon className="w-4 h-4 mr-2" /> Timeline (Datas do Processo)
@@ -390,7 +411,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                 </div>
                 
                 {timelineEvents.length > 0 ? (
-                    <div className="flex items-stretch overflow-x-auto pb-4 px-2 space-x-2 scrollbar-thin scrollbar-thumb-gray-200">
+                    <div className="flex items-stretch overflow-x-auto pb-4 px-2 space-x-2 scrollbar-thin scrollbar-thumb-gray-200 w-full">
                         {timelineEvents.map((event, idx) => {
                         const isLast = idx === timelineEvents.length - 1;
                         const nextEvent = !isLast ? timelineEvents[idx + 1] : null;
@@ -401,7 +422,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
 
                         return (
                             <React.Fragment key={idx}>
-                                <div className="flex-shrink-0 flex flex-col h-full min-w-[200px]">
+                                <div className="flex-shrink-0 flex flex-col h-full min-w-[200px] flex-1">
                                     {/* Card do Evento */}
                                     <div className={`flex-1 flex flex-col justify-between bg-white p-4 rounded-xl border shadow-sm transition-all w-full text-center relative ${event.status === contract.status ? 'border-salomao-blue ring-1 ring-salomao-blue/20 shadow-md' : 'border-gray-100 hover:border-blue-200'}`}>
                                         <div>
@@ -447,38 +468,6 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                         Nenhuma data interna (Prospect, Proposta, etc.) preenchida.
                     </div>
                 )}
-            </div>
-
-            {/* Direita: GED (Arquivos) (50%) com linha divisória */}
-            <div className="flex-1 lg:w-1/2 lg:pl-8 lg:border-l border-gray-100">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 flex items-center">
-                    <Paperclip className="w-4 h-4 mr-2" /> Arquivos do Caso (GED)
-                </h3>
-                
-                {documents.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
-                    Nenhum arquivo anexado.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {documents.map((doc) => (
-                      <div key={doc.id} onClick={(e) => handleDownload(e, doc)} className="group flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 hover:border-salomao-blue hover:shadow-sm cursor-pointer transition-all">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="bg-red-50 p-2 rounded-lg text-red-600 flex-shrink-0">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-700 truncate group-hover:text-salomao-blue transition-colors" title={doc.file_name}>{doc.file_name}</p>
-                            <p className="text-[10px] text-gray-400">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                        <Download className="w-4 h-4 text-gray-300 group-hover:text-salomao-blue transition-colors flex-shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-            </div>
-
           </div>
 
         </div>
