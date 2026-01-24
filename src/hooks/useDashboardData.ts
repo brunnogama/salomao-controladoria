@@ -310,9 +310,7 @@ export function useDashboardData() {
           mGeral.receitaRecorrenteAtiva += mensal; 
           mGeral.totalFechadoPL += pl; 
           mGeral.totalFechadoExito += exito; 
-          // CORREÇÃO: Soma apenas o fixo pontual, pois o mensal já está em receitaRecorrenteAtiva
-          // Isso deve equalizar os 1.1M que faltam sem adicionar os 3.3M que sobram
-          mGeral.totalFechadoFixo += fixedPontual; 
+          mGeral.totalFechadoFixo += fixoPontual; // CORRIGIDO AQUI
           c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++; 
       }
 
