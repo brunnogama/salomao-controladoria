@@ -48,7 +48,7 @@ const formatMoney = (val: number | string | undefined) => {
 
 const calculateTotalSuccess = (c: Contract) => {
   let total = parseCurrency(c.final_success_fee);
-   
+    
   if ((c as any).final_success_extras && Array.isArray((c as any).final_success_extras)) {
     (c as any).final_success_extras.forEach((fee: string) => total += parseCurrency(fee));
   }
@@ -399,27 +399,97 @@ export function Contracts() {
   });
 
   const exportToExcel = () => {
-    const data = filteredContracts.map(c => ({
-      'ID': c.display_id, // Removido 'as any'
-      'Status': getStatusLabel(c.status),
-      'Cliente': c.client_name,
-      'CNPJ/CPF': c.cnpj || '-',
-      'Processos': c.processes?.map((p) => p.process_number).join(', ') || '-', // Removido 'as any'
-      'Sócio': c.partner_name,
-      'Área': c.area,
-      'UF': c.uf,
-      'HON': c.hon_number || '-',
-      'Data Status': new Date(getRelevantDate(c) || '').toLocaleDateString(),
-      'Data Assinatura': c.contract_date ? new Date(c.contract_date).toLocaleDateString() : '-',
-      'Pró-Labore': formatMoney(c.pro_labore),
-      'Fixo Mensal': formatMoney(c.fixed_monthly_fee),
-      'Êxito Final': formatMoney(c.final_success_fee),
-      'Observações': c.observations || '-'
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
+    // 1. Calcular Totais
+    let sumPro = 0;
+    let sumOther = 0;
+    let sumFixed = 0;
+    let sumInter = 0;
+    let sumFinal = 0;
+    let sumTotalSuccess = 0;
+
+    // 2. Preparar Dados (Array of Arrays para garantir ordem)
+    const header = [
+        'ID', 'Status', 'Cliente', 'Sócio', 'HON', 'Data Relevante', 'Local Faturamento',
+        'Pró-Labore', 'Outros Honorários', 'Fixo Mensal', 'Êxito Intermediário', 'Êxito Final', 'Êxito (Total)', 'Observações'
+    ];
+
+    const rows = filteredContracts.map(c => {
+        const vPro = parseCurrency(c.pro_labore);
+        const vOther = parseCurrency(c.other_fees);
+        const vFixed = parseCurrency(c.fixed_monthly_fee);
+        const vFinal = parseCurrency(c.final_success_fee);
+
+        // Calcula total de intermediários
+        let vInter = 0;
+        if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) {
+             c.intermediate_fees.forEach((f: string) => vInter += parseCurrency(f));
+        }
+
+        const vTotalSuccess = calculateTotalSuccess(c);
+
+        // Acumula
+        sumPro += vPro;
+        sumOther += vOther;
+        sumFixed += vFixed;
+        sumInter += vInter;
+        sumFinal += vFinal;
+        sumTotalSuccess += vTotalSuccess;
+
+        return [
+          c.display_id,
+          getStatusLabel(c.status),
+          c.client_name,
+          c.partner_name || '-',
+          c.hon_number || '-',
+          new Date(getRelevantDate(c) || '').toLocaleDateString('pt-BR'),
+          c.billing_location || '-',
+          vPro,   // Coluna Index 7
+          vOther, // Coluna Index 8
+          vFixed, // Coluna Index 9
+          vInter, // Coluna Index 10
+          vFinal, // Coluna Index 11
+          vTotalSuccess, // Coluna Index 12
+          c.observations || '-'
+        ];
+    });
+
+    // 3. Adicionar Linha de Totais
+    const totalRow = [
+        'TOTAIS', '', '', '', '', '', '',
+        sumPro, sumOther, sumFixed, sumInter, sumFinal, sumTotalSuccess, ''
+    ];
+
+    const dataWithHeader = [header, ...rows, [], totalRow];
+
+    // 4. Criar planilha
+    const ws = XLSX.utils.aoa_to_sheet(dataWithHeader);
+
+    // 5. Formatação de Células (Moeda)
+    // Aplica formatação "R$ #,##0.00" nas colunas H (7) até M (12)
+    const currencyFormat = '"R$" #,##0.00';
+    const range = XLSX.utils.decode_range(ws['!ref']!);
+    
+    // Itera sobre as linhas de dados (ignora cabeçalho)
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        for (let C = 7; C <= 12; ++C) {
+            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+            if (ws[cellRef]) {
+                ws[cellRef].z = currencyFormat; // Define o formato
+                ws[cellRef].t = 'n'; // Garante que é tipo numérico
+            }
+        }
+    }
+
+    // 6. Gerar arquivo
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contratos");
-    XLSX.writeFile(wb, "Relatorio_Contratos.xlsx");
+    
+    // Nome do arquivo dinâmico
+    const statusName = statusFilter === 'all' ? 'Geral' : getStatusLabel(statusFilter).replace(/ /g, '_');
+    const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const fileName = `Salomão_${statusName}_${dateStr}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
     toast.success('Relatório gerado com sucesso!');
   };
 
