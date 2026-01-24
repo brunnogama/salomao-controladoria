@@ -288,6 +288,67 @@ export function Dashboard() {
             </div>
         </div>
 
+        {/* --- PARTNER BLOCKS (NOVO) --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           {/* QUANTITATIVE */}
+           <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
+               <h3 className="font-bold text-gray-800 mb-4">Visão Quantitativa por Sócio</h3>
+               <div className="overflow-x-auto">
+                   <table className="w-full text-xs text-left">
+                       <thead className="text-gray-500 font-bold border-b border-gray-100">
+                           <tr>
+                               <th className="py-2">Nome do Sócio</th>
+                               <th className="py-2 text-center">Sob Análise</th>
+                               <th className="py-2 text-center">Propostas</th>
+                               <th className="py-2 text-center">Fechados</th>
+                               <th className="py-2 text-center">Probono</th>
+                               <th className="py-2 text-center">Rejeitados</th>
+                           </tr>
+                       </thead>
+                       <tbody>
+                           {contractsByPartner.map((item, idx) => (
+                               <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                                   <td className="py-3 font-medium text-gray-700">{item.name}</td>
+                                   <td className="py-3 text-center text-yellow-600 font-bold">{item.analysis}</td>
+                                   <td className="py-3 text-center text-blue-600 font-bold">{item.proposal}</td>
+                                   <td className="py-3 text-center text-green-600 font-bold">{item.active}</td>
+                                   <td className="py-3 text-center text-purple-600 font-bold">{item.probono}</td>
+                                   <td className="py-3 text-center text-red-500 font-bold">{item.rejected}</td>
+                               </tr>
+                           ))}
+                       </tbody>
+                   </table>
+               </div>
+           </div>
+
+           {/* VALUES */}
+           <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
+               <h3 className="font-bold text-gray-800 mb-4">Visão Financeira por Sócio</h3>
+                <div className="overflow-x-auto">
+                   <table className="w-full text-xs text-left">
+                       <thead className="text-gray-500 font-bold border-b border-gray-100">
+                           <tr>
+                               <th className="py-2">Nome do Sócio</th>
+                               <th className="py-2 text-right">Total Pró-labore</th>
+                               <th className="py-2 text-right">Total Êxitos</th>
+                               <th className="py-2 text-right">Total Fixo</th>
+                           </tr>
+                       </thead>
+                       <tbody>
+                           {contractsByPartner.map((item: any, idx) => (
+                               <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                                   <td className="py-3 font-medium text-gray-700">{item.name}</td>
+                                   <td className="py-3 text-right text-gray-700">{formatMoney(item.pl || 0)}</td>
+                                   <td className="py-3 text-right text-gray-700">{formatMoney(item.exito || 0)}</td>
+                                   <td className="py-3 text-right text-gray-700">{formatMoney(item.fixo || 0)}</td>
+                               </tr>
+                           ))}
+                       </tbody>
+                   </table>
+               </div>
+           </div>
+        </div>
+
         {/* --- FUNIL --- */}
          <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'><Filter className='text-blue-600' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Funil de Eficiência</h2><p className='text-xs text-gray-600'>Taxa de conversão e tempo médio.</p></div></div>
@@ -533,8 +594,8 @@ export function Dashboard() {
             {/* Gráfico Mês + Insights */}
             <div className="mt-4 flex flex-col md:flex-row gap-4">
                 <div className="bg-white p-4 rounded-xl border border-blue-100 flex-1 h-64">
-                    <p className="text-xs font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
-                        <span title="Comparação de datas exatas entre os meses (MTD)">Comparativo Financeiro (Mês Atual vs Anterior)</span>
+                    <p className="text-xs font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between items-center">
+                        <span>Comparativo Financeiro - <span className="text-gray-500 font-normal normal-case">Períodos comparados: {metrics.executivo.periodoAnteriorLabel} e {metrics.executivo.periodoAtualLabel}</span></span>
                         <span className="text-gray-500 font-normal normal-case">Valores totais</span>
                     </p>
                     <div className="grid grid-cols-2 gap-8 h-48">
@@ -547,7 +608,6 @@ export function Dashboard() {
                                     <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropMesAnt > 0 ? (valPropMesAnt / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-gray-500 mt-1 text-center leading-tight font-semibold">
                                         Anterior
-                                        <span className="block text-[10px] font-semibold text-gray-600 mt-1">{metrics.executivo.periodoAnteriorLabel}</span>
                                     </span>
                                 </div>
                                 <div className="flex flex-col items-center justify-end h-full w-24 group relative">
@@ -560,7 +620,6 @@ export function Dashboard() {
                                     <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropMes > 0 ? (valPropMes / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-blue-600 font-bold mt-1 text-center leading-tight font-semibold">
                                         Atual
-                                        <span className="block text-[10px] font-semibold text-blue-600 mt-1">{metrics.executivo.periodoAtualLabel}</span>
                                     </span>
                                 </div>
                             </div>
@@ -575,7 +634,6 @@ export function Dashboard() {
                                     <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechMesAnt > 0 ? (valFechMesAnt / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-gray-500 mt-1 text-center leading-tight font-semibold">
                                         Anterior
-                                        <span className="block text-[10px] font-semibold text-gray-600 mt-1">{metrics.executivo.periodoAnteriorLabel}</span>
                                     </span>
                                 </div>
                                 <div className="flex flex-col items-center justify-end h-full w-24 group relative">
@@ -588,7 +646,6 @@ export function Dashboard() {
                                     <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechMes > 0 ? (valFechMes / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-green-600 font-bold mt-1 text-center leading-tight font-semibold">
                                         Atual
-                                        <span className="block text-[10px] font-semibold text-green-600 mt-1">{metrics.executivo.periodoAtualLabel}</span>
                                     </span>
                                 </div>
                             </div>
@@ -686,7 +743,7 @@ export function Dashboard() {
                                 <span className='text-[10px] font-bold text-blue-800'>{formatMoney(mediasPropostas.pl)} / {formatMoney(mediasPropostas.exito)}</span>
                             </div>
                         </div>
-                        <div className='h-52 flex items-end justify-around gap-2 mb-4 relative'>
+                        <div className='h-60 flex items-end justify-around gap-2 mb-4 relative pb-4 border-b border-gray-200/50'>
                             {propostas12Meses.length === 0 ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                                   <EmptyState 
@@ -700,7 +757,7 @@ export function Dashboard() {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
                                 <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
-                                    {totalMes > 0 && (<span className='text-[10px] font-extrabold text-gray-800 mb-1 tracking-tight whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
+                                    {totalMes > 0 && (<span className='text-[9px] font-bold text-gray-600 mb-2 -rotate-45 origin-bottom whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
                                     <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
                                     <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hPl, 1)}%` }}></div>
                                     <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hFixo, 1)}%` }}></div>
@@ -742,7 +799,7 @@ export function Dashboard() {
                                 <span className='text-[10px] font-bold text-green-800'>{formatMoney(mediasFinanceiras.pl)} / {formatMoney(mediasFinanceiras.exito)}</span>
                             </div>
                         </div>
-                        <div className='h-52 flex items-end justify-around gap-2 mb-4 relative'>
+                        <div className='h-60 flex items-end justify-around gap-2 mb-4 relative pb-4 border-b border-gray-200/50'>
                             {financeiro12Meses.length === 0 ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                                   <EmptyState 
@@ -756,7 +813,7 @@ export function Dashboard() {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
                                 <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
-                                    {totalMes > 0 && (<span className='text-[10px] font-extrabold text-gray-800 mb-1 tracking-tight whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
+                                    {totalMes > 0 && (<span className='text-[9px] font-bold text-gray-600 mb-2 -rotate-45 origin-bottom whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
                                     <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
                                     <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hPl, 1)}%` }}></div>
                                     <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hFixo, 1)}%` }}></div>
