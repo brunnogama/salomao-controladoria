@@ -5,7 +5,8 @@ import {
   CalendarDays, CalendarRange, ArrowRight, Filter, BarChart3, Camera, FileSignature,
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
-  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch, Lightbulb
+  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch, Lightbulb,
+  Percent
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -125,10 +126,19 @@ export function Dashboard() {
   const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
   const diffEntrada = ultimoQtd - penultimoQtd;
 
+  // Calculos Assinatura
+  const totalAssinaturasCalculo = (metrics?.geral?.assinados || 0) + (metrics?.geral?.naoAssinados || 0);
+  const percentualSemAssinatura = totalAssinaturasCalculo > 0 
+    ? ((metrics?.geral?.naoAssinados || 0) / totalAssinaturasCalculo) * 100 
+    : 0;
+
   // Helpers para Insights
   const getTrendText = (delta: number, context: string) => {
-    if (delta > 0) return `Crescimento de ${delta.toFixed(0)}% em ${context}.`;
-    if (delta < 0) return `Redução de ${Math.abs(delta).toFixed(0)}% em ${context}.`;
+    // Formata o valor para não mostrar números gigantes
+    const displayDelta = Math.abs(delta) > 999 ? '>999' : Math.abs(delta).toFixed(0);
+    
+    if (delta > 0) return `Crescimento de ${displayDelta}% em ${context}.`;
+    if (delta < 0) return `Redução de ${displayDelta}% em ${context}.`;
     return `Estabilidade em ${context}.`;
   };
 
@@ -532,15 +542,15 @@ export function Dashboard() {
                         <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
                             <p className="text-[10px] font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
                             <div className="flex items-end justify-center gap-3 h-full">
-                                <div className="flex flex-col items-center justify-end h-full w-14 group">
+                                <div className="flex flex-col items-center justify-end h-full w-24 group">
                                     <span className="text-[9px] text-gray-500 mb-1 font-extrabold">{formatMoney(valPropMesAnt)}</span>
                                     <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropMesAnt > 0 ? (valPropMesAnt / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-gray-500 mt-1 text-center leading-tight font-semibold">
                                         Anterior
-                                        <span className="block text-[8px] font-normal text-gray-400 mt-0.5">{metrics.executivo.periodoAnteriorLabel}</span>
+                                        <span className="block text-[10px] font-semibold text-gray-600 mt-1">{metrics.executivo.periodoAnteriorLabel}</span>
                                     </span>
                                 </div>
-                                <div className="flex flex-col items-center justify-end h-full w-14 group relative">
+                                <div className="flex flex-col items-center justify-end h-full w-24 group relative">
                                     <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                         {deltaPropMes > 0 ? '+' : ''}{deltaPropMes.toFixed(0)}%
                                     </div>
@@ -550,7 +560,7 @@ export function Dashboard() {
                                     <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropMes > 0 ? (valPropMes / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-blue-600 font-bold mt-1 text-center leading-tight font-semibold">
                                         Atual
-                                        <span className="block text-[8px] font-normal text-blue-400 mt-0.5">{metrics.executivo.periodoAtualLabel}</span>
+                                        <span className="block text-[10px] font-semibold text-blue-600 mt-1">{metrics.executivo.periodoAtualLabel}</span>
                                     </span>
                                 </div>
                             </div>
@@ -560,15 +570,15 @@ export function Dashboard() {
                         <div className="flex flex-col justify-end relative">
                             <p className="text-[10px] font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
                             <div className="flex items-end justify-center gap-3 h-full">
-                                <div className="flex flex-col items-center justify-end h-full w-14 group">
+                                <div className="flex flex-col items-center justify-end h-full w-24 group">
                                     <span className="text-[9px] text-gray-500 mb-1 font-extrabold">{formatMoney(valFechMesAnt)}</span>
                                     <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechMesAnt > 0 ? (valFechMesAnt / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-gray-500 mt-1 text-center leading-tight font-semibold">
                                         Anterior
-                                        <span className="block text-[8px] font-normal text-gray-400 mt-0.5">{metrics.executivo.periodoAnteriorLabel}</span>
+                                        <span className="block text-[10px] font-semibold text-gray-600 mt-1">{metrics.executivo.periodoAnteriorLabel}</span>
                                     </span>
                                 </div>
-                                <div className="flex flex-col items-center justify-end h-full w-14 group relative">
+                                <div className="flex flex-col items-center justify-end h-full w-24 group relative">
                                     <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                         {deltaFechMes > 0 ? '+' : ''}{deltaFechMes.toFixed(0)}%
                                     </div>
@@ -578,7 +588,7 @@ export function Dashboard() {
                                     <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechMes > 0 ? (valFechMes / maxMesChart) * 60 : 2}%` }}></div>
                                     <span className="text-[9px] text-green-600 font-bold mt-1 text-center leading-tight font-semibold">
                                         Atual
-                                        <span className="block text-[8px] font-normal text-green-500 mt-0.5">{metrics.executivo.periodoAtualLabel}</span>
+                                        <span className="block text-[10px] font-semibold text-green-600 mt-1">{metrics.executivo.periodoAtualLabel}</span>
                                     </span>
                                 </div>
                             </div>
@@ -960,7 +970,49 @@ export function Dashboard() {
         </div>
 
         {/* --- ASSINATURAS --- */}
-        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'><div className='flex items-center gap-2 mb-6 border-b pb-4'><FileSignature className='text-[#0F2C4C]' size={24} /><div><h2 className='text-xl font-bold text-gray-800'>Status de Assinatura de Contratos</h2><p className='text-xs text-gray-600'>Acompanhamento de assinaturas físicas dos contratos fechados.</p></div></div><div className='grid grid-cols-1 md:grid-cols-2 gap-6'><div className='bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl border-2 border-emerald-200'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-emerald-700 font-bold uppercase tracking-wider mb-2'>Contratos Assinados</p><p className='text-5xl font-black text-emerald-900'>{metrics.geral.assinados}</p></div><div className='p-4 bg-emerald-200 rounded-full'><CheckCircle2 size={32} className='text-emerald-700' /></div></div><div className='text-xs text-emerald-700 font-medium'>Contratos com assinatura física confirmada</div></div><div className='bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border-2 border-orange-200'><div className='flex items-center justify-between mb-4'><div><p className='text-xs text-orange-700 font-bold uppercase tracking-wider mb-2'>Pendentes de Assinatura</p><p className='text-5xl font-black text-orange-900'>{metrics.geral.naoAssinados}</p></div><div className='p-4 bg-orange-200 rounded-full'><AlertCircle size={32} className='text-orange-700' /></div></div><div className='text-xs text-orange-700 font-medium'>Contratos fechados aguardando assinatura física</div></div></div></div>
+        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
+            <div className='flex items-center gap-2 mb-6 border-b pb-4'>
+                <FileSignature className='text-[#0F2C4C]' size={24} />
+                <div>
+                    <h2 className='text-xl font-bold text-gray-800'>Status de Assinatura de Contratos</h2>
+                    <p className='text-xs text-gray-600'>Acompanhamento de assinaturas físicas dos contratos fechados.</p>
+                </div>
+            </div>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                <div className='bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl border-2 border-emerald-200'>
+                    <div className='flex items-center justify-between mb-4'>
+                        <div>
+                            <p className='text-xs text-emerald-700 font-bold uppercase tracking-wider mb-2'>Contratos Assinados</p>
+                            <p className='text-4xl font-black text-emerald-900'>{metrics.geral.assinados}</p>
+                        </div>
+                        <div className='p-3 bg-emerald-200 rounded-full'><CheckCircle2 size={24} className='text-emerald-700' /></div>
+                    </div>
+                    <div className='text-xs text-emerald-700 font-medium'>Contratos com assinatura física confirmada</div>
+                </div>
+                
+                <div className='bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border-2 border-orange-200'>
+                    <div className='flex items-center justify-between mb-4'>
+                        <div>
+                            <p className='text-xs text-orange-700 font-bold uppercase tracking-wider mb-2'>Pendentes de Assinatura</p>
+                            <p className='text-4xl font-black text-orange-900'>{metrics.geral.naoAssinados}</p>
+                        </div>
+                        <div className='p-3 bg-orange-200 rounded-full'><AlertCircle size={24} className='text-orange-700' /></div>
+                    </div>
+                    <div className='text-xs text-orange-700 font-medium'>Contratos fechados aguardando assinatura física</div>
+                </div>
+
+                <div className='bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-xl border-2 border-gray-200'>
+                    <div className='flex items-center justify-between mb-4'>
+                        <div>
+                            <p className='text-xs text-gray-700 font-bold uppercase tracking-wider mb-2'>% Pendente</p>
+                            <p className='text-4xl font-black text-gray-900'>{percentualSemAssinatura.toFixed(1)}%</p>
+                        </div>
+                        <div className='p-3 bg-gray-200 rounded-full'><Percent size={24} className='text-gray-700' /></div>
+                    </div>
+                    <div className='text-xs text-gray-700 font-medium'>Percentual de contratos sem assinatura</div>
+                </div>
+            </div>
+        </div>
       </div>
     </div>
   );
