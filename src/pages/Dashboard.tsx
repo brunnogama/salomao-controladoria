@@ -217,12 +217,12 @@ export function Dashboard() {
                 </div>
                 {/* --- CARDS CLICÁVEIS PARA DRILL-DOWN --- */}
                 <div className='grid grid-cols-2 gap-4 flex-1 content-start'>
-                    <div onClick={() => handleDrillDown('analysis')} className='bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center cursor-pointer hover:shadow-md transition-all'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div>
-                    <div onClick={() => handleDrillDown('proposal')} className='bg-blue-50 p-4 rounded-lg border border-blue-100 text-center cursor-pointer hover:shadow-md transition-all'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div>
-                    <div onClick={() => handleDrillDown('active')} className='bg-green-50 p-4 rounded-lg border border-green-100 text-center cursor-pointer hover:shadow-md transition-all'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div>
-                    <div onClick={() => handleDrillDown('rejected')} className='bg-red-50 p-4 rounded-lg border border-red-100 text-center cursor-pointer hover:shadow-md transition-all'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div>
-                    <div onClick={() => handleDrillDown('probono')} className='bg-purple-50 p-4 rounded-lg border border-purple-100 text-center cursor-pointer hover:shadow-md transition-all'><HeartHandshake className='mx-auto text-purple-600 mb-2' size={20} /><p className='text-2xl font-bold text-purple-800'>{metrics.geral.probono}</p><p className='text-xs text-purple-700 font-bold uppercase mt-1'>Probono</p></div>
-                    <div onClick={() => handleDrillDown('all')} className='bg-gray-50 p-4 rounded-lg border border-gray-200 text-center cursor-pointer hover:shadow-md transition-all'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
+                    <div onClick={() => handleDrillDown('analysis')} className='bg-yellow-50 p-3 h-full rounded-lg border border-yellow-100 text-center cursor-pointer hover:shadow-md transition-all'><Clock className='mx-auto text-yellow-600 mb-2' size={20} /><p className='text-2xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-xs text-yellow-700 font-bold uppercase mt-1'>Sob Análise</p></div>
+                    <div onClick={() => handleDrillDown('proposal')} className='bg-blue-50 p-3 h-full rounded-lg border border-blue-100 text-center cursor-pointer hover:shadow-md transition-all'><Briefcase className='mx-auto text-blue-600 mb-2' size={20} /><p className='text-2xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-xs text-blue-700 font-bold uppercase mt-1'>Propostas</p></div>
+                    <div onClick={() => handleDrillDown('active')} className='bg-green-50 p-3 h-full rounded-lg border border-green-100 text-center cursor-pointer hover:shadow-md transition-all'><CheckCircle2 className='mx-auto text-green-600 mb-2' size={20} /><p className='text-2xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-xs text-green-700 font-bold uppercase mt-1'>Fechados</p></div>
+                    <div onClick={() => handleDrillDown('rejected')} className='bg-red-50 p-3 h-full rounded-lg border border-red-100 text-center cursor-pointer hover:shadow-md transition-all'><XCircle className='mx-auto text-red-600 mb-2' size={20} /><p className='text-2xl font-bold text-red-800'>{metrics.geral.rejeitados}</p><p className='text-xs text-red-700 font-bold uppercase mt-1'>Rejeitados</p></div>
+                    <div onClick={() => handleDrillDown('probono')} className='bg-purple-50 p-3 h-full rounded-lg border border-purple-100 text-center cursor-pointer hover:shadow-md transition-all'><HeartHandshake className='mx-auto text-purple-600 mb-2' size={20} /><p className='text-2xl font-bold text-purple-800'>{metrics.geral.probono}</p><p className='text-xs text-purple-700 font-bold uppercase mt-1'>Probono</p></div>
+                    <div onClick={() => handleDrillDown('all')} className='bg-gray-50 p-3 h-full rounded-lg border border-gray-200 text-center cursor-pointer hover:shadow-md transition-all'><Layers className='mx-auto text-gray-600 mb-2' size={20} /><p className='text-2xl font-bold text-gray-800'>{metrics.geral.totalCasos}</p><p className='text-xs text-gray-700 font-bold uppercase mt-1'>Total Geral</p></div>
                 </div>
             </div>
 
@@ -235,11 +235,11 @@ export function Dashboard() {
                 
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-8 flex-1'>
                     <div>
-                        <p className='text-xs text-blue-600 font-bold uppercase mb-4'>Valores em Negociação (Ativo)</p>
+                        <p className='text-xs text-blue-600 font-bold uppercase mb-4'>Valores das Propostas Enviadas</p>
                         <div className='space-y-4'>
                             <div>
                                 <p className='text-xs text-gray-500 font-medium'>Pró-labore</p>
-                                <div className='flex items-baseline gap-2'>
+                                <div className='flex justify-between items-end w-full'>
                                     <span className='text-3xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoPL)}</span>
                                     <span className='text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full'>
                                         Média: {formatMoney(metrics.geral.mediaMensalNegociacaoPL)}
@@ -248,7 +248,7 @@ export function Dashboard() {
                             </div>
                             <div>
                                 <p className='text-xs text-gray-500 font-medium'>Êxito</p>
-                                <div className='flex items-baseline gap-2'>
+                                <div className='flex justify-between items-end w-full'>
                                     <span className='text-3xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoExito)}</span>
                                     <span className='text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full'>
                                         Média: {formatMoney(metrics.geral.mediaMensalNegociacaoExito)}
@@ -262,11 +262,11 @@ export function Dashboard() {
                         </div>
                     </div>
                     <div className='md:border-l md:pl-8 border-gray-100'>
-                        <p className='text-xs text-green-600 font-bold uppercase mb-4'>Carteira Ativa (Receita)</p>
+                        <p className='text-xs text-green-600 font-bold uppercase mb-4'>Valores dos Contratos Fechados</p>
                         <div className='space-y-4'>
                             <div>
                                 <p className='text-xs text-gray-500 font-medium'>Pró-labore (Fechado)</p>
-                                <div className='flex items-baseline gap-2'>
+                                <div className='flex justify-between items-end w-full'>
                                     <span className='text-3xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoPL)}</span>
                                     <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
                                         Média: {formatMoney(metrics.geral.mediaMensalCarteiraPL)}
@@ -275,7 +275,7 @@ export function Dashboard() {
                             </div>
                             <div>
                                 <p className='text-xs text-gray-500 font-medium'>Êxito (Fechado)</p>
-                                <div className='flex items-baseline gap-2'>
+                                <div className='flex justify-between items-end w-full'>
                                     <span className='text-3xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoExito)}</span>
                                     <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
                                         Média: {formatMoney(metrics.geral.mediaMensalCarteiraExito)}
