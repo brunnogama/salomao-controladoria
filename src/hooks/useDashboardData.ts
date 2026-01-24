@@ -125,7 +125,8 @@ export function useDashboardData() {
         periodoAnteriorLabel: periodoAnteriorStr
     };
 
-    let mGeral = { totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0, valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0, totalFechadoPL: 0, totalFechadoExito: 0, assinados: 0, naoAssinados: 0, mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0, mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0 };
+    // ADICIONADO: totalFechadoFixo para correção do cálculo financeiro
+    let mGeral = { totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0, valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0, totalFechadoPL: 0, totalFechadoExito: 0, totalFechadoFixo: 0, assinados: 0, naoAssinados: 0, mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0, mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0 };
 
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
     let fPerdaAnalise = 0; let fPerdaNegociacao = 0;
@@ -301,7 +302,14 @@ export function useDashboardData() {
       if (c.status === 'probono') mGeral.probono++;
       
       if (c.status === 'proposal') { mGeral.propostasAtivas++; mGeral.valorEmNegociacaoPL += (pl + mensal); mGeral.valorEmNegociacaoExito += exito; }
-      if (c.status === 'active') { mGeral.fechados++; mGeral.receitaRecorrenteAtiva += mensal; mGeral.totalFechadoPL += pl; mGeral.totalFechadoExito += exito; c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++; }
+      if (c.status === 'active') { 
+          mGeral.fechados++; 
+          mGeral.receitaRecorrenteAtiva += mensal; 
+          mGeral.totalFechadoPL += pl; 
+          mGeral.totalFechadoExito += exito; 
+          mGeral.totalFechadoFixo += mensal; // ADICIONADO: Soma do fixo fechado
+          c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++; 
+      }
 
       // Semana Atual
       if (c.status === 'analysis' && isDateInCurrentWeek(c.prospect_date)) mSemana.novos++;

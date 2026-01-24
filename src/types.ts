@@ -224,3 +224,113 @@ export interface KanbanTask {
     seq_id?: number;
   };
 }
+
+// --- TIPOS DO DASHBOARD (Adicionados para corrigir erros de build) ---
+
+export interface DashboardPeriodMetrics {
+  totalUnico: number;
+  novos: number;
+  propQtd: number;
+  propPL: number;
+  propExito: number;
+  propMensal: number;
+  fechQtd: number;
+  fechPL: number;
+  fechExito: number;
+  fechMensal: number;
+  rejeitados: number;
+  probono: number;
+  // Campos opcionais para visualização mensal
+  analysis?: number;
+  rejected?: number;
+}
+
+export interface DashboardMetrics {
+  geral: {
+    totalCasos: number;
+    emAnalise: number;
+    propostasAtivas: number;
+    fechados: number;
+    rejeitados: number;
+    probono: number;
+    valorEmNegociacaoPL: number;
+    valorEmNegociacaoExito: number;
+    receitaRecorrenteAtiva: number;
+    totalFechadoPL: number;
+    totalFechadoExito: number;
+    totalFechadoFixo: number; // Campo novo para correção financeira
+    mediaMensalNegociacaoPL: number;
+    mediaMensalNegociacaoExito: number;
+    mediaMensalCarteiraPL: number;
+    mediaMensalCarteiraExito: number;
+    assinados: number;
+    naoAssinados: number;
+  };
+  semana: DashboardPeriodMetrics;
+  semanaAnterior: DashboardPeriodMetrics;
+  mes: DashboardPeriodMetrics;
+  executivo: {
+    mesAtual: DashboardPeriodMetrics;
+    mesAnterior: DashboardPeriodMetrics;
+    periodoAnteriorLabel: string;
+    periodoAtualLabel: string;
+  };
+}
+
+export interface FunilData {
+  totalEntrada: number;
+  taxaConversaoProposta: number;
+  perdaAnalise: number;
+  tempoMedioProspectProposta: number;
+  qualificadosProposta: number;
+  taxaConversaoFechamento: number;
+  perdaNegociacao: number;
+  tempoMedioPropostaFechamento: number;
+  fechados: number;
+}
+
+export interface ChartDataPoint {
+  qtd: number;
+  mes: string;
+  altura: number;
+}
+
+export interface FinanceiroDataPoint {
+  mes: string;
+  pl: number;
+  fixo: number;
+  exito: number;
+  hPl: number;
+  hFixo: number;
+  hExito: number;
+}
+
+export interface FinanceiroStats {
+  total: number;
+  media: number;
+  diff: number;
+}
+
+export interface RejectionItem {
+  label: string;
+  value: number;
+  percent: number;
+}
+
+export interface RejectionData {
+  reasons: RejectionItem[];
+  sources: RejectionItem[];
+}
+
+export interface PartnerContractStats {
+  name: string;
+  total: number;
+  analysis: number;
+  proposal: number;
+  active: number;
+  rejected: number;
+  probono: number;
+  pl: number;
+  exito: number;
+  fixo: number;
+}
