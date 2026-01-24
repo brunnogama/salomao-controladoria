@@ -365,6 +365,10 @@ export function ContractFormModal(props: Props) {
   };
 
   const handleSaveWithIntegrations = async () => {
+    // Validação: Processo pendente de adição/edição
+    if (editingProcessIndex !== null) return alert('⚠️ Finalize a edição do processo (clique no check ✔️) antes de salvar o caso.');
+    if (currentProcess.process_number || otherProcessType) return alert('⚠️ Você inseriu dados de um processo mas não o adicionou.\n\nClique no botão Adicionar (+) na aba Dados do Objeto para incluir o processo no caso antes de salvar.');
+
     if (!formData.client_name) return alert('O "Nome do Cliente" é obrigatório.');
     if (!formData.partner_id) return alert('O "Responsável (Sócio)" é obrigatório.');
     if (formData.status === 'analysis' && !formData.prospect_date) return alert('A "Data Prospect" é obrigatória para contratos em Análise.');
@@ -585,7 +589,7 @@ export function ContractFormModal(props: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
-      <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
+      <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-2xl">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2>
@@ -594,7 +598,7 @@ export function ContractFormModal(props: Props) {
           <button onClick={onClose}><X className="w-6 h-6 text-gray-400" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        <div className="flex-1 p-8 space-y-8">
             {/* Abas */}
             <div className="flex gap-2 border-b border-gray-200 mb-6">
                 <button
