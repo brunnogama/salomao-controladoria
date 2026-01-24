@@ -241,11 +241,11 @@ export function Dashboard() {
                             <div className='space-y-3'>
                                 <div className="flex justify-between items-baseline">
                                     <span className='text-xs text-gray-500 font-medium'>Pró-labore</span>
-                                    <span className='text-2xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoPL)}</span>
+                                    <span className='text-xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoPL)}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
                                     <span className='text-xs text-gray-500 font-medium'>Êxito</span>
-                                    <span className='text-2xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoExito)}</span>
+                                    <span className='text-xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoExito)}</span>
                                 </div>
                                 <div className='flex justify-between items-end border-t border-gray-200 pt-3 mt-2'>
                                     <span className='text-sm font-bold text-gray-600 uppercase tracking-wider'>TOTAL GERAL</span>
@@ -272,12 +272,12 @@ export function Dashboard() {
                             <p className='text-xs text-green-600 font-bold uppercase mb-4'>Valores dos Contratos Fechados</p>
                             <div className='space-y-3'>
                                 <div className="flex justify-between items-baseline">
-                                    <span className='text-xs text-gray-500 font-medium'>Pró-labore (Fechado)</span>
-                                    <span className='text-2xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoPL)}</span>
+                                    <span className='text-xs text-gray-500 font-medium'>Pró-labore</span>
+                                    <span className='text-xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoPL)}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className='text-xs text-gray-500 font-medium'>Êxito (Fechado)</span>
-                                    <span className='text-2xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoExito)}</span>
+                                    <span className='text-xs text-gray-500 font-medium'>Êxito</span>
+                                    <span className='text-xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoExito)}</span>
                                 </div>
                                 <div className='flex justify-between items-end border-t border-gray-200 pt-3 mt-2'>
                                     <span className='text-sm font-bold text-gray-600 uppercase tracking-wider'>TOTAL GERAL</span>
@@ -756,7 +756,7 @@ export function Dashboard() {
             <div className='flex justify-center gap-4 mt-6 text-xs text-gray-600'><div className='flex items-center'><span className='w-3 h-3 bg-blue-400 rounded-full mr-1'></span> Pró-labore</div><div className='flex items-center'><span className='w-3 h-3 bg-indigo-400 rounded-full mr-1'></span> Fixo Mensal</div><div className='flex items-center'><span className='w-3 h-3 bg-green-400 rounded-full mr-1'></span> Êxito</div></div>
         </div>
 
-        {/* 7. CONTRATOS POR SÓCIO (BARRAS DETALHADAS) */}
+        {/* --- CONTRACTS BY PARTNER --- */}
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
              <div className='flex items-center gap-2 mb-6 border-b pb-4'>
                  <Briefcase className='text-blue-600' size={24} />
@@ -824,68 +824,69 @@ export function Dashboard() {
              </div>
         </div>
 
-        {/* 8. VISÃO SÓCIOS (QUANTITATIVA | FINANCEIRA) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-           {/* QUANTITATIVE */}
-           <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
-               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Users className="w-5 h-5 text-salomao-gold" /> Visão Quantitativa por Sócio</h3>
-               <div className="overflow-x-auto">
-                   <table className="w-full text-xs text-left">
-                       <thead className="text-gray-500 font-bold border-b border-gray-100">
-                           <tr>
-                               <th className="py-2">Nome do Sócio</th>
-                               <th className="py-2 text-center">Sob Análise</th>
-                               <th className="py-2 text-center">Propostas</th>
-                               <th className="py-2 text-center">Fechados</th>
-                               <th className="py-2 text-center">Probono</th>
-                               <th className="py-2 text-center">Rejeitados</th>
-                           </tr>
-                       </thead>
-                       <tbody>
-                           {contractsByPartner.map((item, idx) => (
-                               <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                                   <td className="py-3 font-medium text-gray-700">{item.name}</td>
-                                   <td className="py-3 text-center text-yellow-600 font-bold">{item.analysis}</td>
-                                   <td className="py-3 text-center text-blue-600 font-bold">{item.proposal}</td>
-                                   <td className="py-3 text-center text-green-600 font-bold">{item.active}</td>
-                                   <td className="py-3 text-center text-purple-600 font-bold">{item.probono}</td>
-                                   <td className="py-3 text-center text-red-500 font-bold">{item.rejected}</td>
-                               </tr>
-                           ))}
-                       </tbody>
-                   </table>
-               </div>
-           </div>
+        {/* 8. VISÃO SÓCIOS (FINANCEIRA - CARD STYLE) */}
+        <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-200'>
+             <div className='flex items-center gap-2 mb-6 border-b pb-4'>
+                 <Banknote className='text-salomao-gold' size={24} />
+                 <div>
+                     <h2 className='text-xl font-bold text-gray-800'>Visão Financeira por Sócio</h2>
+                     <p className='text-xs text-gray-600'>Distribuição de valores por sócio (Contratos Fechados).</p>
+                 </div>
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> 
+                 {contractsByPartner.length === 0 ? <p className="text-sm text-gray-500 col-span-3 text-center py-8">Nenhum dado financeiro disponível.</p> : contractsByPartner.map((item: any, idx) => {
+                    const totalSocio = (item.pl || 0) + (item.exito || 0) + (item.fixo || 0);
+                    return (
+                    <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="font-bold text-gray-800 text-sm truncate" title={item.name}>{item.name}</span>
+                            <span className="text-[10px] font-bold text-gray-600 bg-white border border-gray-200 px-2 py-0.5 rounded-full">{item.active} Ativos</span>
+                        </div>
+                        <div className="space-y-2">
+                            {/* Pró-labore */}
+                            <div className="flex flex-col">
+                                <div className="flex justify-between text-[10px] mb-1">
+                                    <span className="text-gray-600 font-medium">Pró-labore</span>
+                                    <span className="font-bold text-gray-800">{formatMoney(item.pl || 0)}</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                     <div className="h-full bg-blue-500 rounded-full" style={{ width: `${totalSocio > 0 ? ((item.pl || 0) / totalSocio) * 100 : 0}%` }}></div>
+                                </div>
+                            </div>
+                            
+                            {/* Êxito */}
+                            <div className="flex flex-col">
+                                <div className="flex justify-between text-[10px] mb-1">
+                                    <span className="text-gray-600 font-medium">Êxito</span>
+                                    <span className="font-bold text-gray-800">{formatMoney(item.exito || 0)}</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                     <div className="h-full bg-green-500 rounded-full" style={{ width: `${totalSocio > 0 ? ((item.exito || 0) / totalSocio) * 100 : 0}%` }}></div>
+                                </div>
+                            </div>
 
-           {/* VALUES */}
-           <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
-               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Banknote className="w-5 h-5 text-salomao-gold" /> Visão Financeira por Sócio</h3>
-                <div className="overflow-x-auto">
-                   <table className="w-full text-xs text-left">
-                       <thead className="text-gray-500 font-bold border-b border-gray-100">
-                           <tr>
-                               <th className="py-2">Nome do Sócio</th>
-                               <th className="py-2 text-right">Total Pró-labore</th>
-                               <th className="py-2 text-right">Total Êxitos</th>
-                               <th className="py-2 text-right">Total Fixo</th>
-                           </tr>
-                       </thead>
-                       <tbody>
-                           {contractsByPartner.map((item: any, idx) => (
-                               <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                                   <td className="py-3 font-medium text-gray-700">{item.name}</td>
-                                   <td className="py-3 text-right text-gray-700">{formatMoney(item.pl || 0)}</td>
-                                   <td className="py-3 text-right text-gray-700">{formatMoney(item.exito || 0)}</td>
-                                   <td className="py-3 text-right text-gray-700">{formatMoney(item.fixo || 0)}</td>
-                               </tr>
-                           ))}
-                       </tbody>
-                   </table>
-               </div>
-           </div>
+                            {/* Fixo */}
+                            <div className="flex flex-col">
+                                <div className="flex justify-between text-[10px] mb-1">
+                                    <span className="text-gray-600 font-medium">Fixo</span>
+                                    <span className="font-bold text-gray-800">{formatMoney(item.fixo || 0)}</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                     <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${totalSocio > 0 ? ((item.fixo || 0) / totalSocio) * 100 : 0}%` }}></div>
+                                </div>
+                            </div>
+                            
+                            <div className="pt-2 mt-1 border-t border-gray-200 flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-gray-500 uppercase">Total</span>
+                                <span className="text-xs font-bold text-salomao-blue">{formatMoney(totalSocio)}</span>
+                            </div>
+                        </div>
+                    </div>
+                 )})}
+             </div>
         </div>
 
-        {/* 9. ANÁLISE DE REJEIÇÕES */}
+        {/* --- ANALISE DE REJEIÇÕES --- */}
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'>
                 <Ban className='text-red-600' size={24} />
@@ -932,7 +933,7 @@ export function Dashboard() {
             </div>
         </div>
 
-        {/* 10. STATUS DE ASSINATURA */}
+        {/* --- ASSINATURAS --- */}
         <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
             <div className='flex items-center gap-2 mb-6 border-b pb-4'>
                 <FileSignature className='text-[#0F2C4C]' size={24} />
