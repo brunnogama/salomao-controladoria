@@ -347,54 +347,25 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
               )}
             </div>
 
-            {/* Coluna 3: GED e Processos */}
+            {/* Coluna 3: Processos */}
             <div className="space-y-6">
-              
-              {/* Seção GED (Arquivos) */}
-              <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Arquivos do Caso ({documents.length})</h3>
-                {documents.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Nenhum arquivo anexado.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {documents.map((doc) => (
-                      <div key={doc.id} onClick={(e) => handleDownload(e, doc)} className="group flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 hover:border-salomao-blue hover:shadow-sm cursor-pointer transition-all">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="bg-red-50 p-2 rounded-lg text-red-600">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-700 truncate group-hover:text-salomao-blue transition-colors">{doc.file_name}</p>
-                            <p className="text-[10px] text-gray-400">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                        <Download className="w-4 h-4 text-gray-300 group-hover:text-salomao-blue transition-colors" />
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2">Processos ({processes.length})</h3>
+              {processes.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">Nenhum processo vinculado.</p>
+              ) : (
+                <div className="space-y-3">
+                  {processes.map((proc, idx) => (
+                    <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm hover:bg-gray-100 transition-colors flex flex-col gap-1">
+                      <div className="font-mono font-bold text-salomao-blue text-xs flex items-center">
+                        <CheckCircle2 className="w-3 h-3 mr-1.5 text-gray-400" />
+                        {proc.process_number}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Seção Processos */}
-              <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Processos ({processes.length})</h3>
-                {processes.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Nenhum processo vinculado.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {processes.map((proc, idx) => (
-                      <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm hover:bg-gray-100 transition-colors flex flex-col gap-1">
-                        <div className="font-mono font-bold text-salomao-blue text-xs flex items-center">
-                          <CheckCircle2 className="w-3 h-3 mr-1.5 text-gray-400" />
-                          {proc.process_number}
-                        </div>
-                        <div className="text-gray-700 font-medium text-xs ml-4">{proc.opponent}</div>
-                        <div className="text-gray-500 text-[10px] ml-4">{proc.court} • {proc.uf} • {proc.vara || 'Vara não inf.'}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <div className="text-gray-700 font-medium text-xs ml-4">{proc.opponent}</div>
+                      <div className="text-gray-500 text-[10px] ml-4">{proc.court} • {proc.uf} • {proc.vara || 'Vara não inf.'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -407,74 +378,108 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           )}
 
-          {/* TIMELINE HORIZONTAL COM SETAS */}
-          {timelineEvents.length > 0 && (
-            <div className="border-t border-gray-100 pt-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center">
-                  <HistoryIcon className="w-4 h-4 mr-2" /> Timeline (Datas do Processo)
-                </h3>
-              </div>
-              
-              <div className="flex items-stretch overflow-x-auto pb-4 px-2 space-x-2 scrollbar-thin scrollbar-thumb-gray-200">
-                {timelineEvents.map((event, idx) => {
-                  const isLast = idx === timelineEvents.length - 1;
-                  const nextEvent = !isLast ? timelineEvents[idx + 1] : null;
-                  
-                  const durationToNext = nextEvent 
-                    ? getDurationBetween(event.date, nextEvent.date)
-                    : null;
+          {/* SECTION INFERIOR: TIMELINE E GED */}
+          <div className="border-t border-gray-100 pt-6 flex flex-col lg:flex-row gap-8">
+            
+            {/* Esquerda: TIMELINE HORIZONTAL (50%) */}
+            <div className="flex-1 lg:w-1/2">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center">
+                    <HistoryIcon className="w-4 h-4 mr-2" /> Timeline (Datas do Processo)
+                    </h3>
+                </div>
+                
+                {timelineEvents.length > 0 ? (
+                    <div className="flex items-stretch overflow-x-auto pb-4 px-2 space-x-2 scrollbar-thin scrollbar-thumb-gray-200">
+                        {timelineEvents.map((event, idx) => {
+                        const isLast = idx === timelineEvents.length - 1;
+                        const nextEvent = !isLast ? timelineEvents[idx + 1] : null;
+                        
+                        const durationToNext = nextEvent 
+                            ? getDurationBetween(event.date, nextEvent.date)
+                            : null;
 
-                  return (
-                    <React.Fragment key={idx}>
-                        <div className="flex-shrink-0 flex flex-col h-full min-w-[200px]">
-                            {/* Card do Evento */}
-                            <div className={`flex-1 flex flex-col justify-between bg-white p-4 rounded-xl border shadow-sm transition-all w-full text-center relative ${event.status === contract.status ? 'border-salomao-blue ring-1 ring-salomao-blue/20 shadow-md' : 'border-gray-100 hover:border-blue-200'}`}>
-                                <div>
-                                  <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border mb-3 ${event.color}`}>
-                                      {event.label}
-                                  </span>
-                                  <p className="text-sm font-bold text-gray-700 flex items-center justify-center gap-1.5">
-                                      <CalendarCheck className="w-4 h-4 text-gray-400" /> 
-                                      {new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                                  </p>
+                        return (
+                            <React.Fragment key={idx}>
+                                <div className="flex-shrink-0 flex flex-col h-full min-w-[200px]">
+                                    {/* Card do Evento */}
+                                    <div className={`flex-1 flex flex-col justify-between bg-white p-4 rounded-xl border shadow-sm transition-all w-full text-center relative ${event.status === contract.status ? 'border-salomao-blue ring-1 ring-salomao-blue/20 shadow-md' : 'border-gray-100 hover:border-blue-200'}`}>
+                                        <div>
+                                        <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border mb-3 ${event.color}`}>
+                                            {event.label}
+                                        </span>
+                                        <p className="text-sm font-bold text-gray-700 flex items-center justify-center gap-1.5">
+                                            <CalendarCheck className="w-4 h-4 text-gray-400" /> 
+                                            {new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                        </p>
+                                        </div>
+                                        
+                                        <div className="space-y-2 mt-3">
+                                        {/* Mostrar Duração Total dentro do card Active (Contrato Fechado) */}
+                                        {event.status === 'active' && (
+                                            <div className="flex items-center justify-center text-[10px] text-green-700 bg-green-50 px-2 py-1 rounded-lg border border-green-100 w-full font-medium">
+                                                <Hourglass className="w-3 h-3 mr-1" />
+                                                Total: {getTotalDuration()}
+                                            </div>
+                                        )}
+
+                                        {durationToNext && (
+                                            <div className="flex items-center justify-center text-[10px] text-gray-400 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 w-full mx-auto">
+                                                <Clock className="w-3 h-3 mr-1" />
+                                                {durationToNext}
+                                            </div>
+                                        )}
+                                        </div>
+                                    </div>
                                 </div>
-                                
-                                <div className="space-y-2 mt-3">
-                                  {/* Mostrar Duração Total dentro do card Active (Contrato Fechado) */}
-                                  {event.status === 'active' && (
-                                     <div className="flex items-center justify-center text-[10px] text-green-700 bg-green-50 px-2 py-1 rounded-lg border border-green-100 w-full font-medium">
-                                        <Hourglass className="w-3 h-3 mr-1" />
-                                        Total: {getTotalDuration()}
-                                     </div>
-                                  )}
 
-                                  {durationToNext && (
-                                      <div className="flex items-center justify-center text-[10px] text-gray-400 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 w-full mx-auto">
-                                          <Clock className="w-3 h-3 mr-1" />
-                                          {durationToNext}
-                                      </div>
-                                  )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {!isLast && (
-                            <div className="flex-shrink-0 text-gray-300 self-center">
-                                <ChevronsRight className="w-6 h-6" />
-                            </div>
-                        )}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
+                                {!isLast && (
+                                    <div className="flex-shrink-0 text-gray-300 self-center">
+                                        <ChevronsRight className="w-6 h-6" />
+                                    </div>
+                                )}
+                            </React.Fragment>
+                        );
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
+                        Nenhuma data interna (Prospect, Proposta, etc.) preenchida.
+                    </div>
+                )}
             </div>
-          )}
-          {timelineEvents.length === 0 && (
-             <div className="text-center py-8 border-t border-gray-100 text-gray-400 text-sm">
-                 Nenhuma data interna (Prospect, Proposta, etc.) preenchida neste contrato.
-             </div>
-          )}
+
+            {/* Direita: GED (Arquivos) (50%) com linha divisória */}
+            <div className="flex-1 lg:w-1/2 lg:pl-8 lg:border-l border-gray-100">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 flex items-center">
+                    <Paperclip className="w-4 h-4 mr-2" /> Arquivos do Caso (GED)
+                </h3>
+                
+                {documents.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
+                    Nenhum arquivo anexado.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {documents.map((doc) => (
+                      <div key={doc.id} onClick={(e) => handleDownload(e, doc)} className="group flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 hover:border-salomao-blue hover:shadow-sm cursor-pointer transition-all">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="bg-red-50 p-2 rounded-lg text-red-600 flex-shrink-0">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-700 truncate group-hover:text-salomao-blue transition-colors" title={doc.file_name}>{doc.file_name}</p>
+                            <p className="text-[10px] text-gray-400">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <Download className="w-4 h-4 text-gray-300 group-hover:text-salomao-blue transition-colors flex-shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
+
+          </div>
 
         </div>
       </div>
