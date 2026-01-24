@@ -244,20 +244,25 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   <label className="text-xs text-gray-400 block">Documento (CNPJ/CPF)</label>
                   <div className="text-gray-800 font-mono mt-1 mb-2">{contract.cnpj || 'Não informado'}</div>
                   
-                  {/* ÍCONE DE CLIPE PARA DOWNLOAD - CONDICIONAL */}
-                  <div className="flex items-center">
+                  {/* ÍCONE DE CLIPE PARA DOWNLOAD - UI MELHORADA */}
+                  <div className="mt-2">
                       <button 
                         onClick={handleDownloadLatest}
                         disabled={!documents || documents.length === 0}
-                        className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors ${
+                        className={`group flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg transition-all border w-full max-w-[250px] ${
                             documents && documents.length > 0 
-                            ? 'text-blue-600 hover:bg-blue-50 cursor-pointer' 
-                            : 'text-gray-300 cursor-not-allowed'
+                            ? 'bg-white border-gray-200 text-gray-700 hover:border-salomao-blue hover:text-salomao-blue hover:shadow-sm cursor-pointer' 
+                            : 'bg-gray-50 border-transparent text-gray-400 cursor-not-allowed'
                         }`}
-                        title={documents && documents.length > 0 ? "Baixar arquivo mais recente" : "Nenhum arquivo anexado"}
+                        title={documents && documents.length > 0 ? documents[0].file_name : "Nenhum arquivo anexado"}
                       >
-                          <Paperclip className="w-4 h-4" /> 
-                          {documents && documents.length > 0 ? 'Baixar Anexo' : 'Sem Anexo'}
+                          <div className={`p-1.5 rounded-md shrink-0 ${documents && documents.length > 0 ? 'bg-blue-50 text-salomao-blue group-hover:bg-blue-100' : 'bg-gray-200 text-gray-500'}`}>
+                             <Paperclip className="w-3.5 h-3.5" /> 
+                          </div>
+                          <span className="truncate text-left flex-1">
+                             {documents && documents.length > 0 ? documents[0].file_name : 'Sem anexo vinculado'}
+                          </span>
+                          {documents && documents.length > 0 && <Download className="w-3.5 h-3.5 text-gray-400 group-hover:text-salomao-blue shrink-0" />}
                       </button>
                   </div>
                 </div>
