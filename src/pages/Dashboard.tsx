@@ -91,14 +91,15 @@ export function Dashboard() {
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
   // Cálculos protegidos com fallback para 0
-  // NOVO CÁLCULO TOTAL (Soma das 4 categorias)
-  // Nota: metrics.geral.totalFechadoOutros precisa ser implementado no hook
   const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + 
                         (metrics?.geral?.totalFechadoExito || 0) + 
                         (metrics?.geral?.receitaRecorrenteAtiva || 0) + 
                         ((metrics?.geral as any)?.totalFechadoOutros || 0);
 
-  const totalNegociacao = (metrics?.geral?.valorEmNegociacaoPL || 0) + (metrics?.geral?.valorEmNegociacaoExito || 0);
+  const totalNegociacao = (metrics?.geral?.valorEmNegociacaoPL || 0) + 
+                          (metrics?.geral?.valorEmNegociacaoExito || 0) +
+                          ((metrics?.geral as any)?.valorEmNegociacaoMensal || 0) +
+                          ((metrics?.geral as any)?.valorEmNegociacaoOutros || 0);
 
   const calcDelta = (atual: number, anterior: number) => {
       if (anterior === 0) return atual > 0 ? 100 : 0;
@@ -222,7 +223,7 @@ export function Dashboard() {
                     </div>
                 </div>
                 {/* --- CARDS CLICÁVEIS PARA DRILL-DOWN --- */}
-                <div className='grid grid-cols-2 gap-3 flex-1 content-start'>
+                <div className='grid grid-cols-2 gap-3 flex-1 h-full'>
                     <div onClick={() => handleDrillDown('analysis')} className='bg-yellow-50 p-2 h-full rounded-lg border border-yellow-100 text-center cursor-pointer hover:shadow-md transition-all'><Clock className='mx-auto text-yellow-600 mb-1' size={18} /><p className='text-xl font-bold text-yellow-800'>{metrics.geral.emAnalise}</p><p className='text-[10px] text-yellow-700 font-bold uppercase'>Sob Análise</p></div>
                     <div onClick={() => handleDrillDown('proposal')} className='bg-blue-50 p-2 h-full rounded-lg border border-blue-100 text-center cursor-pointer hover:shadow-md transition-all'><Briefcase className='mx-auto text-blue-600 mb-1' size={18} /><p className='text-xl font-bold text-blue-800'>{metrics.geral.propostasAtivas}</p><p className='text-[10px] text-blue-700 font-bold uppercase'>Propostas</p></div>
                     <div onClick={() => handleDrillDown('active')} className='bg-green-50 p-2 h-full rounded-lg border border-green-100 text-center cursor-pointer hover:shadow-md transition-all'><CheckCircle2 className='mx-auto text-green-600 mb-1' size={18} /><p className='text-xl font-bold text-green-800'>{metrics.geral.fechados}</p><p className='text-[10px] text-green-700 font-bold uppercase'>Fechados</p></div>
@@ -245,14 +246,27 @@ export function Dashboard() {
                         <div>
                             <p className='text-xs text-blue-600 font-bold uppercase mb-4'>Valores das Propostas Enviadas</p>
                             <div className='space-y-3'>
+                                {/* 1. Pró-Labore */}
                                 <div className="flex justify-between items-baseline">
                                     <span className='text-xs text-gray-500 font-medium'>Pró-labore</span>
                                     <span className='text-xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoPL)}</span>
                                 </div>
+                                {/* 2. Êxito Total */}
                                 <div className="flex justify-between items-baseline">
-                                    <span className='text-xs text-gray-500 font-medium'>Êxito</span>
+                                    <span className='text-xs text-gray-500 font-medium'>Êxito Total</span>
                                     <span className='text-xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoExito)}</span>
                                 </div>
+                                {/* 3. Fixo Mensal */}
+                                <div className="flex justify-between items-baseline">
+                                    <span className='text-xs text-gray-500 font-medium'>Fixo Mensal</span>
+                                    <span className='text-xl font-bold text-gray-700'>{formatMoney((metrics.geral as any).valorEmNegociacaoMensal || 0)}</span>
+                                </div>
+                                {/* 4. Outros Honorários */}
+                                <div className="flex justify-between items-baseline">
+                                    <span className='text-xs text-gray-500 font-medium'>Outros Honorários</span>
+                                    <span className='text-xl font-bold text-gray-700'>{formatMoney((metrics.geral as any).valorEmNegociacaoOutros || 0)}</span>
+                                </div>
+
                                 <div className='flex justify-between items-end border-t border-gray-200 pt-3 mt-2'>
                                     <span className='text-sm font-bold text-gray-600 uppercase tracking-wider'>TOTAL GERAL</span>
                                     <span className='text-xl font-bold text-[#0F2C4C]'>{formatMoney(totalNegociacao)}</span>
@@ -272,7 +286,7 @@ export function Dashboard() {
                         </div>
                     </div>
 
-                    {/* Coluna Contratos Fechados - ATUALIZADO COM 4 CAMPOS */}
+                    {/* Coluna Contratos Fechados */}
                     <div className='md:border-l md:pl-8 border-gray-100 flex flex-col justify-between h-full'>
                         <div>
                             <p className='text-xs text-green-600 font-bold uppercase mb-4'>Valores dos Contratos Fechados</p>

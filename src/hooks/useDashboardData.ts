@@ -125,15 +125,23 @@ export function useDashboardData() {
         periodoAnteriorLabel: periodoAnteriorStr
     };
 
-    // ADICIONADO: totalFechadoOutros e mantido totalFechadoFixo (como zero ou auxiliar) para compatibilidade
+    // Estrutura atualizada com todos os campos necessários para a view detalhada
     let mGeral = { 
         totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0, 
-        valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, 
+        
+        // Propostas
+        valorEmNegociacaoPL: 0, 
+        valorEmNegociacaoExito: 0, 
+        valorEmNegociacaoMensal: 0, // Novo
+        valorEmNegociacaoOutros: 0, // Novo (Outros + Fixo Pontual)
+
+        // Fechados
         receitaRecorrenteAtiva: 0, // Fixo Mensal
         totalFechadoPL: 0, 
         totalFechadoExito: 0, 
-        totalFechadoOutros: 0, // Novo: Outros Honorários + Fixo Pontual
-        totalFechadoFixo: 0, // Legado/Pontual auxiliar
+        totalFechadoOutros: 0, // Novo (Outros + Fixo Pontual)
+        totalFechadoFixo: 0, // Legado
+
         assinados: 0, naoAssinados: 0, 
         mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0, 
         mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0 
@@ -309,15 +317,25 @@ export function useDashboardData() {
       if (c.status === 'rejected') mGeral.rejeitados++;
       if (c.status === 'probono') mGeral.probono++;
       
-      if (c.status === 'proposal') { mGeral.propostasAtivas++; mGeral.valorEmNegociacaoPL += (pl + mensal); mGeral.valorEmNegociacaoExito += exito; }
+      if (c.status === 'proposal') { 
+          mGeral.propostasAtivas++; 
+          
+          mGeral.valorEmNegociacaoPL += pl;
+          mGeral.valorEmNegociacaoExito += exito;
+          mGeral.valorEmNegociacaoMensal += mensal;
+          mGeral.valorEmNegociacaoOutros += (outros + fixoPontual); 
+      }
+      
       if (c.status === 'active') { 
           mGeral.fechados++; 
+          
           mGeral.receitaRecorrenteAtiva += mensal; 
           mGeral.totalFechadoPL += pl; 
           mGeral.totalFechadoExito += exito; 
           
           // Agrupamento de Outros + Fixo Pontual
           mGeral.totalFechadoOutros += (outros + fixoPontual); 
+          mGeral.totalFechadoFixo += fixoPontual; // Mantido para legado se necessário
           
           c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++; 
       }

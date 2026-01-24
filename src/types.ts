@@ -225,7 +225,7 @@ export interface KanbanTask {
   };
 }
 
-// --- TIPOS DO DASHBOARD (Adicionados para corrigir erros de build) ---
+// --- TIPOS DO DASHBOARD ---
 
 export interface DashboardPeriodMetrics {
   totalUnico: number;
@@ -253,12 +253,21 @@ export interface DashboardMetrics {
     fechados: number;
     rejeitados: number;
     probono: number;
+    
+    // Propostas
     valorEmNegociacaoPL: number;
     valorEmNegociacaoExito: number;
-    receitaRecorrenteAtiva: number;
+    valorEmNegociacaoMensal: number; // Novo
+    valorEmNegociacaoOutros: number; // Novo
+
+    // Fechados
+    receitaRecorrenteAtiva: number; // Fixo Mensal
     totalFechadoPL: number;
     totalFechadoExito: number;
-    totalFechadoFixo: number; // Campo novo para correção financeira
+    totalFechadoOutros: number; // Novo
+    
+    totalFechadoFixo: number; // Legado/Auxiliar
+    
     mediaMensalNegociacaoPL: number;
     mediaMensalNegociacaoExito: number;
     mediaMensalCarteiraPL: number;
