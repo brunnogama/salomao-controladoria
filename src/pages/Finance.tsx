@@ -158,30 +158,6 @@ export function Finance() {
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
   const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
 
-  // --- CÁLCULO DETALHADO POR SÓCIO (NOVO) ---
-  const partnerStats = partners.map(p => {
-    const partnerInstallments = filteredInstallments.filter(i => i.contract?.partner_id === p.id);
-    
-    const pendingTotal = partnerInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
-    const paidTotal = partnerInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-
-    const pendingProLabore = partnerInstallments.filter(i => i.status === 'pending' && i.type === 'pro_labore').reduce((acc, curr) => acc + curr.amount, 0);
-    const pendingExitos = partnerInstallments.filter(i => i.status === 'pending' && ['success_fee', 'final_success_fee', 'intermediate_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
-    const pendingFixed = partnerInstallments.filter(i => i.status === 'pending' && ['fixed', 'fixed_monthly_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
-
-    const paidProLabore = partnerInstallments.filter(i => i.status === 'paid' && i.type === 'pro_labore').reduce((acc, curr) => acc + curr.amount, 0);
-    const paidExitos = partnerInstallments.filter(i => i.status === 'paid' && ['success_fee', 'final_success_fee', 'intermediate_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
-    const paidFixed = partnerInstallments.filter(i => i.status === 'paid' && ['fixed', 'fixed_monthly_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
-
-    return { 
-      name: p.name, 
-      pendingTotal, 
-      paidTotal,
-      pendingDetails: { proLabore: pendingProLabore, exitos: pendingExitos, fixed: pendingFixed },
-      paidDetails: { proLabore: paidProLabore, exitos: paidExitos, fixed: paidFixed }
-    };
-  }).filter(s => s.pendingTotal > 0 || s.paidTotal > 0);
-
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-8">
@@ -201,21 +177,6 @@ export function Finance() {
             <div><p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (Pendente)</p><h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3></div>
             <div className="bg-orange-50 p-3 rounded-full text-orange-500"><Clock className="w-6 h-6" /></div>
           </div>
-          <div className="border-t border-gray-100 pt-3 mt-2 space-y-3">
-            {partnerStats.map((stat, idx) => stat.pendingTotal > 0 && (
-              <div key={idx} className="text-xs">
-                <div className="flex justify-between font-bold text-gray-700 mb-1">
-                  <span>{stat.name}</span>
-                  <span>{stat.pendingTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-500 pl-2 border-l-2 border-orange-100">
-                  <div>PL: {stat.pendingDetails.proLabore.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                  <div>Êxito: {stat.pendingDetails.exitos.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                  <div>Fixo: {stat.pendingDetails.fixed.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* CARD FATURADO */}
@@ -223,21 +184,6 @@ export function Finance() {
           <div className="flex items-center justify-between mb-4">
             <div><p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Faturado</p><h3 className="text-3xl font-bold text-green-600 mt-1">{totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3></div>
             <div className="bg-green-50 p-3 rounded-full text-green-500"><CheckCircle2 className="w-6 h-6" /></div>
-          </div>
-          <div className="border-t border-gray-100 pt-3 mt-2 space-y-3">
-            {partnerStats.map((stat, idx) => stat.paidTotal > 0 && (
-              <div key={idx} className="text-xs">
-                <div className="flex justify-between font-bold text-gray-700 mb-1">
-                  <span>{stat.name}</span>
-                  <span className="text-green-600">{stat.paidTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1 text-[10px] text-gray-500 pl-2 border-l-2 border-green-100">
-                  <div>PL: {stat.paidDetails.proLabore.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                  <div>Êxito: {stat.paidDetails.exitos.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                  <div>Fixo: {stat.paidDetails.fixed.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
