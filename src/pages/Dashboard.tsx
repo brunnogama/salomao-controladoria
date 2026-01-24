@@ -91,8 +91,9 @@ export function Dashboard() {
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
   // Cálculos protegidos com fallback para 0
+  // CORREÇÃO: Removido receitaRecorrenteAtiva para evitar duplicidade com totalFechadoFixo
   const totalNegociacao = (metrics?.geral?.valorEmNegociacaoPL || 0) + (metrics?.geral?.valorEmNegociacaoExito || 0);
-  const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + (metrics?.geral?.totalFechadoExito || 0) + (metrics?.geral?.receitaRecorrenteAtiva || 0) + (metrics?.geral?.totalFechadoFixo || 0);
+  const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + (metrics?.geral?.totalFechadoExito || 0) + (metrics?.geral?.totalFechadoFixo || 0);
 
   const calcDelta = (atual: number, anterior: number) => {
       if (anterior === 0) return atual > 0 ? 100 : 0;
