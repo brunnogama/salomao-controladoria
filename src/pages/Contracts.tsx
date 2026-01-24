@@ -410,10 +410,17 @@ export function Contracts() {
     // 2. Preparar Dados (Array of Arrays para garantir ordem)
     const header = [
         'ID', 'Status', 'Cliente', 'Sócio', 'HON', 'Data Relevante', 'Local Faturamento',
-        'Pró-Labore', 'Outros Honorários', 'Fixo Mensal', 'Êxito Intermediário', 'Êxito Final', 'Êxito (Total)', 'Observações'
+        'Pró-Labore', 'Cláusula Pró-Labore',
+        'Outros Honorários', 'Cláusula Outros',
+        'Fixo Mensal', 'Cláusula Fixo Mensal',
+        'Êxito Intermediário', 'Cláusula Intermediário',
+        'Êxito Final', 'Cláusula Êxito Final',
+        'Êxito (Total)', 'Observações'
     ];
 
-    const rows = filteredContracts.map(c => {
+    const rows: any[] = [];
+
+    filteredContracts.forEach(c => {
         const vPro = parseCurrency(c.pro_labore);
         const vOther = parseCurrency(c.other_fees);
         const vFixed = parseCurrency(c.fixed_monthly_fee);
@@ -435,7 +442,8 @@ export function Contracts() {
         sumFinal += vFinal;
         sumTotalSuccess += vTotalSuccess;
 
-        return [
+        // Linha Principal
+        rows.push([
           c.display_id,
           getStatusLabel(c.status),
           c.client_name,
@@ -443,20 +451,55 @@ export function Contracts() {
           c.hon_number || '-',
           new Date(getRelevantDate(c) || '').toLocaleDateString('pt-BR'),
           c.billing_location || '-',
-          vPro,   // Coluna Index 7
-          vOther, // Coluna Index 8
-          vFixed, // Coluna Index 9
-          vInter, // Coluna Index 10
-          vFinal, // Coluna Index 11
-          vTotalSuccess, // Coluna Index 12
-          c.observations || '-'
-        ];
+          vPro,   // Coluna 7
+          (c as any).pro_labore_clause || '-', // Coluna 8 (Cláusula)
+          vOther, // Coluna 9
+          (c as any).other_fees_clause || '-', // Coluna 10 (Cláusula)
+          vFixed, // Coluna 11
+          (c as any).fixed_monthly_fee_clause || '-', // Coluna 12 (Cláusula)
+          vInter, // Coluna 13
+          (c.intermediate_fees_clauses && (c.intermediate_fees_clauses as any).length > 0) ? 'Ver detalhe abaixo' : '-', // Coluna 14 (Cláusula - Resumo)
+          vFinal, // Coluna 15
+          (c as any).final_success_fee_clause || '-', // Coluna 16 (Cláusula)
+          vTotalSuccess, // Coluna 17
+          c.observations || '-' // Coluna 18
+        ]);
+
+        // Linhas Extras para Cláusulas Detalhadas (se existirem e forem diferentes da linha principal)
+        const clauses: {type: string, text: string}[] = [];
+        
+        // Adiciona cláusulas extras de Pró-labore
+        if((c as any).pro_labore_extras_clauses && Array.isArray((c as any).pro_labore_extras_clauses)) {
+            (c as any).pro_labore_extras_clauses.forEach((cl: string) => clauses.push({type: 'Extra Pró-Labore', text: cl}));
+        }
+        // Adiciona cláusulas de intermediários (separadas pois podem ser múltiplas)
+        if((c.intermediate_fees_clauses as any) && Array.isArray((c.intermediate_fees_clauses as any))) {
+             (c.intermediate_fees_clauses as any).forEach((cl: string) => clauses.push({type: 'Intermediário', text: cl}));
+        }
+        // Adiciona cláusulas extras de Êxito Final
+        if((c as any).final_success_extras_clauses && Array.isArray((c as any).final_success_extras_clauses)) {
+            (c as any).final_success_extras_clauses.forEach((cl: string) => clauses.push({type: 'Extra Êxito Final', text: cl}));
+        }
+
+        // Se houver cláusulas extras, adiciona linhas abaixo
+        clauses.forEach(clause => {
+            rows.push([
+                c.display_id, // Repete ID para referência
+                '', '', '', '', '', '', // Colunas vazias
+                '', clause.type === 'Extra Pró-Labore' ? clause.text : '', // Coluna 8
+                '', '', // Coluna 9-10
+                '', '', // Coluna 11-12
+                '', clause.type === 'Intermediário' ? clause.text : '', // Coluna 14
+                '', clause.type === 'Extra Êxito Final' ? clause.text : '', // Coluna 16
+                '', ''
+            ]);
+        });
     });
 
     // 3. Adicionar Linha de Totais
     const totalRow = [
         'TOTAIS', '', '', '', '', '', '',
-        sumPro, sumOther, sumFixed, sumInter, sumFinal, sumTotalSuccess, ''
+        sumPro, '', sumOther, '', sumFixed, '', sumInter, '', sumFinal, '', sumTotalSuccess, ''
     ];
 
     const dataWithHeader = [header, ...rows, [], totalRow];
@@ -465,19 +508,20 @@ export function Contracts() {
     const ws = XLSX.utils.aoa_to_sheet(dataWithHeader);
 
     // 5. Formatação de Células (Moeda)
-    // Aplica formatação "R$ #,##0.00" nas colunas H (7) até M (12)
+    // Aplica formatação "R$ #,##0.00" nas colunas de valor (Indices: 7, 9, 11, 13, 15, 17)
     const currencyFormat = '"R$" #,##0.00';
     const range = XLSX.utils.decode_range(ws['!ref']!);
+    const moneyCols = [7, 9, 11, 13, 15, 17];
     
     // Itera sobre as linhas de dados (ignora cabeçalho)
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-        for (let C = 7; C <= 12; ++C) {
+        moneyCols.forEach(C => {
             const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-            if (ws[cellRef]) {
+            if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
                 ws[cellRef].z = currencyFormat; // Define o formato
                 ws[cellRef].t = 'n'; // Garante que é tipo numérico
             }
-        }
+        });
     }
 
     // 6. Gerar arquivo
