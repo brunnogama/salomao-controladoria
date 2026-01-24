@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { FolderOpen, FileText, Download, Search, HardDrive, Clock, FileCheck, Hash } from 'lucide-react';
 import { maskHon } from '../utils/masks';
-import { EmptyState } from '../components/ui/EmptyState'; // <--- Importação do componente
+import { EmptyState } from '../components/ui/EmptyState';
 
 interface GEDDocument {
   id: string;
@@ -30,10 +30,20 @@ export function GED() {
   const [folders, setFolders] = useState<string[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Ref para o container principal de arquivos
+  const mainContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchDocuments();
   }, []);
+
+  // Efeito para rolar para o topo quando a pasta mudar
+  useEffect(() => {
+    if (mainContentRef.current) {
+        mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [selectedFolder]);
 
   const fetchDocuments = async () => {
     setLoading(true);
@@ -207,7 +217,7 @@ export function GED() {
           </div>
 
           {/* File Grid */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div ref={mainContentRef} className="flex-1 overflow-y-auto p-6">
             {loading ? (
               <div className="text-center py-10 text-gray-400">Carregando documentos...</div>
             ) : filteredDocs.length === 0 ? (
