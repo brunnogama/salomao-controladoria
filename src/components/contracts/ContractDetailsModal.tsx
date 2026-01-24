@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown, Calculator, Paperclip, CheckCircle2, ArrowRight, Clock } from 'lucide-react';
+import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown, Calculator, Paperclip, CheckCircle2, ArrowRight, Clock, ChevronsRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Contract, ContractProcess, ContractDocument } from '../../types';
 import { parseCurrency } from '../../utils/masks'; 
@@ -48,7 +48,8 @@ interface Props {
 export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes, documents = [] }: Props) {
   if (!isOpen || !contract) return null;
 
-  const handleDownload = async (doc: ContractDocument) => {
+  const handleDownload = async (e: React.MouseEvent, doc: ContractDocument) => {
+    e.stopPropagation();
     try {
       const { data, error } = await supabase.storage.from('contract-documents').download(doc.file_path);
       if (error) throw error;
@@ -70,13 +71,13 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
     const events: InternalTimelineEvent[] = [];
 
     if (contract.prospect_date) {
-      events.push({ label: 'Sob Análise (Prospect)', date: contract.prospect_date, status: 'analysis', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' });
+      events.push({ label: 'Sob Análise', date: contract.prospect_date, status: 'analysis', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' });
     }
     if (contract.proposal_date) {
       events.push({ label: 'Proposta Enviada', date: contract.proposal_date, status: 'proposal', color: 'bg-blue-100 text-blue-800 border-blue-200' });
     }
     if (contract.contract_date) {
-      events.push({ label: 'Contrato Fechado (Ativo)', date: contract.contract_date, status: 'active', color: 'bg-green-100 text-green-800 border-green-200' });
+      events.push({ label: 'Contrato Fechado', date: contract.contract_date, status: 'active', color: 'bg-green-100 text-green-800 border-green-200' });
     }
     if (contract.rejection_date) {
       events.push({ label: 'Rejeitado', date: contract.rejection_date, status: 'rejected', color: 'bg-red-100 text-red-800 border-red-200' });
@@ -192,7 +193,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   {documents.map((doc) => (
                     <button
                       key={doc.id}
-                      onClick={() => handleDownload(doc)}
+                      onClick={(e) => handleDownload(e, doc)}
                       className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-white text-red-600 border border-red-200 hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
                       title={`Baixar ${doc.file_name}`}
                     >
@@ -392,7 +393,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           )}
 
-          {/* TIMELINE HORIZONTAL */}
+          {/* TIMELINE HORIZONTAL COM SETAS */}
           {timelineEvents.length > 0 && (
             <div className="border-t border-gray-100 pt-6">
               <div className="flex justify-between items-center mb-6">
@@ -404,7 +405,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                 </span>
               </div>
               
-              <div className="flex items-start overflow-x-auto pb-4 space-x-4 scrollbar-thin scrollbar-thumb-gray-200">
+              <div className="flex items-center overflow-x-auto pb-4 px-2 space-x-2 scrollbar-thin scrollbar-thumb-gray-200">
                 {timelineEvents.map((event, idx) => {
                   const isLast = idx === timelineEvents.length - 1;
                   const nextEvent = !isLast ? timelineEvents[idx + 1] : null;
@@ -414,35 +415,33 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                     : null;
 
                   return (
-                    <div key={idx} className="flex-shrink-0 flex flex-col items-center relative group min-w-[200px]">
-                      {/* Linha conectora horizontal */}
-                      {!isLast && (
-                        <div className="absolute top-2.5 left-1/2 w-full h-0.5 bg-gray-200 -z-10 group-hover:bg-blue-100 transition-colors" />
-                      )}
+                    <React.Fragment key={idx}>
+                        <div className="flex-shrink-0 flex flex-col items-center relative group min-w-[180px]">
+                            {/* Card do Evento */}
+                            <div className={`bg-white p-4 rounded-xl border shadow-sm transition-all w-full text-center relative ${event.status === contract.status ? 'border-salomao-blue ring-1 ring-salomao-blue/20 shadow-md' : 'border-gray-100 hover:border-blue-200'}`}>
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border mb-3 ${event.color}`}>
+                                    {event.label}
+                                </span>
+                                <p className="text-sm font-bold text-gray-700 flex items-center justify-center gap-1.5">
+                                    <CalendarCheck className="w-4 h-4 text-gray-400" /> 
+                                    {new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                </p>
+                                
+                                {durationToNext && (
+                                    <div className="mt-3 flex items-center justify-center text-[10px] text-gray-400 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 w-fit mx-auto">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        {durationToNext}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
-                      {/* Bolinha do status */}
-                      <span className={`w-5 h-5 rounded-full border-2 z-10 flex items-center justify-center mb-3 ${event.status === contract.status ? 'bg-salomao-blue border-blue-200 scale-110 shadow-md' : 'bg-white border-gray-300'}`}>
-                         {event.status === contract.status && <div className="w-2 h-2 bg-white rounded-full" />}
-                      </span>
-                      
-                      {/* Card do Evento */}
-                      <div className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:border-blue-200 transition-colors w-full text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase border mb-2 ${event.color}`}>
-                            {event.label}
-                        </span>
-                        <p className="text-sm font-bold text-gray-700 flex items-center justify-center gap-1">
-                          <CalendarCheck className="w-3.5 h-3.5 text-gray-400" /> 
-                          {new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                        </p>
-                        
-                        {durationToNext && (
-                           <div className="mt-2 flex items-center justify-center text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-                             <ArrowRight className="w-3 h-3 mr-1" />
-                             {durationToNext}
-                           </div>
+                        {!isLast && (
+                            <div className="flex-shrink-0 text-gray-300">
+                                <ChevronsRight className="w-6 h-6" />
+                            </div>
                         )}
-                      </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })}
               </div>
