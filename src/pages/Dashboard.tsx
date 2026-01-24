@@ -91,8 +91,14 @@ export function Dashboard() {
   if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
 
   // Cálculos protegidos com fallback para 0
+  // NOVO CÁLCULO TOTAL (Soma das 4 categorias)
+  // Nota: metrics.geral.totalFechadoOutros precisa ser implementado no hook
+  const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + 
+                        (metrics?.geral?.totalFechadoExito || 0) + 
+                        (metrics?.geral?.receitaRecorrenteAtiva || 0) + 
+                        ((metrics?.geral as any)?.totalFechadoOutros || 0);
+
   const totalNegociacao = (metrics?.geral?.valorEmNegociacaoPL || 0) + (metrics?.geral?.valorEmNegociacaoExito || 0);
-  const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + (metrics?.geral?.totalFechadoExito || 0) + (metrics?.geral?.receitaRecorrenteAtiva || 0) + (metrics?.geral?.totalFechadoFixo || 0);
 
   const calcDelta = (atual: number, anterior: number) => {
       if (anterior === 0) return atual > 0 ? 100 : 0;
@@ -266,19 +272,32 @@ export function Dashboard() {
                         </div>
                     </div>
 
-                    {/* Coluna Contratos Fechados */}
+                    {/* Coluna Contratos Fechados - ATUALIZADO COM 4 CAMPOS */}
                     <div className='md:border-l md:pl-8 border-gray-100 flex flex-col justify-between h-full'>
                         <div>
                             <p className='text-xs text-green-600 font-bold uppercase mb-4'>Valores dos Contratos Fechados</p>
                             <div className='space-y-3'>
+                                {/* 1. Pró-Labore */}
                                 <div className="flex justify-between items-baseline">
                                     <span className='text-xs text-gray-500 font-medium'>Pró-labore</span>
                                     <span className='text-xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoPL)}</span>
                                 </div>
+                                {/* 2. Êxito Total */}
                                 <div className="flex justify-between items-baseline">
-                                    <span className='text-xs text-gray-500 font-medium'>Êxito</span>
+                                    <span className='text-xs text-gray-500 font-medium'>Êxito Total</span>
                                     <span className='text-xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoExito)}</span>
                                 </div>
+                                {/* 3. Fixo Mensal */}
+                                <div className="flex justify-between items-baseline">
+                                    <span className='text-xs text-gray-500 font-medium'>Fixo Mensal</span>
+                                    <span className='text-xl font-bold text-green-700'>{formatMoney(metrics.geral.receitaRecorrenteAtiva)}</span>
+                                </div>
+                                {/* 4. Outros Honorários */}
+                                <div className="flex justify-between items-baseline">
+                                    <span className='text-xs text-gray-500 font-medium'>Outros Honorários</span>
+                                    <span className='text-xl font-bold text-green-700'>{formatMoney((metrics.geral as any).totalFechadoOutros || 0)}</span>
+                                </div>
+
                                 <div className='flex justify-between items-end border-t border-gray-200 pt-3 mt-2'>
                                     <span className='text-sm font-bold text-gray-600 uppercase tracking-wider'>TOTAL GERAL</span>
                                     <span className='text-xl font-bold text-green-700'>{formatMoney(totalCarteira)}</span>

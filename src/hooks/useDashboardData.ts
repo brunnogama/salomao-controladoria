@@ -125,7 +125,19 @@ export function useDashboardData() {
         periodoAnteriorLabel: periodoAnteriorStr
     };
 
-    let mGeral = { totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0, valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0, totalFechadoPL: 0, totalFechadoExito: 0, totalFechadoFixo: 0, assinados: 0, naoAssinados: 0, mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0, mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0 };
+    // ADICIONADO: totalFechadoOutros e mantido totalFechadoFixo (como zero ou auxiliar) para compatibilidade
+    let mGeral = { 
+        totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0, 
+        valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, 
+        receitaRecorrenteAtiva: 0, // Fixo Mensal
+        totalFechadoPL: 0, 
+        totalFechadoExito: 0, 
+        totalFechadoOutros: 0, // Novo: Outros Honorários + Fixo Pontual
+        totalFechadoFixo: 0, // Legado/Pontual auxiliar
+        assinados: 0, naoAssinados: 0, 
+        mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0, 
+        mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0 
+    };
 
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
     let fPerdaAnalise = 0; let fPerdaNegociacao = 0;
@@ -159,20 +171,18 @@ export function useDashboardData() {
       let mensal = safeParseMoney(c.fixed_monthly_fee);
       let outros = safeParseMoney(c.other_fees);
       
-      // Tenta ler honorário fixo pontual (que não é mensal) se existir no objeto, mesmo sem tipagem explícita
-      // Isso cobre o gap de ~1.1M que é diferente dos ~3.3M mensais
+      // Tenta ler honorário fixo pontual
       let fixoPontual = safeParseMoney((c as any).fixed_fee);
       if (fixoPontual === 0) fixoPontual = safeParseMoney((c as any).honorarios_fixos);
 
-      // 2. ADIÇÃO DE EXTRAS (Se existirem)
+      // 2. ADIÇÃO DE EXTRAS
       if (c.pro_labore_extras && Array.isArray(c.pro_labore_extras)) pl += c.pro_labore_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.final_success_extras && Array.isArray(c.final_success_extras)) exito += c.final_success_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) mensal += c.fixed_monthly_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.other_fees_extras && Array.isArray(c.other_fees_extras)) outros += c.other_fees_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       
-      // Agrega 'Outros Honorários' ao 'PL' para simplificação visual nos cards (opcional, padrão do dashboard)
-      pl += outros;
-
+      // IMPORTANTE: NÃO somamos mais 'outros' ao 'pl'. Mantemos separados.
+      
       // Extras Intermediários somam ao Êxito
       if (c.intermediate_fees && Array.isArray(c.intermediate_fees)) exito += c.intermediate_fees.reduce((acc, val) => acc + safeParseMoney(val), 0);
       
@@ -207,7 +217,6 @@ export function useDashboardData() {
              mExecutivo.mesAtual.propExito += exito; 
              mExecutivo.mesAtual.propMensal += mensal; 
          }
-         // Compara com o mesmo período do mês anterior
          if (isDateInLastMonthMTD(c.proposal_date)) { 
              mExecutivo.mesAnterior.propQtd++; 
              mExecutivo.mesAnterior.propPL += pl; 
@@ -223,7 +232,6 @@ export function useDashboardData() {
              mExecutivo.mesAtual.fechExito += exito; 
              mExecutivo.mesAtual.fechMensal += mensal; 
          }
-         // Compara com o mesmo período do mês anterior
          if (isDateInLastMonthMTD(c.contract_date)) { 
              mExecutivo.mesAnterior.fechQtd++; 
              mExecutivo.mesAnterior.fechPL += pl; 
@@ -234,8 +242,6 @@ export function useDashboardData() {
 
       // Contagem por Sócio e Financeiro
       const pName = (c.partner_id && partnerMap[c.partner_id]) || c.responsavel_socio || 'Não Informado';
-      
-      // Inicializa objeto do sócio se não existir (incluindo campos financeiros)
       if (!partnerCounts[pName]) partnerCounts[pName] = { 
           total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0,
           pl: 0, exito: 0, fixo: 0 
@@ -246,7 +252,6 @@ export function useDashboardData() {
       else if (c.status === 'proposal') partnerCounts[pName].proposal++;
       else if (c.status === 'active') {
           partnerCounts[pName].active++;
-          // Acumula valores financeiros apenas para contratos ativos (Carteira)
           partnerCounts[pName].pl += pl;
           partnerCounts[pName].exito += exito;
           partnerCounts[pName].fixo += mensal;
@@ -310,7 +315,10 @@ export function useDashboardData() {
           mGeral.receitaRecorrenteAtiva += mensal; 
           mGeral.totalFechadoPL += pl; 
           mGeral.totalFechadoExito += exito; 
-          mGeral.totalFechadoFixo += fixoPontual; // CORRIGIDO AQUI
+          
+          // Agrupamento de Outros + Fixo Pontual
+          mGeral.totalFechadoOutros += (outros + fixoPontual); 
+          
           c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++; 
       }
 
