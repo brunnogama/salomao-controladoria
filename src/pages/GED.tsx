@@ -38,12 +38,13 @@ export function GED() {
     fetchDocuments();
   }, []);
 
-  // Efeito para rolar para o topo quando a pasta mudar
+  // Efeito para rolar para o topo quando a pasta (ou busca) mudar
   useEffect(() => {
     if (mainContentRef.current) {
-        mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        // Força o scroll para o topo instantaneamente
+        mainContentRef.current.scrollTop = 0;
     }
-  }, [selectedFolder]);
+  }, [selectedFolder, searchTerm]);
 
   const fetchDocuments = async () => {
     setLoading(true);
