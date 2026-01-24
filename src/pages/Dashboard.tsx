@@ -6,7 +6,7 @@ import {
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
   ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch, Lightbulb,
-  Percent
+  Percent, Users, Banknote
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -75,6 +75,9 @@ export function Dashboard() {
 
   const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
   
+  // Formatador compacto para gráficos (sem centavos)
+  const formatCompact = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0);
+
   const FinItem = ({ label, value, colorClass = 'text-gray-700' }: FinItemProps) => {
     if (!value || value === 0) return null;
     return (
@@ -292,7 +295,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
            {/* QUANTITATIVE */}
            <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
-               <h3 className="font-bold text-gray-800 mb-4">Visão Quantitativa por Sócio</h3>
+               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Users className="w-5 h-5 text-salomao-gold" /> Visão Quantitativa por Sócio</h3>
                <div className="overflow-x-auto">
                    <table className="w-full text-xs text-left">
                        <thead className="text-gray-500 font-bold border-b border-gray-100">
@@ -323,7 +326,7 @@ export function Dashboard() {
 
            {/* VALUES */}
            <div className='bg-white p-6 rounded-2xl shadow-sm border border-gray-200'>
-               <h3 className="font-bold text-gray-800 mb-4">Visão Financeira por Sócio</h3>
+               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Banknote className="w-5 h-5 text-salomao-gold" /> Visão Financeira por Sócio</h3>
                 <div className="overflow-x-auto">
                    <table className="w-full text-xs text-left">
                        <thead className="text-gray-500 font-bold border-b border-gray-100">
@@ -757,7 +760,7 @@ export function Dashboard() {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
                                 <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
-                                    {totalMes > 0 && (<span className='text-[9px] font-bold text-gray-600 mb-2 -rotate-45 origin-bottom whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
+                                    {totalMes > 0 && (<span className='text-[9px] font-bold text-gray-600 mb-1 whitespace-nowrap'>{formatCompact(totalMes)}</span>)}
                                     <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
                                     <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hPl, 1)}%` }}></div>
                                     <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hFixo, 1)}%` }}></div>
@@ -813,7 +816,7 @@ export function Dashboard() {
                                 const totalMes = item.pl + item.fixo + item.exito;
                                 return (
                                 <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group relative hover:z-50'>
-                                    {totalMes > 0 && (<span className='text-[9px] font-bold text-gray-600 mb-2 -rotate-45 origin-bottom whitespace-nowrap'>{formatMoney(totalMes)}</span>)}
+                                    {totalMes > 0 && (<span className='text-[9px] font-bold text-gray-600 mb-1 whitespace-nowrap'>{formatCompact(totalMes)}</span>)}
                                     <div className='flex items-end gap-1 h-full w-full justify-center px-1 relative'>
                                     <div className='w-2 bg-blue-400 rounded-t hover:bg-blue-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hPl, 1)}%` }}></div>
                                     <div className='w-2 bg-indigo-400 rounded-t hover:bg-indigo-500 transition-all relative group hover:z-50' style={{ height: `${Math.max(item.hFixo, 1)}%` }}></div>

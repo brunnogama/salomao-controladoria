@@ -103,9 +103,6 @@ export function useDashboardData() {
     if (diaLimiteMesAnterior.getDate() > maxDaysInLastMonth) {
         diaLimiteMesAnterior.setDate(maxDaysInLastMonth);
     }
-    // Se o dia limite calculado for menor que hoje (ex: hoje 31, limite 28), ajustamos para o último dia do mês anterior
-    // para comparar "mês cheio" vs "mês cheio" se o mês atual já acabou, ou MTD se estamos no meio.
-    // Mas a regra estrita é "mesmo dia".
     
     const periodoAnteriorStr = `${formatDateShort(primeiroDiaMesAnterior)} - ${formatDateShort(diaLimiteMesAnterior)}`;
     // -------------------------------------
@@ -231,13 +228,25 @@ export function useDashboardData() {
          }
       }
 
-      // Contagem por Sócio
+      // Contagem por Sócio e Financeiro
       const pName = (c.partner_id && partnerMap[c.partner_id]) || c.responsavel_socio || 'Não Informado';
-      if (!partnerCounts[pName]) partnerCounts[pName] = { total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0 };
+      
+      // Inicializa objeto do sócio se não existir (incluindo campos financeiros)
+      if (!partnerCounts[pName]) partnerCounts[pName] = { 
+          total: 0, analysis: 0, proposal: 0, active: 0, rejected: 0, probono: 0,
+          pl: 0, exito: 0, fixo: 0 
+      };
+      
       partnerCounts[pName].total++;
       if (c.status === 'analysis') partnerCounts[pName].analysis++;
       else if (c.status === 'proposal') partnerCounts[pName].proposal++;
-      else if (c.status === 'active') partnerCounts[pName].active++;
+      else if (c.status === 'active') {
+          partnerCounts[pName].active++;
+          // Acumula valores financeiros apenas para contratos ativos (Carteira)
+          partnerCounts[pName].pl += pl;
+          partnerCounts[pName].exito += exito;
+          partnerCounts[pName].fixo += mensal;
+      }
       else if (c.status === 'rejected') partnerCounts[pName].rejected++;
       else if (c.status === 'probono') partnerCounts[pName].probono++;
 
