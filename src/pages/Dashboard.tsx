@@ -92,7 +92,7 @@ export function Dashboard() {
 
   // Cálculos protegidos com fallback para 0
   const totalNegociacao = (metrics?.geral?.valorEmNegociacaoPL || 0) + (metrics?.geral?.valorEmNegociacaoExito || 0);
-  const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + (metrics?.geral?.totalFechadoExito || 0) + (metrics?.geral?.receitaRecorrenteAtiva || 0);
+  const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + (metrics?.geral?.totalFechadoExito || 0) + (metrics?.geral?.receitaRecorrenteAtiva || 0) + (metrics?.geral?.totalFechadoFixo || 0);
 
   const calcDelta = (atual: number, anterior: number) => {
       if (anterior === 0) return atual > 0 ? 100 : 0;
