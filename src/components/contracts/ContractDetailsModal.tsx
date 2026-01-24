@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown, Calculator, Paperclip, CheckCircle2 } from 'lucide-react';
+import { X, Edit, Trash2, Calendar, User, FileText, Briefcase, MapPin, History as HistoryIcon, Hourglass, CalendarCheck, ArrowDown, Calculator, Paperclip, CheckCircle2, ArrowRight, Clock } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { Contract, ContractProcess, ContractDocument } from '../../types';
 import { parseCurrency } from '../../utils/masks'; 
 
@@ -13,13 +14,13 @@ interface InternalTimelineEvent {
 
 const getDurationBetween = (startDateStr: string, endDateStr: string): string => {
   if (!startDateStr || !endDateStr) return '-';
-  
+   
   const start = new Date(startDateStr + 'T12:00:00');
   const end = new Date(endDateStr + 'T12:00:00');
-  
+   
   const diffTime = Math.abs(end.getTime() - start.getTime());
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-  
+   
   if (diffDays === 0) return 'Mesmo dia';
   if (diffDays > 30) {
     const months = Math.floor(diffDays / 30);
@@ -46,6 +47,23 @@ interface Props {
 
 export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes, documents = [] }: Props) {
   if (!isOpen || !contract) return null;
+
+  const handleDownload = async (doc: ContractDocument) => {
+    try {
+      const { data, error } = await supabase.storage.from('contract-documents').download(doc.file_path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      alert('Erro ao baixar documento: ' + error.message);
+    }
+  };
 
   // 1. CONSTRUÇÃO DA TIMELINE BASEADA NAS DATAS INTERNAS
   const buildInternalTimeline = (): InternalTimelineEvent[] => {
@@ -125,7 +143,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
     // CORREÇÃO: Tratando como string[]
     const fixedMonthlyExtrasTotal = (contract as any).fixed_monthly_extras?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
     const totalFixedMonthly = fixedMonthlyBase + fixedMonthlyExtrasTotal;
-    
+     
     // Soma Geral
     const grandTotal = totalProLabore + intermediateTotal + totalFinalFee + totalOtherFees + totalFixedMonthly;
 
@@ -168,10 +186,20 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                   HON: {contract.hon_number}
                 </span>
               )}
+              {/* DOCUMENTOS NO HEADER COM DOWNLOAD */}
               {documents.length > 0 && (
-                <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100" title={`${documents.length} arquivo(s) vinculado(s)`}>
-                  <Paperclip className="w-3 h-3" /> {documents.length} Anexo(s)
-                </span>
+                <div className="flex gap-2">
+                  {documents.map((doc) => (
+                    <button
+                      key={doc.id}
+                      onClick={() => handleDownload(doc)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-white text-red-600 border border-red-200 hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
+                      title={`Baixar ${doc.file_name}`}
+                    >
+                      <FileText className="w-3 h-3" /> PDF
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
             <h2 className="text-3xl font-bold text-gray-900 leading-tight">{contract.client_name}</h2>
@@ -185,8 +213,9 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
           </div>
           
           <div className="flex gap-2 items-start">
+            {/* ID FORMATADO 000000 */}
             <span className="text-gray-300 font-mono text-xs mt-3 mr-2">
-                #{String((contract as any).id).padStart(6, '0')}
+                #{contract.display_id || String(contract.seq_id || 0).padStart(6, '0')}
             </span>
             <button onClick={onEdit} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Editar">
               <Edit className="w-5 h-5" />
@@ -247,6 +276,17 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                         </div>
                         
                         <div className="divide-y divide-gray-100">
+                          {/* TIMESHEET INDICATOR */}
+                          {contract.timesheet && (
+                            <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50 bg-purple-50/30 border-l-4 border-purple-400">
+                              <div>
+                                <p className="text-xs font-bold text-purple-700">Honorários por Timesheet</p>
+                                <span className="text-[10px] text-purple-500">Cobrança baseada em horas</span>
+                              </div>
+                              <Clock className="w-4 h-4 text-purple-600" />
+                            </div>
+                          )}
+
                           {/* Pró-Labore */}
                           <div className="px-4 py-3 flex justify-between items-center hover:bg-gray-50">
                               <div>
@@ -352,6 +392,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             </div>
           )}
 
+          {/* TIMELINE HORIZONTAL */}
           {timelineEvents.length > 0 && (
             <div className="border-t border-gray-100 pt-6">
               <div className="flex justify-between items-center mb-6">
@@ -363,7 +404,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                 </span>
               </div>
               
-              <div className="relative border-l-2 border-gray-100 ml-3 space-y-0 pb-4">
+              <div className="flex items-start overflow-x-auto pb-4 space-x-4 scrollbar-thin scrollbar-thumb-gray-200">
                 {timelineEvents.map((event, idx) => {
                   const isLast = idx === timelineEvents.length - 1;
                   const nextEvent = !isLast ? timelineEvents[idx + 1] : null;
@@ -373,26 +414,31 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
                     : null;
 
                   return (
-                    <div key={idx} className="relative pl-8 pb-8 last:pb-0 group">
-                      <span className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${event.status === contract.status ? 'bg-salomao-blue border-blue-200 scale-110' : 'bg-white border-gray-300'}`}></span>
-                      
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-lg border border-gray-100 shadow-sm hover:border-blue-200 transition-colors">
-                        <div>
-                          <div className="flex items-center gap-2">
-                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${event.color}`}>
-                                {event.label}
-                             </span>
-                          </div>
-                          <p className="text-sm font-bold text-gray-700 mt-2 flex items-center">
-                            <CalendarCheck className="w-4 h-4 mr-2 text-gray-400" /> 
-                            {new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
+                    <div key={idx} className="flex-shrink-0 flex flex-col items-center relative group min-w-[200px]">
+                      {/* Linha conectora horizontal */}
+                      {!isLast && (
+                        <div className="absolute top-2.5 left-1/2 w-full h-0.5 bg-gray-200 -z-10 group-hover:bg-blue-100 transition-colors" />
+                      )}
 
+                      {/* Bolinha do status */}
+                      <span className={`w-5 h-5 rounded-full border-2 z-10 flex items-center justify-center mb-3 ${event.status === contract.status ? 'bg-salomao-blue border-blue-200 scale-110 shadow-md' : 'bg-white border-gray-300'}`}>
+                         {event.status === contract.status && <div className="w-2 h-2 bg-white rounded-full" />}
+                      </span>
+                      
+                      {/* Card do Evento */}
+                      <div className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:border-blue-200 transition-colors w-full text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase border mb-2 ${event.color}`}>
+                            {event.label}
+                        </span>
+                        <p className="text-sm font-bold text-gray-700 flex items-center justify-center gap-1">
+                          <CalendarCheck className="w-3.5 h-3.5 text-gray-400" /> 
+                          {new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        </p>
+                        
                         {durationToNext && (
-                           <div className="mt-3 sm:mt-0 flex items-center text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
-                              <ArrowDown className="w-3 h-3 mr-1" />
-                              {durationToNext} até a próxima fase
+                           <div className="mt-2 flex items-center justify-center text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                             <ArrowRight className="w-3 h-3 mr-1" />
+                             {durationToNext}
                            </div>
                         )}
                       </div>
