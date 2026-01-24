@@ -86,6 +86,11 @@ export function ContractFormModal(props: Props) {
       // Define "Selecione" como padrão se a posição estiver vazia ao abrir
       setCurrentProcess(prev => ({ ...prev, position: prev.position || '' }));
 
+      // Se for um novo contrato, força a assinatura física para undefined (Selecione)
+      if (!formData.id) {
+        setFormData(prev => ({ ...prev, physical_signature: undefined }));
+      }
+
     } else {
       setDocuments([]);
       setClientExtraData({ address: '', number: '', complement: '', city: '', email: '', is_person: false });
@@ -368,7 +373,8 @@ export function ContractFormModal(props: Props) {
       if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
       if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
       if (!formData.billing_location) return alert('O "Local Faturamento" é obrigatório para Contratos Fechados.');
-      if (formData.physical_signature === undefined || formData.physical_signature === null) return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
+      // Validação reforçada para Assinatura Física (Obrigatório e não pode ser vazio/undefined)
+      if (formData.physical_signature === undefined || formData.physical_signature === null || (formData.physical_signature as any) === '') return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
     }
 
     setLocalLoading(true);
@@ -621,6 +627,16 @@ export function ContractFormModal(props: Props) {
                 >
                     Dados do Objeto
                 </button>
+                <button
+                    onClick={() => setActiveTab(4)}
+                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
+                        activeTab === 4
+                        ? 'border-salomao-blue text-salomao-blue' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    GED
+                </button>
             </div>
 
             {/* Conteúdo da Aba 1: Dados do Cliente */}
@@ -643,7 +659,6 @@ export function ContractFormModal(props: Props) {
                                     <textarea className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none h-24 resize-none" value={(formData as any).reference || ''} onChange={e => setFormData({...formData, reference: e.target.value} as any)} placeholder="Ex: Proposta 123/2025" /> 
                                 </div> 
                             )}
-                            <ContractDocuments documents={documents} isEditing={isEditing} uploading={uploading} status={formData.status} onUpload={handleFileUpload} onDownload={handleDownload} onDelete={handleDeleteDocument} />
                         </div>
                     )}
                 </div>
@@ -672,6 +687,14 @@ export function ContractFormModal(props: Props) {
                     </div>
                 </div>
             )}
+
+            {/* Conteúdo da Aba 4: GED */}
+            {activeTab === 4 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <ContractDocuments documents={documents} isEditing={isEditing} uploading={uploading} status={formData.status} onUpload={handleFileUpload} onDownload={handleDownload} onDelete={handleDeleteDocument} />
+                </div>
+            )}
+
         </div>
         <div className="p-6 border-t border-black/5 flex justify-end gap-3 bg-white/50 backdrop-blur-sm rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">Cancelar</button>
