@@ -172,8 +172,9 @@ export function Contracts() {
 
   const fetchData = async () => {
     setLoading(true);
+    // ATUALIZADO: Adicionado 'file_name, file_path, uploaded_at' na seleção de documentos
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
-      supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*), documents:contract_documents(id)`).order('created_at', { ascending: false }),
+      supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*), documents:contract_documents(id, file_name, file_path, uploaded_at)`).order('created_at', { ascending: false }),
       supabase.from('partners').select('*').eq('active', true).order('name'),
       supabase.from('analysts').select('*').eq('active', true).order('name')
     ]);
@@ -754,6 +755,8 @@ export function Contracts() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         processes={processes}
+        // AQUI: Passamos a lista de documentos buscada corretamente
+        documents={(formData as any).documents}
       />
 
       <ContractFormModal
