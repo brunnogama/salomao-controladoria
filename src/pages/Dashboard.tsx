@@ -5,7 +5,7 @@ import {
   CalendarDays, CalendarRange, ArrowRight, Filter, BarChart3, Camera, FileSignature,
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
-  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch
+  ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch, Lightbulb
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -124,6 +124,16 @@ export function Dashboard() {
   const ultimoQtd = evolucaoMensal.length > 0 ? evolucaoMensal[evolucaoMensal.length - 1].qtd : 0;
   const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
   const diffEntrada = ultimoQtd - penultimoQtd;
+
+  // Helpers para Insights
+  const getTrendText = (delta: number, context: string) => {
+    if (delta > 0) return `Crescimento de ${delta.toFixed(0)}% em ${context}.`;
+    if (delta < 0) return `Redução de ${Math.abs(delta).toFixed(0)}% em ${context}.`;
+    return `Estabilidade em ${context}.`;
+  };
+
+  const insightSemana = `${getTrendText(deltaFechSemana, 'fechamento de contratos')} ${getTrendText(deltaPropSemana, 'envio de propostas')}`;
+  const insightMes = `${getTrendText(deltaNovos, 'novas demandas')} ${getTrendText(deltaFechMes, 'faturamento fechado')}`;
 
   return (
     <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
@@ -310,7 +320,6 @@ export function Dashboard() {
                         </div>
                         <p className='text-3xl font-bold text-blue-900 mt-2'>{metrics.semana.totalUnico}</p>
                     </div>
-                    {/* Insight adicionado */}
                     <div className='mt-2 pt-2 border-t border-blue-100'>
                         <p className='text-[10px] text-gray-500 leading-tight italic'>
                             Casos movimentados (que tiveram atividade), e não apenas novos cadastros.
@@ -371,58 +380,71 @@ export function Dashboard() {
                 </div>
             </div>
             
-            {/* Gráfico Semana */}
-            <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 h-64"> 
-                <p className="text-sm font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
-                    <span>Comparativo Financeiro (Semana Atual vs Anterior)</span>
-                    <span className="text-gray-500 font-normal normal-case">Valores totais</span>
-                </p>
-                <div className="grid grid-cols-2 gap-8 h-48">
-                    {/* Propostas */}
-                    <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
-                        <p className="text-xs font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
-                        <div className="flex items-end justify-center gap-3 h-full">
-                            <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                <span className="text-xs text-gray-500 mb-1 font-bold">{formatMoney(valPropSemanaAnt)}</span>
-                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropSemanaAnt > 0 ? (valPropSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[10px] text-gray-500 mt-1">Anterior</span>
-                            </div>
-                            <div className="flex flex-col items-center justify-end h-full w-14 group relative">
-                                <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {deltaPropSemana > 0 ? '+' : ''}{deltaPropSemana.toFixed(0)}%
+            {/* Gráfico Semana + Insights */}
+            <div className="mt-4 flex flex-col md:flex-row gap-4">
+                 <div className="bg-white p-4 rounded-xl border border-blue-100 flex-1 h-64"> 
+                    <p className="text-sm font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
+                        <span>Comparativo Financeiro (Semana Atual vs Anterior)</span>
+                        <span className="text-gray-500 font-normal normal-case">Valores totais</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-8 h-48">
+                        {/* Propostas */}
+                        <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
+                            <p className="text-xs font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
+                            <div className="flex items-end justify-center gap-3 h-full">
+                                <div className="flex flex-col items-center justify-end h-full w-14 group">
+                                    <span className="text-xs text-gray-500 mb-1 font-extrabold">{formatMoney(valPropSemanaAnt)}</span>
+                                    <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropSemanaAnt > 0 ? (valPropSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[10px] text-gray-500 mt-1 font-semibold">Anterior</span>
                                 </div>
-                                <span className={`text-xs mb-1 font-bold ${deltaPropSemana >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                                    {formatMoney(valPropSemana)}
-                                </span>
-                                <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropSemana > 0 ? (valPropSemana / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[10px] text-blue-600 font-bold mt-1">Atual</span>
+                                <div className="flex flex-col items-center justify-end h-full w-14 group relative">
+                                    <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaPropSemana > 0 ? '+' : ''}{deltaPropSemana.toFixed(0)}%
+                                    </div>
+                                    <span className={`text-xs mb-1 font-extrabold ${deltaPropSemana >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                                        {formatMoney(valPropSemana)}
+                                    </span>
+                                    <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropSemana > 0 ? (valPropSemana / maxSemanaChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[10px] text-blue-600 font-semibold mt-1">Atual</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Fechados */}
-                    <div className="flex flex-col justify-end relative">
-                        <p className="text-xs font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
-                        <div className="flex items-end justify-center gap-3 h-full">
-                            <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                <span className="text-xs text-gray-500 mb-1 font-bold">{formatMoney(valFechSemanaAnt)}</span>
-                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechSemanaAnt > 0 ? (valFechSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[10px] text-gray-500 mt-1">Anterior</span>
-                            </div>
-                            <div className="flex flex-col items-center justify-end h-full w-14 group relative">
-                                <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {deltaFechSemana > 0 ? '+' : ''}{deltaFechSemana.toFixed(0)}%
+                        {/* Fechados */}
+                        <div className="flex flex-col justify-end relative">
+                            <p className="text-xs font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
+                            <div className="flex items-end justify-center gap-3 h-full">
+                                <div className="flex flex-col items-center justify-end h-full w-14 group">
+                                    <span className="text-xs text-gray-500 mb-1 font-extrabold">{formatMoney(valFechSemanaAnt)}</span>
+                                    <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechSemanaAnt > 0 ? (valFechSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[10px] text-gray-500 mt-1 font-semibold">Anterior</span>
                                 </div>
-                                <span className={`text-xs mb-1 font-bold ${deltaFechSemana >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                    {formatMoney(valFechSemana)}
-                                </span>
-                                <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechSemana > 0 ? (valFechSemana / maxSemanaChart) * 60 : 2}%` }}></div>
-                                <span className="text-[10px] text-green-600 font-bold mt-1">Atual</span>
+                                <div className="flex flex-col items-center justify-end h-full w-14 group relative">
+                                    <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaFechSemana > 0 ? '+' : ''}{deltaFechSemana.toFixed(0)}%
+                                    </div>
+                                    <span className={`text-xs mb-1 font-extrabold ${deltaFechSemana >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                        {formatMoney(valFechSemana)}
+                                    </span>
+                                    <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechSemana > 0 ? (valFechSemana / maxSemanaChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[10px] text-green-600 font-semibold mt-1">Atual</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Insight Box da Semana */}
+                <div className="bg-blue-100/50 p-4 rounded-xl border border-blue-200 flex flex-col justify-center w-full md:w-64">
+                    <div className="flex items-center gap-2 mb-2 text-blue-800 font-bold text-sm uppercase">
+                        <Lightbulb size={16} /> Insight Semanal
+                    </div>
+                    <p className="text-xs text-blue-900 leading-relaxed">
+                        {insightSemana}
+                    </p>
+                </div>
             </div>
+
         </div>
 
         {/* --- MÊS --- */}
@@ -498,56 +520,80 @@ export function Dashboard() {
                 </div>
             </div>
 
-            {/* Gráfico Mês */}
-            <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 h-64">
-                <p className="text-xs font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
-                    <span>Comparativo Financeiro (Mês Atual vs Anterior)</span>
-                    <span className="text-gray-500 font-normal normal-case">Valores totais</span>
-                </p>
-                <div className="grid grid-cols-2 gap-8 h-48">
-                    {/* Propostas */}
-                    <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
-                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
-                        <div className="flex items-end justify-center gap-3 h-full">
-                            <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                <span className="text-[9px] text-gray-500 mb-1 font-bold">{formatMoney(valPropMesAnt)}</span>
-                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropMesAnt > 0 ? (valPropMesAnt / maxMesChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-gray-500 mt-1">Anterior</span>
-                            </div>
-                            <div className="flex flex-col items-center justify-end h-full w-14 group relative">
-                                <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {deltaPropMes > 0 ? '+' : ''}{deltaPropMes.toFixed(0)}%
+            {/* Gráfico Mês + Insights */}
+            <div className="mt-4 flex flex-col md:flex-row gap-4">
+                <div className="bg-white p-4 rounded-xl border border-blue-100 flex-1 h-64">
+                    <p className="text-xs font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between">
+                        <span title="Comparação de datas exatas entre os meses (MTD)">Comparativo Financeiro (Mês Atual vs Anterior)</span>
+                        <span className="text-gray-500 font-normal normal-case">Valores totais</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-8 h-48">
+                        {/* Propostas */}
+                        <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
+                            <p className="text-[10px] font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
+                            <div className="flex items-end justify-center gap-3 h-full">
+                                <div className="flex flex-col items-center justify-end h-full w-14 group">
+                                    <span className="text-[9px] text-gray-500 mb-1 font-extrabold">{formatMoney(valPropMesAnt)}</span>
+                                    <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropMesAnt > 0 ? (valPropMesAnt / maxMesChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[9px] text-gray-500 mt-1 text-center leading-tight font-semibold">
+                                        Anterior
+                                        <span className="block text-[8px] font-normal text-gray-400 mt-0.5">{metrics.executivo.periodoAnteriorLabel}</span>
+                                    </span>
                                 </div>
-                                <span className={`text-[9px] mb-1 font-bold ${deltaPropMes >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                                    {formatMoney(valPropMes)}
-                                </span>
-                                <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropMes > 0 ? (valPropMes / maxMesChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-blue-600 font-bold mt-1">Atual</span>
+                                <div className="flex flex-col items-center justify-end h-full w-14 group relative">
+                                    <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaPropMes > 0 ? '+' : ''}{deltaPropMes.toFixed(0)}%
+                                    </div>
+                                    <span className={`text-[9px] mb-1 font-extrabold ${deltaPropMes >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                                        {formatMoney(valPropMes)}
+                                    </span>
+                                    <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropMes > 0 ? (valPropMes / maxMesChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[9px] text-blue-600 font-bold mt-1 text-center leading-tight font-semibold">
+                                        Atual
+                                        <span className="block text-[8px] font-normal text-blue-400 mt-0.5">{metrics.executivo.periodoAtualLabel}</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Fechados */}
-                    <div className="flex flex-col justify-end relative">
-                        <p className="text-[10px] font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
-                        <div className="flex items-end justify-center gap-3 h-full">
-                            <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                <span className="text-[9px] text-gray-500 mb-1 font-bold">{formatMoney(valFechMesAnt)}</span>
-                                <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechMesAnt > 0 ? (valFechMesAnt / maxMesChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-gray-500 mt-1">Anterior</span>
-                            </div>
-                            <div className="flex flex-col items-center justify-end h-full w-14 group relative">
-                                <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {deltaFechMes > 0 ? '+' : ''}{deltaFechMes.toFixed(0)}%
+                        {/* Fechados */}
+                        <div className="flex flex-col justify-end relative">
+                            <p className="text-[10px] font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
+                            <div className="flex items-end justify-center gap-3 h-full">
+                                <div className="flex flex-col items-center justify-end h-full w-14 group">
+                                    <span className="text-[9px] text-gray-500 mb-1 font-extrabold">{formatMoney(valFechMesAnt)}</span>
+                                    <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechMesAnt > 0 ? (valFechMesAnt / maxMesChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[9px] text-gray-500 mt-1 text-center leading-tight font-semibold">
+                                        Anterior
+                                        <span className="block text-[8px] font-normal text-gray-400 mt-0.5">{metrics.executivo.periodoAnteriorLabel}</span>
+                                    </span>
                                 </div>
-                                <span className={`text-[9px] mb-1 font-bold ${deltaFechMes >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                    {formatMoney(valFechMes)}
-                                </span>
-                                <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechMes > 0 ? (valFechMes / maxMesChart) * 60 : 2}%` }}></div>
-                                <span className="text-[9px] text-green-600 font-bold mt-1">Atual</span>
+                                <div className="flex flex-col items-center justify-end h-full w-14 group relative">
+                                    <div className={`text-[9px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechMes >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {deltaFechMes > 0 ? '+' : ''}{deltaFechMes.toFixed(0)}%
+                                    </div>
+                                    <span className={`text-[9px] mb-1 font-extrabold ${deltaFechMes >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                        {formatMoney(valFechMes)}
+                                    </span>
+                                    <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechMes > 0 ? (valFechMes / maxMesChart) * 60 : 2}%` }}></div>
+                                    <span className="text-[9px] text-green-600 font-bold mt-1 text-center leading-tight font-semibold">
+                                        Atual
+                                        <span className="block text-[8px] font-normal text-green-500 mt-0.5">{metrics.executivo.periodoAtualLabel}</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Insight Box do Mês */}
+                <div className="bg-blue-100/50 p-4 rounded-xl border border-blue-200 flex flex-col justify-center w-full md:w-64">
+                    <div className="flex items-center gap-2 mb-2 text-blue-800 font-bold text-sm uppercase">
+                        <Lightbulb size={16} /> Insight Mensal
+                    </div>
+                    <p className="text-xs text-blue-900 leading-relaxed">
+                        {insightMes}
+                    </p>
                 </div>
             </div>
         </div>
@@ -562,7 +608,7 @@ export function Dashboard() {
                 <div>
                     <p className='text-xs text-gray-500 font-medium'>Pró-labore</p>
                     <div className='flex items-baseline gap-2'>
-                        <span className='text-2xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoPL)}</span>
+                        <span className='text-3xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoPL)}</span>
                         <span className='text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full'>
                             Média: {formatMoney(metrics.geral.mediaMensalNegociacaoPL)}
                         </span>
@@ -571,7 +617,7 @@ export function Dashboard() {
                 <div>
                     <p className='text-xs text-gray-500 font-medium'>Êxito</p>
                     <div className='flex items-baseline gap-2'>
-                        <span className='text-2xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoExito)}</span>
+                        <span className='text-3xl font-bold text-gray-700'>{formatMoney(metrics.geral.valorEmNegociacaoExito)}</span>
                         <span className='text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full'>
                             Média: {formatMoney(metrics.geral.mediaMensalNegociacaoExito)}
                         </span>
@@ -589,7 +635,7 @@ export function Dashboard() {
                 <div>
                     <p className='text-xs text-gray-500 font-medium'>Pró-labore (Fechado)</p>
                     <div className='flex items-baseline gap-2'>
-                        <span className='text-2xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoPL)}</span>
+                        <span className='text-3xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoPL)}</span>
                         <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
                             Média: {formatMoney(metrics.geral.mediaMensalCarteiraPL)}
                         </span>
@@ -598,7 +644,7 @@ export function Dashboard() {
                 <div>
                     <p className='text-xs text-gray-500 font-medium'>Êxito (Fechado)</p>
                     <div className='flex items-baseline gap-2'>
-                        <span className='text-2xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoExito)}</span>
+                        <span className='text-3xl font-bold text-green-700'>{formatMoney(metrics.geral.totalFechadoExito)}</span>
                         <span className='text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full'>
                             Média: {formatMoney(metrics.geral.mediaMensalCarteiraExito)}
                         </span>
@@ -660,17 +706,17 @@ export function Dashboard() {
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-200">
                         <div className="flex flex-col">
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Total (12m)</span>
-                            <span className="text-sm font-bold text-gray-800">{formatMoney(statsPropostas.total)}</span>
+                            <span className="text-xs font-extrabold text-gray-800">{formatMoney(statsPropostas.total)}</span>
                         </div>
                         <div className="flex flex-col border-l border-gray-200 pl-2">
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Média/mês</span>
-                            <span className="text-sm font-bold text-blue-600">{formatMoney(statsPropostas.media)}</span>
+                            <span className="text-xs font-extrabold text-blue-600">{formatMoney(statsPropostas.media)}</span>
                         </div>
                         <div className="flex flex-col border-l border-gray-200 pl-2">
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Tendência</span>
                              <div className={`flex items-center gap-1 font-bold ${statsPropostas.diff > 0 ? 'text-green-600' : statsPropostas.diff < 0 ? 'text-red-500' : 'text-gray-600'}`}>
                                 {statsPropostas.diff > 0 ? <TrendingUp size={14} /> : statsPropostas.diff < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
-                                <span className="text-xs">{formatMoney(statsPropostas.diff)}</span>
+                                <span className="text-xs font-extrabold">{formatMoney(statsPropostas.diff)}</span>
                             </div>
                         </div>
                     </div>
@@ -716,17 +762,17 @@ export function Dashboard() {
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-200">
                         <div className="flex flex-col">
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Total (12m)</span>
-                            <span className="text-sm font-bold text-gray-800">{formatMoney(statsFinanceiro.total)}</span>
+                            <span className="text-xs font-extrabold text-gray-800">{formatMoney(statsFinanceiro.total)}</span>
                         </div>
                         <div className="flex flex-col border-l border-gray-200 pl-2">
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Média/mês</span>
-                            <span className="text-sm font-bold text-blue-600">{formatMoney(statsFinanceiro.media)}</span>
+                            <span className="text-xs font-extrabold text-blue-600">{formatMoney(statsFinanceiro.media)}</span>
                         </div>
                         <div className="flex flex-col border-l border-gray-200 pl-2">
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider mb-1">Tendência</span>
                              <div className={`flex items-center gap-1 font-bold ${statsFinanceiro.diff > 0 ? 'text-green-600' : statsFinanceiro.diff < 0 ? 'text-red-500' : 'text-gray-600'}`}>
                                 {statsFinanceiro.diff > 0 ? <TrendingUp size={14} /> : statsFinanceiro.diff < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
-                                <span className="text-xs">{formatMoney(statsFinanceiro.diff)}</span>
+                                <span className="text-xs font-extrabold">{formatMoney(statsFinanceiro.diff)}</span>
                             </div>
                         </div>
                     </div>
