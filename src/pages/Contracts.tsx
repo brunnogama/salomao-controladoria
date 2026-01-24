@@ -335,10 +335,29 @@ export function Contracts() {
   };
 
   const filteredContracts = contracts.filter((c: Contract) => {
-    const matchesSearch = c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.hon_number?.includes(searchTerm) ||
-      c.cnpj?.includes(searchTerm) ||
-      c.display_id?.includes(searchTerm); // Removido 'as any'
+    const term = searchTerm.toLowerCase();
+    
+    // Busca abrangente em todos os campos relevantes
+    const matchesSearch = 
+      c.client_name?.toLowerCase().includes(term) ||
+      c.hon_number?.toLowerCase().includes(term) ||
+      c.cnpj?.includes(term) ||
+      c.display_id?.includes(term) ||
+      c.observations?.toLowerCase().includes(term) ||
+      c.reference?.toLowerCase().includes(term) ||
+      c.partner_name?.toLowerCase().includes(term) ||
+      c.analyzed_by_name?.toLowerCase().includes(term) ||
+      // Busca profunda nos processos vinculados
+      (c.processes && c.processes.some(p => 
+        p.process_number.toLowerCase().includes(term) ||
+        p.author?.toLowerCase().includes(term) ||
+        p.opponent?.toLowerCase().includes(term) ||
+        p.court?.toLowerCase().includes(term) ||
+        p.vara?.toLowerCase().includes(term) ||
+        p.comarca?.toLowerCase().includes(term) ||
+        p.magistrates?.some(m => m.name.toLowerCase().includes(term))
+      ));
+
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     const matchesPartner = partnerFilter === '' || c.partner_id === partnerFilter;
 
@@ -499,7 +518,7 @@ export function Contracts() {
             <Search className="w-5 h-5 text-gray-400 mr-2" />
             <input
               type="text"
-              placeholder="Buscar por cliente, HON, ID ou CNPJ..."
+              placeholder="Buscar por cliente, HON, ID, observações, referência..."
               className="flex-1 bg-transparent outline-none text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
