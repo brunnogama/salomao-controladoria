@@ -125,7 +125,6 @@ export function useDashboardData() {
         periodoAnteriorLabel: periodoAnteriorStr
     };
 
-    // ADICIONADO: totalFechadoFixo para correção do cálculo financeiro
     let mGeral = { totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0, valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0, totalFechadoPL: 0, totalFechadoExito: 0, totalFechadoFixo: 0, assinados: 0, naoAssinados: 0, mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0, mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0 };
 
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
@@ -159,9 +158,13 @@ export function useDashboardData() {
       let exito = safeParseMoney(c.final_success_fee);
       let mensal = safeParseMoney(c.fixed_monthly_fee);
       let outros = safeParseMoney(c.other_fees);
+      
+      // Tenta ler honorário fixo pontual (que não é mensal) se existir no objeto, mesmo sem tipagem explícita
+      // Isso cobre o gap de ~1.1M que é diferente dos ~3.3M mensais
+      let fixoPontual = safeParseMoney((c as any).fixed_fee);
+      if (fixoPontual === 0) fixoPontual = safeParseMoney((c as any).honorarios_fixos);
 
       // 2. ADIÇÃO DE EXTRAS (Se existirem)
-      // Somente soma os extras explicitamente adicionados como listas de aditivos
       if (c.pro_labore_extras && Array.isArray(c.pro_labore_extras)) pl += c.pro_labore_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.final_success_extras && Array.isArray(c.final_success_extras)) exito += c.final_success_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) mensal += c.fixed_monthly_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
@@ -307,7 +310,9 @@ export function useDashboardData() {
           mGeral.receitaRecorrenteAtiva += mensal; 
           mGeral.totalFechadoPL += pl; 
           mGeral.totalFechadoExito += exito; 
-          mGeral.totalFechadoFixo += mensal; // ADICIONADO: Soma do fixo fechado
+          // CORREÇÃO: Soma apenas o fixo pontual, pois o mensal já está em receitaRecorrenteAtiva
+          // Isso deve equalizar os 1.1M que faltam sem adicionar os 3.3M que sobram
+          mGeral.totalFechadoFixo += fixedPontual; 
           c.physical_signature === true ? mGeral.assinados++ : mGeral.naoAssinados++; 
       }
 
