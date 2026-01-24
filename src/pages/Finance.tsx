@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -59,7 +59,6 @@ export function Finance() {
         contract: {
           ...i.contracts,
           partner_name: i.contracts?.partners?.name,
-          // Usa o ID fixo do banco para gerar o display_id
           display_id: i.contracts?.seq_id ? String(i.contracts.seq_id).padStart(6, '0') : '-'
         }
       }));
@@ -158,9 +157,32 @@ export function Finance() {
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
   const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
 
+  // --- CÁLCULO DISCRIMINADO (USADO APENAS QUANDO SÓCIO ESTÁ SELECIONADO) ---
+  const calculateBreakdown = (status: 'pending' | 'paid') => {
+      const list = filteredInstallments.filter(i => i.status === status);
+      const proLabore = list.filter(i => i.type === 'pro_labore').reduce((acc, curr) => acc + curr.amount, 0);
+      const exitos = list.filter(i => ['success_fee', 'final_success_fee', 'intermediate_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
+      const fixed = list.filter(i => ['fixed', 'fixed_monthly_fee'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
+      const other = list.filter(i => ['other', 'other_fees'].includes(i.type)).reduce((acc, curr) => acc + curr.amount, 0);
+      
+      return { proLabore, exitos, fixed, other };
+  };
+
+  const pendingBreakdown = calculateBreakdown('pending');
+  const paidBreakdown = calculateBreakdown('paid');
+
+  const hasActiveFilters = searchTerm || selectedPartner || selectedLocation;
+
+  const BreakdownItem = ({ label, value, colorClass }: { label: string, value: number, colorClass: string }) => (
+      <div className="flex justify-between items-center text-xs py-1 border-b border-gray-50 last:border-0">
+          <span className="text-gray-500">{label}</span>
+          <span className={`font-bold ${colorClass}`}>{value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+      </div>
+  );
+
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-8 space-y-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center mb-2">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <DollarSign className="w-8 h-8" /> Controle Financeiro
@@ -169,34 +191,104 @@ export function Finance() {
         </div>
       </div>
 
+      {/* ÁREA DE FILTROS E BUSCA (MOVIDA PARA CIMA) */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-4 items-center">
+        <div className="flex-1 w-full relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input 
+                type="text" 
+                placeholder="Buscar por cliente, HON, ID..." 
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+            />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
+          <div className="w-full sm:w-48">
+              <CustomSelect 
+                value={selectedPartner} 
+                onChange={setSelectedPartner} 
+                options={[{ label: 'Todos Sócios', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))]} 
+                placeholder="Sócio" 
+              />
+          </div>
+          <div className="w-full sm:w-48">
+              <CustomSelect 
+                value={selectedLocation} 
+                onChange={setSelectedLocation} 
+                options={[{ label: 'Todos Locais', value: '' }, ...locations.map(l => ({ label: l, value: l }))]} 
+                placeholder="Local Faturamento" 
+              />
+          </div>
+          
+          {hasActiveFilters && (
+              <button 
+                onClick={clearFilters} 
+                className="text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium whitespace-nowrap"
+                title="Limpar Filtros"
+              >
+                  <X className="w-4 h-4" /> Limpar
+              </button>
+          )}
+
+          <button onClick={exportToExcel} className="bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium flex items-center justify-center min-w-[100px]">
+              <Download className="w-4 h-4 mr-2" /> XLS
+          </button>
+        </div>
+      </div>
+
+      {/* CARDS DE TOTAIS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
         {/* CARD A FATURAR */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <div><p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (Pendente)</p><h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3></div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (Pendente)</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3>
+            </div>
             <div className="bg-orange-50 p-3 rounded-full text-orange-500"><Clock className="w-6 h-6" /></div>
           </div>
+          
+          {/* Detalhamento condicional por sócio */}
+          {selectedPartner && (
+              <div className="mt-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Detalhamento ({partners.find(p => p.id === selectedPartner)?.name})</p>
+                  <div className="space-y-1">
+                      <BreakdownItem label="Pró-Labore" value={pendingBreakdown.proLabore} colorClass="text-gray-700" />
+                      <BreakdownItem label="Êxito" value={pendingBreakdown.exitos} colorClass="text-gray-700" />
+                      <BreakdownItem label="Honorários Mensais" value={pendingBreakdown.fixed} colorClass="text-gray-700" />
+                      <BreakdownItem label="Outros" value={pendingBreakdown.other} colorClass="text-gray-700" />
+                  </div>
+              </div>
+          )}
         </div>
 
         {/* CARD FATURADO */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <div><p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Faturado</p><h3 className="text-3xl font-bold text-green-600 mt-1">{totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3></div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Faturado</p>
+                <h3 className="text-3xl font-bold text-green-600 mt-1">{totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3>
+            </div>
             <div className="bg-green-50 p-3 rounded-full text-green-500"><CheckCircle2 className="w-6 h-6" /></div>
           </div>
+
+          {/* Detalhamento condicional por sócio */}
+          {selectedPartner && (
+              <div className="mt-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Detalhamento ({partners.find(p => p.id === selectedPartner)?.name})</p>
+                  <div className="space-y-1">
+                      <BreakdownItem label="Pró-Labore" value={paidBreakdown.proLabore} colorClass="text-green-700" />
+                      <BreakdownItem label="Êxito" value={paidBreakdown.exitos} colorClass="text-green-700" />
+                      <BreakdownItem label="Honorários Mensais" value={paidBreakdown.fixed} colorClass="text-green-700" />
+                      <BreakdownItem label="Outros" value={paidBreakdown.other} colorClass="text-green-700" />
+                  </div>
+              </div>
+          )}
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-4 items-center">
-        <div className="flex-1 w-full relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Buscar por cliente, HON, ID..." className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
-          <div className="w-full sm:w-48"><CustomSelect value={selectedPartner} onChange={setSelectedPartner} options={[{ label: 'Todos Sócios', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))]} placeholder="Sócio" /></div>
-          <div className="w-full sm:w-48"><CustomSelect value={selectedLocation} onChange={setSelectedLocation} options={[{ label: 'Todos Locais', value: '' }, ...locations.map(l => ({ label: l, value: l }))]} placeholder="Local Faturamento" /></div>
-          <button onClick={exportToExcel} className="bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium flex items-center justify-center min-w-[100px]"><Download className="w-4 h-4 mr-2" /> XLS</button>
-        </div>
-      </div>
-
+      {/* LISTAGEM */}
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>
       ) : filteredInstallments.length === 0 ? (
@@ -205,12 +297,12 @@ export function Finance() {
                   icon={Receipt}
                   title="Nenhum lançamento encontrado"
                   description={
-                      searchTerm || selectedPartner || selectedLocation
+                      hasActiveFilters
                       ? "Nenhum resultado para os filtros aplicados."
                       : "Ainda não existem lançamentos financeiros cadastrados."
                   }
-                  actionLabel={searchTerm || selectedPartner || selectedLocation ? "Limpar Filtros" : undefined}
-                  onAction={searchTerm || selectedPartner || selectedLocation ? clearFilters : undefined}
+                  actionLabel={hasActiveFilters ? "Limpar Filtros" : undefined}
+                  onAction={hasActiveFilters ? clearFilters : undefined}
                   className="h-full justify-center"
                />
           </div>
