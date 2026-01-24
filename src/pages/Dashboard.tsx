@@ -72,7 +72,7 @@ export function Dashboard() {
     navigate('/contratos', { state: { status } });
   };
 
-  const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0);
+  const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
   
   const FinItem = ({ label, value, colorClass = 'text-gray-700' }: FinItemProps) => {
     if (!value || value === 0) return null;
@@ -634,10 +634,10 @@ export function Dashboard() {
                             {propostas12Meses.length === 0 ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                                   <EmptyState 
-                                      icon={BarChart3} 
-                                      title="Sem dados de propostas" 
-                                      description="Ainda não há histórico suficiente para gerar o gráfico."
-                                      className="min-h-[150px]"
+                                    icon={BarChart3} 
+                                    title="Sem dados de propostas" 
+                                    description="Ainda não há histórico suficiente para gerar o gráfico."
+                                    className="min-h-[150px]"
                                   />
                                </div>
                             ) : (propostas12Meses.map((item, index) => {
@@ -690,10 +690,10 @@ export function Dashboard() {
                             {financeiro12Meses.length === 0 ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                                   <EmptyState 
-                                      icon={BarChart3} 
-                                      title="Sem dados financeiros" 
-                                      description="Ainda não há histórico suficiente para gerar o gráfico."
-                                      className="min-h-[150px]"
+                                    icon={BarChart3} 
+                                    title="Sem dados financeiros" 
+                                    description="Ainda não há histórico suficiente para gerar o gráfico."
+                                    className="min-h-[150px]"
                                   />
                                </div>
                             ) : (financeiro12Meses.map((item, index) => {

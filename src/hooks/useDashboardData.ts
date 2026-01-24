@@ -29,7 +29,28 @@ const safeParseMoney = (value: string | number | undefined | null): number => {
 const isDateInCurrentWeek = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); const cd = t.getDay(); const s = new Date(t); s.setDate(t.getDate() - cd); s.setHours(0,0,0,0); const e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59,999); return d >= s && d <= e; };
 const isDateInPreviousWeek = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); const cd = t.getDay(); const sc = new Date(t); sc.setDate(t.getDate() - cd); sc.setHours(0,0,0,0); const sp = new Date(sc); sp.setDate(sc.getDate() - 7); const ep = new Date(sp); ep.setDate(sp.getDate() + 6); ep.setHours(23,59,59,999); return d >= sp && d <= ep; };
 const isDateInCurrentMonth = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); return d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear(); };
-const isDateInLastMonth = (dateString?: string) => { if (!dateString) return false; const d = new Date(dateString + 'T12:00:00'); const t = new Date(); let lm = t.getMonth() - 1; let ly = t.getFullYear(); if (lm < 0) { lm = 11; ly = t.getFullYear() - 1; } return d.getMonth() === lm && d.getFullYear() === ly; };
+
+// Nova lógica MTD (Month to Date)
+const isDateInLastMonthMTD = (dateString?: string) => {
+    if (!dateString) return false;
+    const d = new Date(dateString + 'T12:00:00');
+    const today = new Date();
+    
+    // Define o mês anterior
+    let lastMonth = today.getMonth() - 1;
+    let lastYear = today.getFullYear();
+    if (lastMonth < 0) { lastMonth = 11; lastYear--; }
+
+    // Verifica se é do mês/ano anterior
+    const isSameMonth = d.getMonth() === lastMonth && d.getFullYear() === lastYear;
+    
+    // Verifica se o dia é menor ou igual ao dia de hoje (Lógica MTD)
+    const isWithinDayLimit = d.getDate() <= today.getDate();
+
+    return isSameMonth && isWithinDayLimit;
+};
+
+const formatDateShort = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 
 export function useDashboardData() {
   const [loading, setLoading] = useState(true);
@@ -64,6 +85,26 @@ export function useDashboardData() {
     // Data de início para gráficos de 12 meses
     const dataInicioFixo = new Date(2025, 5, 1); 
     
+    // Strings de período para exibição
+    const primeiroDiaMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const periodoAtualStr = `${formatDateShort(primeiroDiaMesAtual)} - ${formatDateShort(hoje)}`;
+
+    let lastMonth = hoje.getMonth() - 1;
+    let lastYear = hoje.getFullYear();
+    if (lastMonth < 0) { lastMonth = 11; lastYear--; }
+    
+    const primeiroDiaMesAnterior = new Date(lastYear, lastMonth, 1);
+    const diaLimiteMesAnterior = new Date(lastYear, lastMonth, hoje.getDate());
+    
+    // Ajuste para não estourar o mês (ex: 31 de março vs fevereiro)
+    // Se hoje é 31, e mês passado só tem 28, limitamos a 28
+    const maxDaysInLastMonth = new Date(lastYear, lastMonth + 1, 0).getDate();
+    if (diaLimiteMesAnterior.getDate() > maxDaysInLastMonth) {
+        diaLimiteMesAnterior.setDate(maxDaysInLastMonth);
+    }
+
+    const periodoAnteriorStr = `${formatDateShort(primeiroDiaMesAnterior)} - ${formatDateShort(diaLimiteMesAnterior)}`;
+
     const partnerMap = partners.reduce((acc: any, s: any) => {
         acc[s.id] = s.name;
         return acc;
@@ -73,7 +114,12 @@ export function useDashboardData() {
     let mSemana = { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, rejeitados: 0, probono: 0, totalUnico: 0 };
     let mSemanaAnterior = { propPL: 0, propExito: 0, propMensal: 0, fechPL: 0, fechExito: 0, fechMensal: 0 };
     let mMes = { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0, totalUnico: 0, analysis: 0, rejected: 0, probono: 0 };
-    let mExecutivo = { mesAtual: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 }, mesAnterior: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 } };
+    let mExecutivo = { 
+        mesAtual: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 }, 
+        mesAnterior: { novos: 0, propQtd: 0, propPL: 0, propExito: 0, propMensal: 0, fechQtd: 0, fechPL: 0, fechExito: 0, fechMensal: 0 },
+        periodoAtualLabel: periodoAtualStr,
+        periodoAnteriorLabel: periodoAnteriorStr
+    };
     let mGeral = { totalCasos: 0, emAnalise: 0, propostasAtivas: 0, fechados: 0, rejeitados: 0, probono: 0, valorEmNegociacaoPL: 0, valorEmNegociacaoExito: 0, receitaRecorrenteAtiva: 0, totalFechadoPL: 0, totalFechadoExito: 0, assinados: 0, naoAssinados: 0, mediaMensalNegociacaoPL: 0, mediaMensalNegociacaoExito: 0, mediaMensalCarteiraPL: 0, mediaMensalCarteiraExito: 0 };
 
     let fTotal = 0; let fQualificados = 0; let fFechados = 0;
@@ -109,7 +155,6 @@ export function useDashboardData() {
       let outros = safeParseMoney(c.other_fees);
 
       // 2. ADIÇÃO DE EXTRAS (Se existirem)
-      // Somente soma os extras explicitamente adicionados como listas de aditivos
       if (c.pro_labore_extras && Array.isArray(c.pro_labore_extras)) pl += c.pro_labore_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.final_success_extras && Array.isArray(c.final_success_extras)) exito += c.final_success_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) mensal += c.fixed_monthly_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
@@ -139,23 +184,40 @@ export function useDashboardData() {
       if (mapaMeses[mesAnoEntrada] !== undefined) mapaMeses[mesAnoEntrada]++;
       else { if (!mapaMeses[mesAnoEntrada]) mapaMeses[mesAnoEntrada] = 0; mapaMeses[mesAnoEntrada]++; }
 
-      const isEntradaCurrentMonth = dataEntradaReal.getMonth() === hoje.getMonth() && dataEntradaReal.getFullYear() === hoje.getFullYear();
-      let lastMonth = hoje.getMonth() - 1;
-      let lastYear = hoje.getFullYear();
-      if (lastMonth < 0) { lastMonth = 11; lastYear--; }
-      const isEntradaLastMonth = dataEntradaReal.getMonth() === lastMonth && dataEntradaReal.getFullYear() === lastYear;
+      // Comparativo de Entrada (Novos) - MTD
+      if (isDateInCurrentMonth(dataEntradaReal.toISOString().split('T')[0])) mExecutivo.mesAtual.novos++;
+      if (isDateInLastMonthMTD(dataEntradaReal.toISOString().split('T')[0])) mExecutivo.mesAnterior.novos++;
 
-      if (isEntradaCurrentMonth) mExecutivo.mesAtual.novos++;
-      if (isEntradaLastMonth) mExecutivo.mesAnterior.novos++;
-
-      // 4. MÉTODOS DE CÁLCULO POR STATUS
+      // 4. MÉTODOS DE CÁLCULO POR STATUS - COM LÓGICA MTD (Month-To-Date)
       if (c.proposal_date) {
-         if (isDateInCurrentMonth(c.proposal_date)) { mExecutivo.mesAtual.propQtd++; mExecutivo.mesAtual.propPL += pl; mExecutivo.mesAtual.propExito += exito; mExecutivo.mesAtual.propMensal += mensal; }
-         if (isDateInLastMonth(c.proposal_date)) { mExecutivo.mesAnterior.propQtd++; mExecutivo.mesAnterior.propPL += pl; mExecutivo.mesAnterior.propExito += exito; mExecutivo.mesAnterior.propMensal += mensal; }
+         if (isDateInCurrentMonth(c.proposal_date)) { 
+             mExecutivo.mesAtual.propQtd++; 
+             mExecutivo.mesAtual.propPL += pl; 
+             mExecutivo.mesAtual.propExito += exito; 
+             mExecutivo.mesAtual.propMensal += mensal; 
+         }
+         // MTD: Mês passado até o dia atual
+         if (isDateInLastMonthMTD(c.proposal_date)) { 
+             mExecutivo.mesAnterior.propQtd++; 
+             mExecutivo.mesAnterior.propPL += pl; 
+             mExecutivo.mesAnterior.propExito += exito; 
+             mExecutivo.mesAnterior.propMensal += mensal; 
+         }
       }
       if (c.status === 'active' && c.contract_date) {
-         if (isDateInCurrentMonth(c.contract_date)) { mExecutivo.mesAtual.fechQtd++; mExecutivo.mesAtual.fechPL += pl; mExecutivo.mesAtual.fechExito += exito; mExecutivo.mesAtual.fechMensal += mensal; }
-         if (isDateInLastMonth(c.contract_date)) { mExecutivo.mesAnterior.fechQtd++; mExecutivo.mesAnterior.fechPL += pl; mExecutivo.mesAnterior.fechExito += exito; mExecutivo.mesAnterior.fechMensal += mensal; }
+         if (isDateInCurrentMonth(c.contract_date)) { 
+             mExecutivo.mesAtual.fechQtd++; 
+             mExecutivo.mesAtual.fechPL += pl; 
+             mExecutivo.mesAtual.fechExito += exito; 
+             mExecutivo.mesAtual.fechMensal += mensal; 
+         }
+         // MTD: Mês passado até o dia atual
+         if (isDateInLastMonthMTD(c.contract_date)) { 
+             mExecutivo.mesAnterior.fechQtd++; 
+             mExecutivo.mesAnterior.fechPL += pl; 
+             mExecutivo.mesAnterior.fechExito += exito; 
+             mExecutivo.mesAnterior.fechMensal += mensal; 
+         }
       }
 
       // Contagem por Sócio
