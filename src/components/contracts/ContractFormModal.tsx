@@ -588,8 +588,8 @@ export function ContractFormModal(props: Props) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4 overflow-y-auto">
-      <div className={`w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[50] p-4">
+      <div className={`w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in duration-200 transition-colors duration-500 ease-in-out ${getThemeBackground(formData.status)}`}>
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-2xl">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-gray-800">{isEditing ? 'Editar Caso' : 'Novo Caso'}</h2>
@@ -598,7 +598,7 @@ export function ContractFormModal(props: Props) {
           <button onClick={onClose}><X className="w-6 h-6 text-gray-400" /></button>
         </div>
 
-        <div className="flex-1 p-8 space-y-8">
+        <div className="flex-1 p-8 space-y-8 overflow-y-auto">
             {/* Abas */}
             <div className="flex gap-2 border-b border-gray-200 mb-6">
                 <button
