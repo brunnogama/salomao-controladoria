@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { BarChart3, PieChart, Users, Scale, FileText, TrendingUp, Layers } from 'lucide-react';
+import { BarChart3, PieChart, Users, Scale, FileText, TrendingUp, Layers, Shield } from 'lucide-react';
 import { Contract, Partner } from '../types';
 import { ContractFilters } from '../components/contracts/ContractFilters';
 import * as XLSX from 'xlsx';
 
 export function Volumetry() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,8 +21,24 @@ export function Volumetry() {
   const [viewMode, setViewMode] = useState<'list' | 'card'>('card'); // Mantido para compatibilidade com o componente de filtros
 
   useEffect(() => {
+    checkUserRole();
     fetchData();
   }, []);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -118,7 +137,22 @@ export function Volumetry() {
         <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
           <BarChart3 className="w-8 h-8" /> Volumetria
         </h1>
-        <p className="text-gray-500 mt-1">Análise quantitativa de contratos e processos por sócio.</p>
+        <div className="flex items-center gap-2 mt-1">
+            <p className="text-gray-500">Análise quantitativa de contratos e processos por sócio.</p>
+            {/* Badge de Perfil */}
+            {userRole && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                    userRole === 'admin' 
+                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                        : userRole === 'editor' 
+                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : 'bg-gray-100 text-gray-600 border-gray-200'
+                }`}>
+                    <Shield className="w-3 h-3" />
+                    {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                </span>
+            )}
+        </div>
       </div>
 
       {/* Filtros Reutilizados */}

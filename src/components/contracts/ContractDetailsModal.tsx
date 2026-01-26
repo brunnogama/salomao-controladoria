@@ -43,9 +43,22 @@ interface Props {
   onDelete: () => void;
   processes: ContractProcess[];
   documents?: ContractDocument[];
+  // Novas props de permissão
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDelete, processes, documents = [] }: Props) {
+export function ContractDetailsModal({ 
+    isOpen, 
+    onClose, 
+    contract, 
+    onEdit, 
+    onDelete, 
+    processes, 
+    documents = [],
+    canEdit = false, 
+    canDelete = false 
+}: Props) {
   if (!isOpen || !contract) return null;
 
   const handleDownload = async (e: React.MouseEvent, doc: ContractDocument) => {
@@ -151,7 +164,7 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
     // CORREÇÃO: Tratando como string[]
     const fixedMonthlyExtrasTotal = (contract as any).fixed_monthly_extras?.reduce((acc: number, val: string) => acc + parseCurrency(val), 0) || 0;
     const totalFixedMonthly = fixedMonthlyBase + fixedMonthlyExtrasTotal;
-     
+      
     // Soma Geral
     const grandTotal = totalProLabore + intermediateTotal + totalFinalFee + totalOtherFees + totalFixedMonthly;
 
@@ -210,12 +223,20 @@ export function ContractDetailsModal({ isOpen, onClose, contract, onEdit, onDele
             <span className="text-gray-300 font-mono text-xs mt-3 mr-2">
                 #{contract.display_id || String(contract.seq_id || 0).padStart(6, '0')}
             </span>
-            <button onClick={onEdit} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Editar">
-              <Edit className="w-5 h-5" />
-            </button>
-            <button onClick={onDelete} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" title="Excluir">
-              <Trash2 className="w-5 h-5" />
-            </button>
+            
+            {/* BOTÕES DE AÇÃO CONDICIONAIS */}
+            {canEdit && (
+                <button onClick={onEdit} className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Editar">
+                <Edit className="w-5 h-5" />
+                </button>
+            )}
+            
+            {canDelete && (
+                <button onClick={onDelete} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors" title="Excluir">
+                <Trash2 className="w-5 h-5" />
+                </button>
+            )}
+            
             <button onClick={onClose} className="p-3 bg-gray-100 text-gray-500 rounded-xl hover:bg-gray-200 ml-2 transition-colors">
               <X className="w-5 h-5" />
             </button>

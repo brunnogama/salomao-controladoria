@@ -1,4 +1,6 @@
+import React, { useState, useEffect } from 'react';
 import { Edit, Trash2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { Contract } from '../../types';
 
 interface Props {
@@ -10,6 +12,27 @@ interface Props {
 }
 
 export function ContractTable({ contracts, onEdit, onDelete, getStatusColor, getStatusLabel }: Props) {
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
+  useEffect(() => {
+    checkUserRole();
+  }, []);
+
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile) {
+        setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+      }
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <table className="w-full text-left">
@@ -19,12 +42,19 @@ export function ContractTable({ contracts, onEdit, onDelete, getStatusColor, get
             <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Cliente</th>
             <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Sócio Responsável</th>
             <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Proc. Vinculados</th>
-            <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Ações</th>
+            {/* Coluna Ações: Apenas se não for Viewer */}
+            {userRole !== 'viewer' && (
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Ações</th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {contracts.length === 0 ? (
-             <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Nenhum contrato encontrado.</td></tr>
+             <tr>
+                <td colSpan={userRole !== 'viewer' ? 5 : 4} className="px-6 py-10 text-center text-gray-400">
+                    Nenhum contrato encontrado.
+                </td>
+             </tr>
           ) : (
             contracts.map((contract) => (
               <tr key={contract.id} className="hover:bg-gray-50 transition-colors cursor-pointer group" onClick={() => onEdit(contract)}>
@@ -33,16 +63,36 @@ export function ContractTable({ contracts, onEdit, onDelete, getStatusColor, get
                 </td>
                 <td className="px-6 py-4 font-medium text-gray-900">{contract.client_name} <span className="text-gray-400 text-xs font-normal">({contract.client_position})</span></td>
                 <td className="px-6 py-4 text-gray-600 flex items-center gap-2">
-                   <div className="w-6 h-6 rounded-full bg-salomao-blue text-white flex items-center justify-center text-xs">{contract.partner_name?.charAt(0)}</div>
-                   {contract.partner_name || '-'}
+                    <div className="w-6 h-6 rounded-full bg-salomao-blue text-white flex items-center justify-center text-xs">{contract.partner_name?.charAt(0)}</div>
+                    {contract.partner_name || '-'}
                 </td>
                 <td className="px-6 py-4 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-700">{contract.process_count}</span></td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2 opacity-100">
-                    <button onClick={(e) => { e.stopPropagation(); onEdit(contract); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"><Edit className="w-4 h-4" /></button>
-                    <button onClick={(e) => onDelete(e, contract.id!)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </td>
+                
+                {/* Ações: Apenas se não for Viewer */}
+                {userRole !== 'viewer' && (
+                    <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2 opacity-100">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onEdit(contract); }} 
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Editar"
+                        >
+                            <Edit className="w-4 h-4" />
+                        </button>
+                        
+                        {/* Excluir: Apenas Admin */}
+                        {userRole === 'admin' && (
+                            <button 
+                                onClick={(e) => onDelete(e, contract.id!)} 
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Excluir"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                    </td>
+                )}
               </tr>
             ))
           )}

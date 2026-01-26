@@ -27,14 +27,21 @@ export function Login() {
     try {
       const email = `${username}@salomaoadv.com.br`;
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
       
-      // Salva nome para exibição (Simulando comportamento original)
+      // ATUALIZAÇÃO: Registrar último login no perfil do usuário
+      if (data.user) {
+        await supabase.from('profiles').update({ 
+            last_login: new Date().toISOString() 
+        }).eq('id', data.user.id);
+      }
+
+      // Salva nome para exibição (Simulando comportamento original / Legacy)
       const nomeFormatado = username.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
       localStorage.setItem('user_name', nomeFormatado);
       

@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { FileText, Plus, Download, Printer, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, Plus, Download, Printer, Loader2, Shield } from 'lucide-react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
+import { supabase } from '../lib/supabase';
 import { ProposalDocument } from '../components/proposals/ProposalDocument';
 
 export function Proposals() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [formData, setFormData] = useState({
     clientName: '',
     partners: '', // Novo campo: Sócios
@@ -15,9 +19,30 @@ export function Proposals() {
 
   const [isGenerating, setIsGenerating] = useState(false);
 
+  useEffect(() => {
+    checkUserRole();
+  }, []);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  const isViewer = userRole === 'viewer';
 
   return (
     // Container principal padronizado com as outras páginas (Volumetria, etc)
@@ -29,7 +54,22 @@ export function Proposals() {
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <FileText className="w-8 h-8" /> Propostas
           </h1>
-          <p className="text-gray-500 mt-1">Gerador de propostas e minutas contratuais (Mala Direta).</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-gray-500">Gerador de propostas e minutas contratuais (Mala Direta).</p>
+            {/* Badge de Perfil */}
+            {userRole && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                    userRole === 'admin' 
+                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                        : userRole === 'editor' 
+                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : 'bg-gray-100 text-gray-600 border-gray-200'
+                }`}>
+                    <Shield className="w-3 h-3" />
+                    {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -47,9 +87,10 @@ export function Proposals() {
                 name="template"
                 value={formData.template}
                 onChange={handleChange}
+                disabled={isViewer}
                 rows={6}
-                placeholder="Cole aqui o texto padrão da sua minuta..."
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none resize-none bg-gray-50"
+                placeholder={isViewer ? "Visualização apenas" : "Cole aqui o texto padrão da sua minuta..."}
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none resize-none bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -60,8 +101,9 @@ export function Proposals() {
                 name="clientName"
                 value={formData.clientName}
                 onChange={handleChange}
+                disabled={isViewer}
                 placeholder="Nome do Cliente ou Empresa"
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-50"
               />
             </div>
 
@@ -73,8 +115,9 @@ export function Proposals() {
                 name="partners"
                 value={formData.partners}
                 onChange={handleChange}
+                disabled={isViewer}
                 placeholder="Nome dos Sócios"
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-50"
               />
             </div>
             
@@ -84,9 +127,10 @@ export function Proposals() {
                 name="object"
                 value={formData.object}
                 onChange={handleChange}
+                disabled={isViewer}
                 rows={4}
                 placeholder="Descreva o serviço jurídico..."
-                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none resize-none"
+                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none resize-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-50"
               />
             </div>
 
@@ -98,8 +142,9 @@ export function Proposals() {
                   name="value"
                   value={formData.value}
                   onChange={handleChange}
+                  disabled={isViewer}
                   placeholder="R$ 0,00"
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none"
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-salomao-blue outline-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-50"
                 />
               </div>
               <div>
@@ -109,14 +154,19 @@ export function Proposals() {
                   name="date"
                   value={formData.date}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-salomao-blue outline-none"
+                  disabled={isViewer}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-salomao-blue outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
           </div>
 
           <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
-            {formData.clientName && formData.object ? (
+            {isViewer ? (
+                <button disabled className="bg-gray-200 text-gray-500 px-6 py-3 rounded-lg font-bold flex items-center cursor-not-allowed text-xs uppercase">
+                    <Shield className="w-4 h-4 mr-2" /> Sem Permissão
+                </button>
+            ) : formData.clientName && formData.object ? (
               <PDFDownloadLink
                 document={<ProposalDocument data={formData} />}
                 fileName={`Proposta_${formData.clientName.replace(/\s+/g, '_')}.pdf`}

@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
 import * as XLSX from 'xlsx';
 
 export function Finance() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [installments, setInstallments] = useState<FinancialInstallment[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,8 +29,24 @@ export function Finance() {
   const [locations, setLocations] = useState<string[]>([]);
 
   useEffect(() => {
+    checkUserRole();
     fetchData();
   }, []);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -187,7 +206,22 @@ export function Finance() {
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <DollarSign className="w-8 h-8" /> Controle Financeiro
           </h1>
-          <p className="text-gray-500 mt-1">Gestão de faturamento e recebíveis.</p>
+          <div className="flex items-center gap-2 mt-1">
+                <p className="text-gray-500">Gestão de faturamento e recebíveis.</p>
+                {/* Badge de Perfil */}
+                {userRole && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                        userRole === 'admin' 
+                            ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                            : userRole === 'editor' 
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-gray-100 text-gray-600 border-gray-200'
+                    }`}>
+                        <Shield className="w-3 h-3" />
+                        {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                    </span>
+                )}
+          </div>
         </div>
       </div>
 
@@ -328,7 +362,7 @@ export function Finance() {
                     <td className="px-6 py-4 text-xs"><div className="text-salomao-blue font-medium">{item.contract?.partner_name || '-'}</div><div className="text-gray-400">{item.contract?.billing_location || '-'}</div></td>
                     <td className="px-6 py-4 text-right font-bold text-gray-800">{item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                     <td className="px-6 py-4 text-right">
-                      {item.status === 'pending' && (
+                      {item.status === 'pending' && userRole !== 'viewer' && (
                         <div className="flex justify-end gap-2">
                           <button onClick={() => handleEditDueDate(item)} className="bg-blue-50 text-blue-700 border border-blue-200 p-1.5 rounded-lg hover:bg-blue-100 transition-colors" title="Alterar Vencimento"><CalendarDays className="w-4 h-4" /></button>
                           <button onClick={() => handleMarkAsPaid(item)} className="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors text-xs font-bold flex items-center"><DollarSign className="w-3 h-3 mr-1" /> Faturar</button>

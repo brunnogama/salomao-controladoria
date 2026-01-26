@@ -11,7 +11,9 @@ import {
   PlusCircle, 
   Edit3, 
   ArrowRight, 
-  Database
+  Database,
+  Shield,
+  Ban
 } from 'lucide-react';
 
 interface LogItem {
@@ -27,14 +29,39 @@ interface LogItem {
 }
 
 export function History() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [logs, setLogs] = useState<LogItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('ALL');
 
   useEffect(() => {
-    fetchHistory();
+    checkUserRole();
   }, []);
+
+  // Busca histórico apenas se for admin
+  useEffect(() => {
+    if (userRole === 'admin') {
+        fetchHistory();
+    }
+  }, [userRole]);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -119,106 +146,138 @@ export function History() {
   });
 
   return (
-    // Removido max-w-6xl e mx-auto para alinhar com as outras páginas full-width
     <div className="p-8 animate-in fade-in duration-500 h-full flex flex-col">
-      {/* Estrutura do header padronizada com flex justify-between */}
       <div className="flex justify-between items-center mb-8">
         <div>
             <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <HistoryIcon className="w-8 h-8" /> Histórico de Atividades
             </h1>
-            <p className="text-gray-500 mt-1">Monitoramento completo de alterações no sistema (Audit Log).</p>
+            <div className="flex items-center gap-2 mt-1">
+                <p className="text-gray-500">Monitoramento completo de alterações no sistema (Audit Log).</p>
+                {/* Badge de Perfil */}
+                {userRole && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                        userRole === 'admin' 
+                            ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                            : userRole === 'editor' 
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-gray-100 text-gray-600 border-gray-200'
+                    }`}>
+                        <Shield className="w-3 h-3" />
+                        {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                    </span>
+                )}
+            </div>
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar por módulo ou ID..." 
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-salomao-blue"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
-          {['ALL', 'INSERT', 'UPDATE', 'DELETE'].map(type => (
-            <button
-              key={type}
-              onClick={() => setFilterAction(type)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap ${
-                filterAction === type 
-                  ? 'bg-salomao-blue text-white shadow-md' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {type === 'ALL' ? 'Todos' : type === 'INSERT' ? 'Criações' : type === 'UPDATE' ? 'Edições' : 'Exclusões'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="space-y-6 flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">Carregando histórico...</div>
-        ) : filteredLogs.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-            <HistoryIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">Nenhum registro encontrado.</p>
-            <p className="text-xs text-gray-400 mt-1">Realize alterações no sistema para gerar logs.</p>
-          </div>
-        ) : (
-          filteredLogs.map((log) => {
-            const style = getActionStyle(log.action);
-            const date = new Date(log.changed_at);
-            
-            return (
-              <div key={log.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${style.bg.replace('bg-', 'bg-').replace('100', '500')}`}></div>
-                
-                <div className="flex flex-col md:flex-row gap-4 items-start">
-                  <div className="flex-shrink-0 flex flex-col items-center min-w-[100px]">
-                    <div className={`w-10 h-10 rounded-full ${style.bg} flex items-center justify-center mb-2`}>
-                      <style.icon className={`w-5 h-5 ${style.color}`} />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs font-bold text-gray-700">{date.toLocaleDateString()}</p>
-                      <p className="text-[10px] text-gray-400">{date.toLocaleTimeString()}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 w-full">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded uppercase tracking-wider ${style.bg} ${style.color}`}>
-                            {style.label}
-                          </span>
-                          <span className="text-sm font-medium text-gray-600">em</span>
-                          <span className="text-sm font-bold text-salomao-blue uppercase">{formatTableName(log.table_name)}</span>
-                        </h3>
-                      </div>
-                      <div className="flex items-center text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full border border-gray-100">
-                        <User className="w-3 h-3 mr-1" />
-                        <span className="truncate max-w-[150px]" title={log.user_id}>
-                          {log.user_email || 'Usuário do Sistema'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-sm">
-                      {formatDiff(log)}
-                    </div>
-                  </div>
+      {/* CONTEÚDO: APENAS ADMIN VÊ */}
+      {userRole === 'admin' ? (
+        <>
+            {/* Filtros */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div className="relative w-full md:w-96">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                    type="text" 
+                    placeholder="Buscar por módulo ou ID..." 
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-salomao-blue"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
                 </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+                <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+                {['ALL', 'INSERT', 'UPDATE', 'DELETE'].map(type => (
+                    <button
+                    key={type}
+                    onClick={() => setFilterAction(type)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors whitespace-nowrap ${
+                        filterAction === type 
+                        ? 'bg-salomao-blue text-white shadow-md' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    >
+                    {type === 'ALL' ? 'Todos' : type === 'INSERT' ? 'Criações' : type === 'UPDATE' ? 'Edições' : 'Exclusões'}
+                    </button>
+                ))}
+                </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="space-y-6 flex-1 overflow-y-auto">
+                {loading ? (
+                <div className="text-center py-12 text-gray-400">Carregando histórico...</div>
+                ) : filteredLogs.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                    <HistoryIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">Nenhum registro encontrado.</p>
+                    <p className="text-xs text-gray-400 mt-1">Realize alterações no sistema para gerar logs.</p>
+                </div>
+                ) : (
+                filteredLogs.map((log) => {
+                    const style = getActionStyle(log.action);
+                    const date = new Date(log.changed_at);
+                    
+                    return (
+                    <div key={log.id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${style.bg.replace('bg-', 'bg-').replace('100', '500')}`}></div>
+                        
+                        <div className="flex flex-col md:flex-row gap-4 items-start">
+                        <div className="flex-shrink-0 flex flex-col items-center min-w-[100px]">
+                            <div className={`w-10 h-10 rounded-full ${style.bg} flex items-center justify-center mb-2`}>
+                            <style.icon className={`w-5 h-5 ${style.color}`} />
+                            </div>
+                            <div className="text-center">
+                            <p className="text-xs font-bold text-gray-700">{date.toLocaleDateString()}</p>
+                            <p className="text--[10px] text-gray-400">{date.toLocaleTimeString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 w-full">
+                            <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <span className={`text-xs px-2 py-0.5 rounded uppercase tracking-wider ${style.bg} ${style.color}`}>
+                                    {style.label}
+                                </span>
+                                <span className="text-sm font-medium text-gray-600">em</span>
+                                <span className="text-sm font-bold text-salomao-blue uppercase">{formatTableName(log.table_name)}</span>
+                                </h3>
+                            </div>
+                            <div className="flex items-center text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full border border-gray-100">
+                                <User className="w-3 h-3 mr-1" />
+                                <span className="truncate max-w-[150px]" title={log.user_id}>
+                                {log.user_email || 'Usuário do Sistema'}
+                                </span>
+                            </div>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-sm">
+                            {formatDiff(log)}
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    );
+                })
+                )}
+            </div>
+        </>
+      ) : (
+        // TELA DE ACESSO RESTRITO
+        <div className="flex-1 flex flex-col items-center justify-center bg-red-50/50 rounded-xl border border-red-100 p-8 text-center animate-in fade-in zoom-in duration-300">
+            <div className="bg-red-100 p-4 rounded-full mb-4">
+                <Ban className="w-12 h-12 text-red-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-red-700 mb-2">Acesso Restrito</h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+                O histórico de auditoria contém informações sensíveis do sistema e é restrito apenas a <strong>Administradores</strong>.
+            </p>
+            <div className="mt-6 text-sm text-gray-500 bg-white px-4 py-2 rounded-lg border border-gray-200">
+                Seu perfil atual: <strong className="uppercase">{userRole || 'Verificando...'}</strong>
+            </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -26,7 +26,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const [userName, setUserName] = useState('Carregando...');
-  const [userRole, setUserRole] = useState('Administrador');
+  const [userRole, setUserRole] = useState('');
 
   const menuItems = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -42,18 +42,47 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   ];
 
   useEffect(() => {
-    const getUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) {
-        const emailName = user.email.split('@')[0];
-        const formattedName = emailName
-          .split('.')
-          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(' ');
-        setUserName(formattedName);
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Busca dados complementares na tabela profiles
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name, role')
+            .eq('id', user.id)
+            .single();
+
+          if (profile) {
+            // Define o nome: Prioriza o banco, senão formata do email
+            if (profile.name) {
+                setUserName(profile.name);
+            } else if (user.email) {
+                const emailName = user.email.split('@')[0];
+                const formattedName = emailName
+                  .split('.')
+                  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join(' ');
+                setUserName(formattedName);
+            }
+
+            // Define o cargo traduzido
+            const roleLabels: Record<string, string> = {
+                admin: 'Administrador',
+                editor: 'Editor',
+                viewer: 'Visualizador'
+            };
+            setUserRole(roleLabels[profile.role] || 'Usuário');
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do usuário:', error);
+        setUserName('Usuário');
       }
     };
-    getUserData();
+
+    fetchUserProfile();
   }, []);
 
   const handleLogout = async () => {

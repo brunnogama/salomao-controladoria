@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { FolderOpen, FileText, Download, Search, HardDrive, Clock, FileCheck, Hash } from 'lucide-react';
+import { FolderOpen, FileText, Download, Search, HardDrive, Clock, FileCheck, Hash, Shield } from 'lucide-react';
 import { maskHon } from '../utils/masks';
 import { EmptyState } from '../components/ui/EmptyState';
 
@@ -25,6 +25,9 @@ interface GEDDocument {
 }
 
 export function GED() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [documents, setDocuments] = useState<GEDDocument[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
@@ -35,6 +38,7 @@ export function GED() {
   const mainContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    checkUserRole();
     fetchDocuments();
   }, []);
 
@@ -45,6 +49,21 @@ export function GED() {
         mainContentRef.current.scrollTop = 0;
     }
   }, [selectedFolder, searchTerm]);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   const fetchDocuments = async () => {
     setLoading(true);
@@ -159,7 +178,22 @@ export function GED() {
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <FolderOpen className="w-8 h-8" /> GED - Gestão Eletrônica
           </h1>
-          <p className="text-gray-500 mt-1">Repositório centralizado de contratos e propostas.</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-gray-500">Repositório centralizado de contratos e propostas.</p>
+            {/* Badge de Perfil */}
+            {userRole && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                    userRole === 'admin' 
+                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                        : userRole === 'editor' 
+                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : 'bg-gray-100 text-gray-600 border-gray-200'
+                }`}>
+                    <Shield className="w-3 h-3" />
+                    {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                </span>
+            )}
+          </div>
         </div>
       </div>
 

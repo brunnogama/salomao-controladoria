@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Search, Plus, Filter, User, MapPin, Phone, Mail, Edit, Trash2, Building, Briefcase, X, FileText } from 'lucide-react';
+import { Users, Search, Plus, Filter, User, MapPin, Phone, Mail, Edit, Trash2, Building, Briefcase, X, FileText, Shield } from 'lucide-react';
 import { Client, Partner } from '../types';
 import { ClientFormModal } from '../components/clients/ClientFormModal';
 import { maskCNPJ } from '../utils/masks';
 
 export function Clients() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [clients, setClients] = useState<Client[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,8 +21,24 @@ export function Clients() {
   const [viewingContracts, setViewingContracts] = useState<any[]>([]);
 
   useEffect(() => {
+    checkUserRole();
     fetchData();
   }, []);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -48,17 +67,21 @@ export function Clients() {
   };
 
   const handleEdit = (client: Client) => {
+    if (userRole === 'viewer') return;
     setClientToEdit(client);
     setIsModalOpen(true);
     setViewingClient(null); // Fecha o modal de visualização se estiver aberto
   };
 
   const handleNew = () => {
+    if (userRole === 'viewer') return;
     setClientToEdit(undefined);
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
+    if (userRole !== 'admin') return;
+    
     if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
     const { error } = await supabase.from('clients').delete().eq('id', id);
     if (!error) {
@@ -95,11 +118,30 @@ export function Clients() {
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <Users className="w-8 h-8" /> Clientes
           </h1>
-          <p className="text-gray-500 mt-1">Gestão da base de clientes do escritório.</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-gray-500">Gestão da base de clientes do escritório.</p>
+            {/* Badge de Perfil */}
+            {userRole && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                    userRole === 'admin' 
+                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                        : userRole === 'editor' 
+                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : 'bg-gray-100 text-gray-600 border-gray-200'
+                }`}>
+                    <Shield className="w-3 h-3" />
+                    {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                </span>
+            )}
+          </div>
         </div>
-        <button onClick={handleNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
-          <Plus className="w-5 h-5 mr-2" /> Novo Cliente
-        </button>
+        
+        {/* Botão Novo Cliente - Apenas Admin e Editor */}
+        {userRole !== 'viewer' && (
+            <button onClick={handleNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
+            <Plus className="w-5 h-5 mr-2" /> Novo Cliente
+            </button>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-6 flex items-center">
@@ -138,9 +180,15 @@ export function Clients() {
                         <p className="text-xs text-gray-500 font-mono">{client.cnpj ? maskCNPJ(client.cnpj) : 'Sem documento'}</p>
                     </div>
                 </div>
+                
+                {/* Ações Rápidas - Condicionais */}
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <button onClick={(e) => { e.stopPropagation(); handleEdit(client); }} className="p-1.5 hover:bg-gray-100 rounded text-blue-600"><Edit className="w-4 h-4" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(client.id!); }} className="p-1.5 hover:bg-gray-100 rounded text-red-600"><Trash2 className="w-4 h-4" /></button>
+                    {userRole !== 'viewer' && (
+                        <button onClick={(e) => { e.stopPropagation(); handleEdit(client); }} className="p-1.5 hover:bg-gray-100 rounded text-blue-600" title="Editar"><Edit className="w-4 h-4" /></button>
+                    )}
+                    {userRole === 'admin' && (
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(client.id!); }} className="p-1.5 hover:bg-gray-100 rounded text-red-600" title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                    )}
                 </div>
               </div>
 
@@ -249,18 +297,23 @@ export function Clients() {
                 </div>
 
                 <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                    <button 
-                        onClick={() => handleEdit(viewingClient)}
-                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm flex items-center"
-                    >
-                        <Edit className="w-4 h-4 mr-2" /> Editar
-                    </button>
-                    <button 
-                        onClick={() => handleDelete(viewingClient.id!)}
-                        className="px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-100 shadow-sm flex items-center"
-                    >
-                        <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                    </button>
+                    {/* Botões do Modal - Condicionais */}
+                    {userRole !== 'viewer' && (
+                        <button 
+                            onClick={() => handleEdit(viewingClient)}
+                            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm flex items-center"
+                        >
+                            <Edit className="w-4 h-4 mr-2" /> Editar
+                        </button>
+                    )}
+                    {userRole === 'admin' && (
+                        <button 
+                            onClick={() => handleDelete(viewingClient.id!)}
+                            className="px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-100 shadow-sm flex items-center"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

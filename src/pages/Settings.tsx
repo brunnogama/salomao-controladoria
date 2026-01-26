@@ -101,17 +101,15 @@ export function Settings() {
             setCurrentUserEmail(user.email || '');
             
             // Busca o perfil para saber a role
-            const { data: profile, error } = await supabase
+            const { data: profile } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
                 .single();
             
             if (profile) {
-                console.log("Permissão detectada:", profile.role); // Debug no console
+                console.log("Permissão detectada:", profile.role); 
                 setCurrentUserRole(profile.role as 'admin' | 'editor' | 'viewer');
-            } else {
-                console.warn("Perfil não encontrado para este usuário. Verifique a tabela profiles.");
             }
         }
     } catch (error) {
@@ -121,8 +119,8 @@ export function Settings() {
 
   // --- LÓGICA DE USUÁRIOS (SUPABASE) ---
   const fetchUsers = async () => {
-    // ALTERAÇÃO: Agora todos podem buscar usuários para visualizar a lista
     try {
+      // Busca todos os usuários (permitido via RLS para autenticados)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -135,22 +133,25 @@ export function Settings() {
     }
   };
 
-  // Busca usuários sempre que a role for definida ou a aba mudar para users
+  // Busca usuários sempre que a aba mudar para users
   useEffect(() => {
-    if (activeTab === 'users' && currentUserRole) {
+    if (activeTab === 'users') {
         fetchUsers();
     }
-  }, [currentUserRole, activeTab]);
+  }, [activeTab]);
 
   const handleSaveUser = async () => {
-    if (currentUserRole !== 'admin') return alert("Permissão negada. Você não é administrador.");
+    // Permite Admin e Editor
+    if (!['admin', 'editor'].includes(currentUserRole || '')) {
+        return alert("Permissão negada. Você não tem permissão para gerenciar usuários.");
+    }
 
     setLoading(true);
     try {
       const userData = {
         name: userForm.name,
         email: userForm.email,
-        role: userForm.role, // Certifique-se que isso é 'admin', 'editor' ou 'viewer'
+        role: userForm.role,
         active: userForm.active,
         last_login: editingUser?.last_login || '-' 
       };
@@ -183,21 +184,24 @@ export function Settings() {
   };
 
   const openUserModal = (user?: UserProfile) => {
-      if (currentUserRole !== 'admin') return alert("Apenas administradores podem gerenciar usuários.");
+      // Permite Admin e Editor
+      if (!['admin', 'editor'].includes(currentUserRole || '')) {
+          return alert("Apenas Administradores e Editores podem gerenciar usuários.");
+      }
       
       if (user) {
           setEditingUser(user);
           setUserForm({ name: user.name, email: user.email, role: user.role as any, active: user.active });
       } else {
           setEditingUser(null);
-          // Default role ao criar novo
           setUserForm({ name: '', email: '', role: 'editor', active: true });
       }
       setIsUserModalOpen(true);
   };
 
   const handleDeleteUser = async (id: string) => {
-      if (currentUserRole !== 'admin') return alert("Permissão negada.");
+      // Apenas Admin pode excluir
+      if (currentUserRole !== 'admin') return alert("Permissão negada. Apenas Administradores podem excluir usuários.");
 
       if(confirm("Tem certeza que deseja remover este usuário?")) {
         try {
@@ -320,7 +324,7 @@ export function Settings() {
               <Info className="mr-3 h-5 w-5" /> Sobre o Sistema
             </button>
             
-            {/* Botão de Sistema apenas para Admin na Sidebar também */}
+            {/* Botão de Sistema apenas para Admin */}
             {currentUserRole === 'admin' && (
                 <div className="pt-4 mt-4 border-t border-gray-200">
                     <button 
@@ -357,13 +361,11 @@ export function Settings() {
                     <div>
                         <h2 className="text-lg font-bold text-gray-800">Usuários do Sistema</h2>
                         <p className="text-sm text-gray-500">
-                            {currentUserRole === 'admin' 
-                                ? 'Gerencie o acesso e permissões dos usuários.' 
-                                : 'Visualize a equipe cadastrada no sistema.'}
+                            Visualize e gerencie a equipe cadastrada.
                         </p>
                     </div>
-                    {/* Botão NOVO USUÁRIO apenas para Admin */}
-                    {currentUserRole === 'admin' && (
+                    {/* Botão NOVO USUÁRIO: Admin e Editor */}
+                    {['admin', 'editor'].includes(currentUserRole || '') && (
                         <button onClick={() => openUserModal()} className="bg-salomao-blue hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors">
                             <Plus className="w-4 h-4 mr-2" /> Novo Usuário
                         </button>
@@ -378,7 +380,8 @@ export function Settings() {
                         <th className="p-4">Email</th>
                         <th className="p-4">Perfil</th>
                         <th className="p-4">Status</th>
-                        {currentUserRole === 'admin' && <th className="p-4 text-right">Ações</th>}
+                        {/* Coluna Ações: Admin e Editor */}
+                        {['admin', 'editor'].includes(currentUserRole || '') && <th className="p-4 text-right">Ações</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -409,12 +412,16 @@ export function Settings() {
                                     <span className="flex items-center text-gray-400 text-xs font-bold"><XCircle className="w-3 h-3 mr-1" /> Inativo</span>
                                 )}
                             </td>
-                            {/* Ações apenas para Admin */}
-                            {currentUserRole === 'admin' && (
+                            {/* Ações */}
+                            {['admin', 'editor'].includes(currentUserRole || '') && (
                                 <td className="p-4 text-right">
                                     <div className="flex justify-end gap-2">
-                                        <button onClick={() => openUserModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
-                                        <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                                        <button onClick={() => openUserModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Editar"><Edit className="w-4 h-4" /></button>
+                                        
+                                        {/* Excluir: Apenas Admin */}
+                                        {currentUserRole === 'admin' && (
+                                            <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Excluir"><Trash2 className="w-4 h-4" /></button>
+                                        )}
                                     </div>
                                 </td>
                             )}

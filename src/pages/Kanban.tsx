@@ -8,10 +8,11 @@ import {
   DraggableProvided, 
   DraggableStateSnapshot 
 } from '@hello-pangea/dnd';
-import { Plus, MoreHorizontal, Calendar, User, Search, Filter, Loader2, AlertCircle, Trash2, Edit2, KanbanSquare } from 'lucide-react';
+import { Plus, MoreHorizontal, Calendar, User, Search, Filter, Loader2, AlertCircle, Trash2, Edit2, KanbanSquare, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { KanbanTask, Contract } from '../types';
 import { KanbanTaskModal } from '../components/kanban/KanbanTaskModal';
+import { toast } from 'sonner';
 
 // REMOVIDOS: billing e review
 const columns: Record<string, { id: string; title: string; color: string }> = {
@@ -22,6 +23,9 @@ const columns: Record<string, { id: string; title: string; color: string }> = {
 };
 
 export function Kanban() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,9 +34,25 @@ export function Kanban() {
   const [contracts, setContracts] = useState<Contract[]>([]);
 
   useEffect(() => {
+    checkUserRole();
     fetchTasks();
     fetchContracts();
   }, []);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -62,6 +82,9 @@ export function Kanban() {
   };
 
   const onDragEnd = async (result: DropResult) => {
+    // Bloqueia drag & drop para viewers
+    if (userRole === 'viewer') return;
+
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
@@ -92,16 +115,20 @@ export function Kanban() {
   };
 
   const handleAddTask = () => {
+    if (userRole === 'viewer') return toast.error("Sem permissão para criar.");
     setEditingTask(null);
     setIsModalOpen(true);
   };
 
   const handleEditTask = (task: KanbanTask) => {
+    if (userRole === 'viewer') return; // Apenas ignora o clique
     setEditingTask(task);
     setIsModalOpen(true);
   };
 
   const handleDeleteTask = async (id: string, e?: React.MouseEvent) => {
+    if (userRole === 'viewer') return;
+    
     if (e) e.stopPropagation();
     if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
     
@@ -111,6 +138,8 @@ export function Kanban() {
   };
 
   const handleSaveTask = async (taskData: Partial<KanbanTask>) => {
+    if (userRole === 'viewer') return;
+
     const cleanData = { ...taskData };
     
     // Remove contract_id se for vazio
@@ -172,11 +201,30 @@ export function Kanban() {
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <KanbanSquare className="w-8 h-8" /> Kanban de Tarefas
           </h1>
-          <p className="text-gray-500 mt-1">Gerencie fluxo de trabalho e pendências.</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-gray-500">Gerencie fluxo de trabalho e pendências.</p>
+            {/* Badge de Perfil */}
+            {userRole && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                    userRole === 'admin' 
+                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                        : userRole === 'editor' 
+                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : 'bg-gray-100 text-gray-600 border-gray-200'
+                }`}>
+                    <Shield className="w-3 h-3" />
+                    {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                </span>
+            )}
+          </div>
         </div>
-        <button onClick={handleAddTask} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
-          <Plus className="w-5 h-5 mr-2" /> Nova Tarefa
-        </button>
+        
+        {/* Botão Nova Tarefa - Escondido para Viewer */}
+        {userRole !== 'viewer' && (
+            <button onClick={handleAddTask} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
+            <Plus className="w-5 h-5 mr-2" /> Nova Tarefa
+            </button>
+        )}
       </div>
 
       <div className="flex items-center mb-6 bg-white p-2 rounded-xl border border-gray-100 shadow-sm w-full max-w-md">
@@ -206,7 +254,7 @@ export function Kanban() {
                       <span className="bg-white/50 px-2 py-0.5 rounded text-xs font-bold text-gray-600">{columnTasks.length}</span>
                     </div>
                     
-                    <Droppable droppableId={columnId}>
+                    <Droppable droppableId={columnId} isDropDisabled={userRole === 'viewer'}>
                       {(provided: DroppableProvided, snapshot: any) => (
                         <div
                           {...provided.droppableProps}
@@ -214,32 +262,37 @@ export function Kanban() {
                           className={`flex-1 p-3 overflow-y-auto min-h-[150px] transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50/30' : ''}`}
                         >
                           {columnTasks.map((task, index) => (
-                            <Draggable key={task.id} draggableId={task.id} index={index}>
+                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userRole === 'viewer'}>
                               {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
                                   onClick={() => handleEditTask(task)}
-                                  className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3 cursor-pointer group hover:shadow-md hover:border-salomao-blue/30 transition-all relative ${snapshot.isDragging ? 'rotate-2 shadow-lg ring-2 ring-salomao-blue ring-opacity-50' : ''}`}
+                                  className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3 group hover:shadow-md hover:border-salomao-blue/30 transition-all relative 
+                                    ${snapshot.isDragging ? 'rotate-2 shadow-lg ring-2 ring-salomao-blue ring-opacity-50' : ''}
+                                    ${userRole === 'viewer' ? 'cursor-default' : 'cursor-pointer'}
+                                  `}
                                 >
-                                  {/* Botões de Ação Rápida (Hover) */}
-                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 rounded p-1 shadow-sm">
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); handleEditTask(task); }} 
-                                      className="p-1 hover:bg-blue-50 rounded text-blue-600" 
-                                      title="Editar"
-                                    >
-                                      <Edit2 className="w-3 h-3" />
-                                    </button>
-                                    <button 
-                                      onClick={(e) => handleDeleteTask(task.id, e)} 
-                                      className="p-1 hover:bg-red-50 rounded text-red-600" 
-                                      title="Excluir"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
+                                  {/* Botões de Ação Rápida (Hover) - Apenas se não for Viewer */}
+                                  {userRole !== 'viewer' && (
+                                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white/90 rounded p-1 shadow-sm">
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); handleEditTask(task); }} 
+                                          className="p-1 hover:bg-blue-50 rounded text-blue-600" 
+                                          title="Editar"
+                                        >
+                                          <Edit2 className="w-3 h-3" />
+                                        </button>
+                                        <button 
+                                          onClick={(e) => handleDeleteTask(task.id, e)} 
+                                          className="p-1 hover:bg-red-50 rounded text-red-600" 
+                                          title="Excluir"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                  )}
 
                                   <div className="flex justify-between items-start mb-2 pr-6">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getPriorityColor(task.priority)}`}>

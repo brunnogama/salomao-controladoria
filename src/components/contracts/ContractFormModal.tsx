@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, DollarSign, Tag, Gavel, Eye, AlertTriangle, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
+import { 
+  Plus, X, Save, Settings, Check, ChevronDown, Clock, History as HistoryIcon, 
+  ArrowRight, Edit, Trash2, CalendarCheck, Hourglass, Upload, FileText, 
+  Download, AlertCircle, Search, Loader2, Link as LinkIcon, MapPin, 
+  DollarSign, Tag, Gavel, Eye, AlertTriangle, TrendingUp, TrendingDown, 
+  Pencil, Files, User
+} from 'lucide-react';
 import { Contract, Partner, ContractProcess, TimelineEvent, ContractDocument, Analyst, Magistrate } from '../../types';
 import { maskCNPJ, maskMoney, maskHon, maskCNJ, toTitleCase, parseCurrency } from '../../utils/masks';
 import { decodeCNJ } from '../../utils/cnjDecoder';
@@ -63,8 +69,16 @@ export function ContractFormModal(props: Props) {
   const [viewProcessIndex, setViewProcessIndex] = useState<number | null>(null);
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
 
-  // Estado para controle das abas
+  // Estado para controle das abas (STEPS)
   const [activeTab, setActiveTab] = useState(1);
+
+  // Definição dos Passos do Stepper
+  const steps = [
+    { id: 1, label: 'Dados do Cliente', icon: User },
+    { id: 2, label: 'Status & Valores', icon: DollarSign },
+    { id: 3, label: 'Dados do Objeto', icon: Gavel },
+    { id: 4, label: 'GED (Arquivos)', icon: Files }
+  ];
 
   // Novo Hook de Opções
   const options = useContractOptions({ formData, setFormData, currentProcess, setCurrentProcess, activeManager });
@@ -599,48 +613,41 @@ export function ContractFormModal(props: Props) {
         </div>
 
         <div className="flex-1 p-8 space-y-8 overflow-y-auto">
-            {/* Abas */}
-            <div className="flex gap-2 border-b border-gray-200 mb-6">
-                <button
-                    onClick={() => setActiveTab(1)}
-                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                        activeTab === 1 
-                        ? 'border-salomao-blue text-salomao-blue' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    Dados do Cliente
-                </button>
-                <button
-                    onClick={() => setActiveTab(2)}
-                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                        activeTab === 2 
-                        ? 'border-salomao-blue text-salomao-blue' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    Status
-                </button>
-                <button
-                    onClick={() => setActiveTab(3)}
-                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                        activeTab === 3 
-                        ? 'border-salomao-blue text-salomao-blue' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    Dados do Objeto
-                </button>
-                <button
-                    onClick={() => setActiveTab(4)}
-                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                        activeTab === 4
-                        ? 'border-salomao-blue text-salomao-blue' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                    GED
-                </button>
+            
+            {/* NOVO STEPPER VISUAL */}
+            <div className="flex items-center justify-between w-full mb-8 px-4 relative">
+                {/* Linha de Conexão (Background) */}
+                <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -z-10 transform -translate-y-1/2 rounded-full"></div>
+                {/* Linha de Progresso (Ativa) */}
+                <div 
+                    className="absolute top-1/2 left-0 h-1 bg-salomao-blue -z-10 transform -translate-y-1/2 rounded-full transition-all duration-500"
+                    style={{ width: `${((activeTab - 1) / (steps.length - 1)) * 100}%` }}
+                ></div>
+
+                {steps.map((step) => {
+                    const isActive = activeTab === step.id;
+                    const isCompleted = activeTab > step.id;
+                    const Icon = step.icon;
+
+                    return (
+                        <div key={step.id} className="flex flex-col items-center cursor-pointer group" onClick={() => setActiveTab(step.id)}>
+                            <div className={`
+                                w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 relative z-10
+                                ${isActive ? 'bg-salomao-blue border-salomao-blue text-white shadow-lg scale-110' : 
+                                  isCompleted ? 'bg-salomao-blue border-salomao-blue text-white' : 
+                                  'bg-white border-gray-300 text-gray-400 group-hover:border-salomao-blue group-hover:text-salomao-blue'}
+                            `}>
+                                {isCompleted ? <Check className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
+                            </div>
+                            <span className={`
+                                mt-2 text-xs font-bold uppercase tracking-wider transition-colors duration-300
+                                ${isActive ? 'text-salomao-blue' : isCompleted ? 'text-salomao-blue' : 'text-gray-400'}
+                            `}>
+                                {step.label}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Conteúdo da Aba 1: Dados do Cliente */}

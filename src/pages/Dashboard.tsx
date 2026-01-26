@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
@@ -6,9 +6,10 @@ import {
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
   ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch, Lightbulb,
-  Percent, Users, Banknote
+  Percent, Users, Banknote, Shield
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase'; // Importação do supabase adicionada
 import { useDashboardData } from '../hooks/useDashboardData';
 import { EmptyState } from '../components/ui/EmptyState';
 
@@ -28,7 +29,26 @@ export function Dashboard() {
   } = useDashboardData();
 
   const [exporting, setExporting] = useState(false);
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
+
+  // --- EFEITO PARA VERIFICAR PERMISSÃO ---
+  useEffect(() => {
+    const checkUserRole = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            if (profile) {
+                setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+            }
+        }
+    };
+    checkUserRole();
+  }, []);
 
   const handleExportAndEmail = async () => {
     if (!dashboardRef.current) return;
@@ -163,7 +183,23 @@ export function Dashboard() {
             <h1 className='text-3xl font-bold text-salomao-blue flex items-center gap-2'>
               <LayoutDashboard className="w-8 h-8" /> Controladoria Jurídica
             </h1>
-            <p className='text-gray-600 mt-1'>Visão estratégica de contratos e resultados.</p>
+            <div className="flex items-center gap-2 mt-1">
+                <p className='text-gray-600'>Visão estratégica de contratos e resultados.</p>
+                
+                {/* Badge de Perfil */}
+                {userRole && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                        userRole === 'admin' 
+                            ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                            : userRole === 'editor' 
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-gray-100 text-gray-600 border-gray-200'
+                    }`}>
+                        <Shield className="w-3 h-3" />
+                        {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                    </span>
+                )}
+            </div>
         </div>
         <div id="export-button-container">
             <button 
@@ -686,12 +722,12 @@ export function Dashboard() {
                         <div className='h-60 flex items-end justify-around gap-2 mb-4 relative pb-4 border-b border-gray-200/50'>
                             {propostas12Meses.length === 0 ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                                  <EmptyState 
-                                    icon={BarChart3} 
-                                    title="Sem dados de propostas" 
-                                    description="Ainda não há histórico suficiente para gerar o gráfico."
-                                    className="min-h-[150px]"
-                                  />
+                                    <EmptyState 
+                                      icon={BarChart3} 
+                                      title="Sem dados de propostas" 
+                                      description="Ainda não há histórico suficiente para gerar o gráfico."
+                                      className="min-h-[150px]"
+                                    />
                                </div>
                             ) : (propostas12Meses.map((item, index) => {
                                 const totalMes = item.pl + item.fixo + item.exito;
@@ -742,12 +778,12 @@ export function Dashboard() {
                         <div className='h-60 flex items-end justify-around gap-2 mb-4 relative pb-4 border-b border-gray-200/50'>
                             {financeiro12Meses.length === 0 ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                                  <EmptyState 
-                                    icon={BarChart3} 
-                                    title="Sem dados financeiros" 
-                                    description="Ainda não há histórico suficiente para gerar o gráfico."
-                                    className="min-h-[150px]"
-                                  />
+                                    <EmptyState 
+                                      icon={BarChart3} 
+                                      title="Sem dados financeiros" 
+                                      description="Ainda não há histórico suficiente para gerar o gráfico."
+                                      className="min-h-[150px]"
+                                    />
                                </div>
                             ) : (financeiro12Meses.map((item, index) => {
                                 const totalMes = item.pl + item.fixo + item.exito;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import ForceGraph2D from 'react-force-graph-2d';
 import { supabase } from '../lib/supabase';
 import { Contract, ContractProcess } from '../types';
-import { Loader2, Share2, Gavel, Scale, FileText, Maximize2, Minimize2, Search, Filter, X } from 'lucide-react';
+import { Loader2, Share2, Gavel, Scale, FileText, Maximize2, Minimize2, Search, Filter, X, Shield } from 'lucide-react';
 import { EmptyState } from '../components/ui/EmptyState';
 
 // Interfaces
@@ -38,6 +38,9 @@ interface StatsCount {
 }
 
 export function Jurimetria() {
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [fullGraphData, setFullGraphData] = useState<GraphData>({ nodes: [], links: [] });
@@ -58,6 +61,7 @@ export function Jurimetria() {
   }>({ judge: null, subject: null, court: null });
 
   useEffect(() => {
+    checkUserRole();
     fetchJurimetriaData();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -66,6 +70,21 @@ export function Jurimetria() {
   useEffect(() => {
     setTimeout(handleResize, 500);
   }, [containerRef.current, isFullscreen]);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   // Aplicar Filtros
   useEffect(() => {
@@ -296,7 +315,22 @@ export function Jurimetria() {
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <Share2 className="w-8 h-8" /> Jurimetria & Conexões
           </h1>
-          <p className="text-gray-500 mt-1">Análise gráfica de correlações entre processos, juízes e assuntos.</p>
+          <div className="flex items-center gap-2 mt-1">
+                <p className="text-gray-500">Análise gráfica de correlações entre processos, juízes e assuntos.</p>
+                {/* Badge de Perfil */}
+                {userRole && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
+                        userRole === 'admin' 
+                            ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                            : userRole === 'editor' 
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-gray-100 text-gray-600 border-gray-200'
+                    }`}>
+                        <Shield className="w-3 h-3" />
+                        {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
+                    </span>
+                )}
+          </div>
         </div>
         <div className="flex gap-2">
            {/* Barra de Busca Global */}

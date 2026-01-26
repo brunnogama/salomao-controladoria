@@ -3,7 +3,7 @@ import {
   Plus, Search, Filter, Calendar, DollarSign, User, Briefcase,
   CheckCircle2, Clock, Scale, Tag, Loader2,
   LayoutGrid, List, Download, ArrowUpDown, Edit, Trash2, Bell, ArrowDownAZ, ArrowUpAZ,
-  FileSignature, ChevronDown, X, FileSearch, Paperclip
+  FileSignature, ChevronDown, X, FileSearch, Paperclip, Eye
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -110,6 +110,10 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
 export function Contracts() {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // --- ROLE STATE ---
+  const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
@@ -149,6 +153,7 @@ export function Contracts() {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
+    checkUserRole();
     if (location.state && location.state.status) {
       setStatusFilter(location.state.status);
     }
@@ -169,6 +174,21 @@ export function Contracts() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // --- ROLE CHECK ---
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        if (profile) {
+            setUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+        }
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -222,6 +242,7 @@ export function Contracts() {
   };
 
   const handleNew = () => {
+    if (userRole === 'viewer') return toast.error("Sem permissão para criar.");
     setFormData(emptyContract);
     setProcesses([]);
     setCurrentProcess({ process_number: '' });
@@ -242,12 +263,14 @@ export function Contracts() {
   };
 
   const handleEdit = () => {
+    if (userRole === 'viewer') return toast.error("Sem permissão para editar.");
     setIsDetailsModalOpen(false);
     setIsEditing(true);
     setIsModalOpen(true);
   };
 
   const triggerDelete = (id: string) => {
+    if (userRole !== 'admin') return toast.error("Apenas administradores podem excluir.");
     setDeleteTargetId(id);
     setIsConfirmModalOpen(true);
   };
@@ -620,9 +643,12 @@ export function Contracts() {
             )}
           </div>
 
-          <button onClick={handleNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
-            <Plus className="w-5 h-5 mr-2" /> Novo Caso
-          </button>
+          {/* Botão Novo Caso - Escondido para Viewer */}
+          {userRole !== 'viewer' && (
+            <button onClick={handleNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
+                <Plus className="w-5 h-5 mr-2" /> Novo Caso
+            </button>
+          )}
         </div>
       </div>
 
@@ -839,9 +865,19 @@ export function Contracts() {
                         )}
                       </td>
                       <td className="p-3 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100">
-                          <button onClick={(e) => { e.stopPropagation(); handleView(contract); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
-                          <button onClick={(e) => handleDeleteFromList(e, contract.id!)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Visualizar: Todos */}
+                            <button onClick={(e) => { e.stopPropagation(); handleView(contract); }} className="text-gray-500 hover:bg-gray-100 p-1 rounded"><Eye className="w-4 h-4" /></button>
+                            
+                            {/* Editar: Admin ou Editor */}
+                            {userRole !== 'viewer' && (
+                                <button onClick={(e) => { e.stopPropagation(); handleView(contract); handleEdit(); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded"><Edit className="w-4 h-4" /></button>
+                            )}
+                            
+                            {/* Excluir: Apenas Admin */}
+                            {userRole === 'admin' && (
+                                <button onClick={(e) => handleDeleteFromList(e, contract.id!)} className="text-red-600 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4" /></button>
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -869,8 +905,10 @@ export function Contracts() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         processes={processes}
-        // AQUI: Passamos a lista de documentos buscada corretamente
         documents={(formData as any).documents}
+        // Novo: Prop para controlar se botões de ação aparecem no modal
+        canEdit={userRole !== 'viewer'}
+        canDelete={userRole === 'admin'}
       />
 
       <ContractFormModal
