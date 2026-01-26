@@ -1,15 +1,3 @@
-CONTEXTO: Estou enviando o código oficial e atualizado do arquivo: Settings.tsx
-Atualize esse e me peça o restante que eu vou enviando, vamos atualizar um arquivo por vez.
-Veja se precisamos criar tabelas no Supabase
-
-SUA TAREFA: 
-1. Ao trocar de usuário, para um viewer ou edtor, os dados somem, eles devem ser visualizados para qualquer pefil e poder ser idiado para editor
-
-
-CÓDIGO FONTE:
-
-
-
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Info, History, Save, Plus, Trash2, Edit, CheckCircle2, 
@@ -133,9 +121,7 @@ export function Settings() {
 
   // --- LÓGICA DE USUÁRIOS (SUPABASE) ---
   const fetchUsers = async () => {
-    // Se não for admin, nem tenta buscar para evitar erro 403 (Forbidden)
-    if (currentUserRole !== 'admin') return;
-
+    // ALTERAÇÃO: Agora todos podem buscar usuários para visualizar a lista
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -149,9 +135,9 @@ export function Settings() {
     }
   };
 
-  // Busca usuários sempre que a role mudar para admin ou a aba mudar para users
+  // Busca usuários sempre que a role for definida ou a aba mudar para users
   useEffect(() => {
-    if (currentUserRole === 'admin' && activeTab === 'users') {
+    if (activeTab === 'users' && currentUserRole) {
         fetchUsers();
     }
   }, [currentUserRole, activeTab]);
@@ -313,7 +299,7 @@ export function Settings() {
         {/* SIDEBAR DE NAVEGAÇÃO */}
         <div className="w-full lg:w-64 flex-shrink-0 flex flex-col">
           <nav className="space-y-1 flex-1 overflow-y-auto">
-            {/* O menu sempre aparece, mas o conteúdo é bloqueado se não for admin */}
+            {/* O menu sempre aparece para todos */}
             <button 
                 onClick={() => setActiveTab('users')}
                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'users' ? 'bg-salomao-blue text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
@@ -334,17 +320,20 @@ export function Settings() {
               <Info className="mr-3 h-5 w-5" /> Sobre o Sistema
             </button>
             
-            <div className="pt-4 mt-4 border-t border-gray-200">
-                <button 
-                onClick={() => setActiveTab('system')}
-                className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'system' ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-gray-500 hover:bg-gray-100'}`}
-                >
-                <SettingsIcon className="mr-3 h-5 w-5" /> Sistema
-                </button>
-            </div>
+            {/* Botão de Sistema apenas para Admin na Sidebar também */}
+            {currentUserRole === 'admin' && (
+                <div className="pt-4 mt-4 border-t border-gray-200">
+                    <button 
+                    onClick={() => setActiveTab('system')}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'system' ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                    <SettingsIcon className="mr-3 h-5 w-5" /> Sistema
+                    </button>
+                </div>
+            )}
           </nav>
 
-          {/* DIAGNÓSTICO DE USUÁRIO (NOVA ÁREA) */}
+          {/* DIAGNÓSTICO DE USUÁRIO */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-500">
             <p className="font-bold text-gray-700 mb-1">Status da Conta</p>
             <div className="flex items-center gap-2 mb-1 overflow-hidden text-ellipsis">
@@ -363,16 +352,22 @@ export function Settings() {
           
           {/* --- ABA USUÁRIOS --- */}
           {activeTab === 'users' && (
-            currentUserRole === 'admin' ? (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-bold text-gray-800">Usuários do Sistema</h2>
-                        <p className="text-sm text-gray-500">Controle de acesso e sincronização.</p>
+                        <p className="text-sm text-gray-500">
+                            {currentUserRole === 'admin' 
+                                ? 'Gerencie o acesso e permissões dos usuários.' 
+                                : 'Visualize a equipe cadastrada no sistema.'}
+                        </p>
                     </div>
-                    <button onClick={() => openUserModal()} className="bg-salomao-blue hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors">
-                        <Plus className="w-4 h-4 mr-2" /> Novo Usuário
-                    </button>
+                    {/* Botão NOVO USUÁRIO apenas para Admin */}
+                    {currentUserRole === 'admin' && (
+                        <button onClick={() => openUserModal()} className="bg-salomao-blue hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors">
+                            <Plus className="w-4 h-4 mr-2" /> Novo Usuário
+                        </button>
+                    )}
                 </div>
                 
                 <div className="overflow-x-auto">
@@ -383,7 +378,7 @@ export function Settings() {
                         <th className="p-4">Email</th>
                         <th className="p-4">Perfil</th>
                         <th className="p-4">Status</th>
-                        <th className="p-4 text-right">Ações</th>
+                        {currentUserRole === 'admin' && <th className="p-4 text-right">Ações</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -397,13 +392,12 @@ export function Settings() {
                             </td>
                             <td className="p-4 text-gray-600">{user.email}</td>
                             <td className="p-4">
-                                {/* CORREÇÃO: Cores distintas para cada perfil */}
                                 <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase border ${
                                     user.role === 'admin' 
                                         ? 'bg-purple-100 text-purple-700 border-purple-200' 
                                         : user.role === 'editor' 
                                             ? 'bg-blue-100 text-blue-700 border-blue-200'
-                                            : 'bg-gray-100 text-gray-600 border-gray-200' // viewer
+                                            : 'bg-gray-100 text-gray-600 border-gray-200'
                                 }`}>
                                     {user.role === 'admin' ? 'Administrador' : user.role === 'editor' ? 'Editor' : 'Visualizador'}
                                 </span>
@@ -415,28 +409,21 @@ export function Settings() {
                                     <span className="flex items-center text-gray-400 text-xs font-bold"><XCircle className="w-3 h-3 mr-1" /> Inativo</span>
                                 )}
                             </td>
-                            <td className="p-4 text-right">
-                                <div className="flex justify-end gap-2">
-                                    <button onClick={() => openUserModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
-                                </div>
-                            </td>
+                            {/* Ações apenas para Admin */}
+                            {currentUserRole === 'admin' && (
+                                <td className="p-4 text-right">
+                                    <div className="flex justify-end gap-2">
+                                        <button onClick={() => openUserModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                                    </div>
+                                </td>
+                            )}
                         </tr>
                         ))}
                     </tbody>
                     </table>
                 </div>
-                </div>
-            ) : (
-               <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center animate-in fade-in zoom-in duration-300">
-                    <Ban className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-red-700">Acesso Restrito</h3>
-                    <p className="text-red-600 mt-2 max-w-md mx-auto">
-                        Você não tem permissão para gerenciar usuários. <br/>
-                        Seu nível de acesso atual é: <strong className="uppercase">{currentUserRole || 'Desconhecido'}</strong>
-                    </p>
-               </div>
-            )
+            </div>
           )}
 
           {/* --- ABA SOBRE --- */}
