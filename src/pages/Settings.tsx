@@ -1,3 +1,15 @@
+CONTEXTO: Estou enviando o código oficial e atualizado do arquivo: Settings.tsx
+Atualize esse e me peça o restante que eu vou enviando, vamos atualizar um arquivo por vez.
+Veja se precisamos criar tabelas no Supabase
+
+SUA TAREFA: 
+1. Ao trocar de usuário, para um viewer ou edtor, os dados somem, eles devem ser visualizados para qualquer pefil e poder ser idiado para editor
+
+
+CÓDIGO FONTE:
+
+
+
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Info, History, Save, Plus, Trash2, Edit, CheckCircle2, 
