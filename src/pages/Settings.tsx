@@ -126,9 +126,12 @@ export function Settings() {
         if (error) throw error;
       } else {
         // Novo usuário
+        // Correção: Gerar ID manual para evitar erro "null value in column id"
+        const newId = crypto.randomUUID();
+        
         const { error } = await supabase
           .from('profiles')
-          .insert([userData]);
+          .insert([{ ...userData, id: newId }]);
         
         if (error) throw error;
       }
