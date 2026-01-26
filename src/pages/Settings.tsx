@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Info, History, Save, Plus, Trash2, Edit, CheckCircle2, 
   XCircle, Shield, Code2, Database, Layout, Search, Lock, Mail, AlertTriangle, Settings as SettingsIcon,
-  DollarSign, Briefcase, User, Ban
+  DollarSign, Briefcase, User, Ban, LogOut
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -77,12 +77,13 @@ const INITIAL_CHANGELOG: ChangeLogItem[] = [
 ];
 
 export function Settings() {
-  // Define a aba inicial padrão como 'changelog' para evitar acesso não autorizado visual imediato
-  const [activeTab, setActiveTab] = useState<'users' | 'about' | 'changelog' | 'system'>('changelog');
+  const [activeTab, setActiveTab] = useState<'users' | 'about' | 'changelog' | 'system'>('users');
   const [loading, setLoading] = useState(false);
 
   // --- ESTADOS DE USUÁRIOS E PERMISSÃO ---
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
+  
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -90,23 +91,27 @@ export function Settings() {
 
   // --- LÓGICA DE PERMISSÃO ---
   useEffect(() => {
-    checkCurrentUserRole();
+    checkCurrentUser();
   }, []);
 
-  const checkCurrentUserRole = async () => {
+  const checkCurrentUser = async () => {
     try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-            const { data: profile } = await supabase
+            setCurrentUserEmail(user.email || '');
+            
+            // Busca o perfil para saber a role
+            const { data: profile, error } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', user.id)
                 .single();
             
             if (profile) {
+                console.log("Permissão detectada:", profile.role); // Debug no console
                 setCurrentUserRole(profile.role as 'admin' | 'editor' | 'viewer');
-                // Se for admin, pode começar na aba users, senão vai para changelog
-                if (profile.role === 'admin') setActiveTab('users');
+            } else {
+                console.warn("Perfil não encontrado para este usuário. Verifique a tabela profiles.");
             }
         }
     } catch (error) {
@@ -116,7 +121,7 @@ export function Settings() {
 
   // --- LÓGICA DE USUÁRIOS (SUPABASE) ---
   const fetchUsers = async () => {
-    // Apenas admins podem buscar a lista completa de usuários
+    // Se não for admin, nem tenta buscar para evitar erro 403 (Forbidden)
     if (currentUserRole !== 'admin') return;
 
     try {
@@ -132,21 +137,22 @@ export function Settings() {
     }
   };
 
+  // Busca usuários sempre que a role mudar para admin ou a aba mudar para users
   useEffect(() => {
-    if (currentUserRole === 'admin') {
+    if (currentUserRole === 'admin' && activeTab === 'users') {
         fetchUsers();
     }
-  }, [currentUserRole]);
+  }, [currentUserRole, activeTab]);
 
   const handleSaveUser = async () => {
-    if (currentUserRole !== 'admin') return alert("Permissão negada.");
+    if (currentUserRole !== 'admin') return alert("Permissão negada. Você não é administrador.");
 
     setLoading(true);
     try {
       const userData = {
         name: userForm.name,
         email: userForm.email,
-        role: userForm.role,
+        role: userForm.role, // Certifique-se que isso é 'admin', 'editor' ou 'viewer'
         active: userForm.active,
         last_login: editingUser?.last_login || '-' 
       };
@@ -159,6 +165,7 @@ export function Settings() {
         
         if (error) throw error;
       } else {
+        // Gera ID manual para evitar erro de null value
         const newId = crypto.randomUUID();
         const { error } = await supabase
           .from('profiles')
@@ -178,13 +185,14 @@ export function Settings() {
   };
 
   const openUserModal = (user?: UserProfile) => {
-      if (currentUserRole !== 'admin') return;
+      if (currentUserRole !== 'admin') return alert("Apenas administradores podem gerenciar usuários.");
       
       if (user) {
           setEditingUser(user);
           setUserForm({ name: user.name, email: user.email, role: user.role as any, active: user.active });
       } else {
           setEditingUser(null);
+          // Default role ao criar novo
           setUserForm({ name: '', email: '', role: 'editor', active: true });
       }
       setIsUserModalOpen(true);
@@ -291,17 +299,15 @@ export function Settings() {
 
       <div className="flex flex-col lg:flex-row gap-8 flex-1 overflow-hidden">
         {/* SIDEBAR DE NAVEGAÇÃO */}
-        <div className="w-full lg:w-64 flex-shrink-0 overflow-y-auto">
-          <nav className="space-y-1">
-            {/* ITEM: GERENCIAR USUÁRIOS (SÓ ADMIN) */}
-            {currentUserRole === 'admin' && (
-                <button 
+        <div className="w-full lg:w-64 flex-shrink-0 flex flex-col">
+          <nav className="space-y-1 flex-1 overflow-y-auto">
+            {/* O menu sempre aparece, mas o conteúdo é bloqueado se não for admin */}
+            <button 
                 onClick={() => setActiveTab('users')}
                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'users' ? 'bg-salomao-blue text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
+            >
                 <Users className="mr-3 h-5 w-5" /> Gerenciar Usuários
-                </button>
-            )}
+            </button>
 
             <button 
               onClick={() => setActiveTab('changelog')}
@@ -316,92 +322,109 @@ export function Settings() {
               <Info className="mr-3 h-5 w-5" /> Sobre o Sistema
             </button>
             
-            {/* ITEM: SISTEMA/RESET (SÓ ADMIN) */}
-            {currentUserRole === 'admin' && (
-                <div className="pt-4 mt-4 border-t border-gray-200">
-                    <button 
-                    onClick={() => setActiveTab('system')}
-                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'system' ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-gray-500 hover:bg-gray-100'}`}
-                    >
-                    <SettingsIcon className="mr-3 h-5 w-5" /> Sistema
-                    </button>
-                </div>
-            )}
+            <div className="pt-4 mt-4 border-t border-gray-200">
+                <button 
+                onClick={() => setActiveTab('system')}
+                className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'system' ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                <SettingsIcon className="mr-3 h-5 w-5" /> Sistema
+                </button>
+            </div>
           </nav>
+
+          {/* DIAGNÓSTICO DE USUÁRIO (NOVA ÁREA) */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-500">
+            <p className="font-bold text-gray-700 mb-1">Status da Conta</p>
+            <div className="flex items-center gap-2 mb-1 overflow-hidden text-ellipsis">
+                <User className="w-3 h-3" /> 
+                <span className="truncate">{currentUserEmail || 'Não identificado'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <Shield className="w-3 h-3" /> 
+                <span className="capitalize">{currentUserRole || 'Verificando...'}</span>
+            </div>
+          </div>
         </div>
 
         {/* CONTEÚDO PRINCIPAL */}
         <div className="flex-1 overflow-y-auto pr-2 pb-10">
           
-          {/* --- ABA USUÁRIOS (ADMIN ONLY) --- */}
-          {activeTab === 'users' && currentUserRole === 'admin' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-                <div>
-                    <h2 className="text-lg font-bold text-gray-800">Usuários do Sistema</h2>
-                    <p className="text-sm text-gray-500">Controle de acesso e sincronização.</p>
+          {/* --- ABA USUÁRIOS --- */}
+          {activeTab === 'users' && (
+            currentUserRole === 'admin' ? (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-800">Usuários do Sistema</h2>
+                        <p className="text-sm text-gray-500">Controle de acesso e sincronização.</p>
+                    </div>
+                    <button onClick={() => openUserModal()} className="bg-salomao-blue hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors">
+                        <Plus className="w-4 h-4 mr-2" /> Novo Usuário
+                    </button>
                 </div>
-                <button onClick={() => openUserModal()} className="bg-salomao-blue hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors">
-                    <Plus className="w-4 h-4 mr-2" /> Novo Usuário
-                </button>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-gray-50 text-gray-500 font-medium">
-                    <tr>
-                      <th className="p-4">Nome</th>
-                      <th className="p-4">Email</th>
-                      <th className="p-4">Perfil</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {users.map(user => (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="p-4 font-medium text-gray-800 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                                {(user.name || user.email || '?').charAt(0).toUpperCase()}
-                            </div>
-                            {user.name || 'Sem nome'}
-                        </td>
-                        <td className="p-4 text-gray-600">{user.email}</td>
-                        <td className="p-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
-                                user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                            }`}>
-                                {user.role}
-                            </span>
-                        </td>
-                        <td className="p-4">
-                            {user.active ? (
-                                <span className="flex items-center text-green-600 text-xs font-bold"><CheckCircle2 className="w-3 h-3 mr-1" /> Ativo</span>
-                            ) : (
-                                <span className="flex items-center text-gray-400 text-xs font-bold"><XCircle className="w-3 h-3 mr-1" /> Inativo</span>
-                            )}
-                        </td>
-                        <td className="p-4 text-right">
-                            <div className="flex justify-end gap-2">
-                                <button onClick={() => openUserModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
-                                <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* CASO UM USUÁRIO TENTE ACESSAR ABA NÃO PERMITIDA */}
-          {((activeTab === 'users' || activeTab === 'system') && currentUserRole !== 'admin') && (
-               <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+                
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 text-gray-500 font-medium">
+                        <tr>
+                        <th className="p-4">Nome</th>
+                        <th className="p-4">Email</th>
+                        <th className="p-4">Perfil</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {users.map(user => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                            <td className="p-4 font-medium text-gray-800 flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                                    {(user.name || user.email || '?').charAt(0).toUpperCase()}
+                                </div>
+                                {user.name || 'Sem nome'}
+                            </td>
+                            <td className="p-4 text-gray-600">{user.email}</td>
+                            <td className="p-4">
+                                {/* CORREÇÃO: Cores distintas para cada perfil */}
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase border ${
+                                    user.role === 'admin' 
+                                        ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                                        : user.role === 'editor' 
+                                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                            : 'bg-gray-100 text-gray-600 border-gray-200' // viewer
+                                }`}>
+                                    {user.role === 'admin' ? 'Administrador' : user.role === 'editor' ? 'Editor' : 'Visualizador'}
+                                </span>
+                            </td>
+                            <td className="p-4">
+                                {user.active ? (
+                                    <span className="flex items-center text-green-600 text-xs font-bold"><CheckCircle2 className="w-3 h-3 mr-1" /> Ativo</span>
+                                ) : (
+                                    <span className="flex items-center text-gray-400 text-xs font-bold"><XCircle className="w-3 h-3 mr-1" /> Inativo</span>
+                                )}
+                            </td>
+                            <td className="p-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => openUserModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                            </td>
+                        </tr>
+                        ))}
+                    </tbody>
+                    </table>
+                </div>
+                </div>
+            ) : (
+               <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center animate-in fade-in zoom-in duration-300">
                     <Ban className="w-12 h-12 text-red-500 mx-auto mb-4" />
                     <h3 className="text-xl font-bold text-red-700">Acesso Restrito</h3>
-                    <p className="text-red-600 mt-2">Você não tem permissão para acessar esta área.</p>
+                    <p className="text-red-600 mt-2 max-w-md mx-auto">
+                        Você não tem permissão para gerenciar usuários. <br/>
+                        Seu nível de acesso atual é: <strong className="uppercase">{currentUserRole || 'Desconhecido'}</strong>
+                    </p>
                </div>
+            )
           )}
 
           {/* --- ABA SOBRE --- */}
@@ -483,84 +506,94 @@ export function Settings() {
           )}
 
           {/* --- ABA SISTEMA (RESET) - ADMIN ONLY --- */}
-          {activeTab === 'system' && currentUserRole === 'admin' && (
-            <div className="space-y-6">
-                
-                {/* RESET MODULAR */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100">
-                        <h2 className="text-lg font-bold text-gray-800">Reset Modular</h2>
-                        <p className="text-sm text-gray-500">Limpeza seletiva de dados por módulo.</p>
-                    </div>
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <button onClick={() => handleModuleReset('financial')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
-                            <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
-                                <DollarSign className="w-6 h-6" />
-                            </div>
-                            <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Financeiro</span>
-                            <span className="text-xs text-gray-400 mt-1">Apenas parcelas</span>
-                        </button>
-
-                        <button onClick={() => handleModuleReset('kanban')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
-                            <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
-                                <Layout className="w-6 h-6" />
-                            </div>
-                            <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Tarefas</span>
-                            <span className="text-xs text-gray-400 mt-1">Todas do Kanban</span>
-                        </button>
-
-                        <button onClick={() => handleModuleReset('contracts')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
-                            <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
-                                <Briefcase className="w-6 h-6" />
-                            </div>
-                            <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Contratos</span>
-                            <span className="text-xs text-center text-gray-400 mt-1">+ Docs, Timeline e Parcelas</span>
-                        </button>
-
-                        <button onClick={() => handleModuleReset('clients')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
-                            <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
-                                <Users className="w-6 h-6" />
-                            </div>
-                            <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Clientes</span>
-                            <span className="text-xs text-center text-gray-400 mt-1">Apenas sem vínculo</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* ZONA DE PERIGO */}
-                <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
-                    <div className="p-6 bg-red-50 border-b border-red-100 flex items-start gap-4">
-                        <div className="p-3 bg-red-100 rounded-full text-red-600">
-                            <AlertTriangle className="w-8 h-8" />
+          {activeTab === 'system' && (
+            currentUserRole === 'admin' ? (
+                <div className="space-y-6">
+                    
+                    {/* RESET MODULAR */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-6 border-b border-gray-100">
+                            <h2 className="text-lg font-bold text-gray-800">Reset Modular</h2>
+                            <p className="text-sm text-gray-500">Limpeza seletiva de dados por módulo.</p>
                         </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-red-800">Zona de Perigo</h2>
-                            <p className="text-sm text-red-600 mt-1">
-                                Ações nesta área são destrutivas e irreversíveis. Prossiga com extrema cautela.
-                            </p>
-                        </div>
-                    </div>
-                    <div className="p-8">
-                        <div className="border border-red-100 rounded-lg p-6 flex flex-col sm:flex-row justify-between items-center gap-6 bg-white hover:bg-red-50/30 transition-colors">
-                            <div>
-                                <h3 className="font-bold text-gray-800">Reset de Fábrica (Wipe Data)</h3>
-                                <p className="text-sm text-gray-500 mt-1 max-w-xl">
-                                    Esta ação irá <strong>excluir permanentemente</strong> todos os contratos, clientes, sócios, analistas, arquivos e dados financeiros do banco de dados. 
-                                    O sistema retornará ao estado de instalação inicial (vazio).
-                                </p>
-                            </div>
-                            <button 
-                                onClick={handleFactoryReset}
-                                disabled={loading}
-                                className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-lg font-bold shadow-lg flex items-center whitespace-nowrap transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? <SettingsIcon className="w-5 h-5 animate-spin mr-2" /> : <Trash2 className="w-5 h-5 mr-2" />}
-                                RESETAR TUDO
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <button onClick={() => handleModuleReset('financial')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
+                                <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
+                                    <DollarSign className="w-6 h-6" />
+                                </div>
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Financeiro</span>
+                                <span className="text-xs text-gray-400 mt-1">Apenas parcelas</span>
+                            </button>
+
+                            <button onClick={() => handleModuleReset('kanban')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
+                                <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
+                                    <Layout className="w-6 h-6" />
+                                </div>
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Tarefas</span>
+                                <span className="text-xs text-gray-400 mt-1">Todas do Kanban</span>
+                            </button>
+
+                            <button onClick={() => handleModuleReset('contracts')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
+                                <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
+                                    <Briefcase className="w-6 h-6" />
+                                </div>
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Contratos</span>
+                                <span className="text-xs text-center text-gray-400 mt-1">+ Docs, Timeline e Parcelas</span>
+                            </button>
+
+                            <button onClick={() => handleModuleReset('clients')} className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-red-200 hover:bg-red-50 transition-colors group">
+                                <div className="p-3 bg-gray-100 rounded-full text-gray-500 group-hover:text-red-500 group-hover:bg-white mb-3">
+                                    <Users className="w-6 h-6" />
+                                </div>
+                                <span className="text-sm font-bold text-gray-700 group-hover:text-red-700">Limpar Clientes</span>
+                                <span className="text-xs text-center text-gray-400 mt-1">Apenas sem vínculo</span>
                             </button>
                         </div>
                     </div>
+
+                    {/* ZONA DE PERIGO */}
+                    <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
+                        <div className="p-6 bg-red-50 border-b border-red-100 flex items-start gap-4">
+                            <div className="p-3 bg-red-100 rounded-full text-red-600">
+                                <AlertTriangle className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-red-800">Zona de Perigo</h2>
+                                <p className="text-sm text-red-600 mt-1">
+                                    Ações nesta área são destrutivas e irreversíveis. Prossiga com extrema cautela.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="p-8">
+                            <div className="border border-red-100 rounded-lg p-6 flex flex-col sm:flex-row justify-between items-center gap-6 bg-white hover:bg-red-50/30 transition-colors">
+                                <div>
+                                    <h3 className="font-bold text-gray-800">Reset de Fábrica (Wipe Data)</h3>
+                                    <p className="text-sm text-gray-500 mt-1 max-w-xl">
+                                        Esta ação irá <strong>excluir permanentemente</strong> todos os contratos, clientes, sócios, analistas, arquivos e dados financeiros do banco de dados. 
+                                        O sistema retornará ao estado de instalação inicial (vazio).
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={handleFactoryReset}
+                                    disabled={loading}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-lg font-bold shadow-lg flex items-center whitespace-nowrap transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? <SettingsIcon className="w-5 h-5 animate-spin mr-2" /> : <Trash2 className="w-5 h-5 mr-2" />}
+                                    RESETAR TUDO
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center animate-in fade-in zoom-in duration-300">
+                    <Ban className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-red-700">Acesso Restrito</h3>
+                    <p className="text-red-600 mt-2 max-w-md mx-auto">
+                        Esta área contém funções críticas do sistema e é restrita a Administradores.
+                    </p>
+               </div>
+            )
           )}
 
         </div>
