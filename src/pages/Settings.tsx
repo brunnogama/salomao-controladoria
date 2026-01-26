@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Info, History, Save, Plus, Trash2, Edit, CheckCircle2, 
   XCircle, Shield, Code2, Database, Layout, Search, Lock, Mail, AlertTriangle, Settings as SettingsIcon,
-  DollarSign, Briefcase, User
+  DollarSign, Briefcase, User, Ban
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -77,17 +77,48 @@ const INITIAL_CHANGELOG: ChangeLogItem[] = [
 ];
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<'users' | 'about' | 'changelog' | 'system'>('users');
+  // Define a aba inicial padrão como 'changelog' para evitar acesso não autorizado visual imediato
+  const [activeTab, setActiveTab] = useState<'users' | 'about' | 'changelog' | 'system'>('changelog');
   const [loading, setLoading] = useState(false);
 
-  // --- ESTADOS DE USUÁRIOS ---
+  // --- ESTADOS DE USUÁRIOS E PERMISSÃO ---
+  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [userForm, setUserForm] = useState({ name: '', email: '', role: 'editor', active: true });
 
+  // --- LÓGICA DE PERMISSÃO ---
+  useEffect(() => {
+    checkCurrentUserRole();
+  }, []);
+
+  const checkCurrentUserRole = async () => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+            
+            if (profile) {
+                setCurrentUserRole(profile.role as 'admin' | 'editor' | 'viewer');
+                // Se for admin, pode começar na aba users, senão vai para changelog
+                if (profile.role === 'admin') setActiveTab('users');
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao verificar permissão:", error);
+    }
+  };
+
   // --- LÓGICA DE USUÁRIOS (SUPABASE) ---
   const fetchUsers = async () => {
+    // Apenas admins podem buscar a lista completa de usuários
+    if (currentUserRole !== 'admin') return;
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -102,10 +133,14 @@ export function Settings() {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (currentUserRole === 'admin') {
+        fetchUsers();
+    }
+  }, [currentUserRole]);
 
   const handleSaveUser = async () => {
+    if (currentUserRole !== 'admin') return alert("Permissão negada.");
+
     setLoading(true);
     try {
       const userData = {
@@ -113,7 +148,6 @@ export function Settings() {
         email: userForm.email,
         role: userForm.role,
         active: userForm.active,
-        // Mantém last_login se existir, senão define padrão ou deixa nulo
         last_login: editingUser?.last_login || '-' 
       };
 
@@ -125,10 +159,7 @@ export function Settings() {
         
         if (error) throw error;
       } else {
-        // Novo usuário
-        // Correção: Gerar ID manual para evitar erro "null value in column id"
         const newId = crypto.randomUUID();
-        
         const { error } = await supabase
           .from('profiles')
           .insert([{ ...userData, id: newId }]);
@@ -147,6 +178,8 @@ export function Settings() {
   };
 
   const openUserModal = (user?: UserProfile) => {
+      if (currentUserRole !== 'admin') return;
+      
       if (user) {
           setEditingUser(user);
           setUserForm({ name: user.name, email: user.email, role: user.role as any, active: user.active });
@@ -158,6 +191,8 @@ export function Settings() {
   };
 
   const handleDeleteUser = async (id: string) => {
+      if (currentUserRole !== 'admin') return alert("Permissão negada.");
+
       if(confirm("Tem certeza que deseja remover este usuário?")) {
         try {
           const { error } = await supabase.from('profiles').delete().eq('id', id);
@@ -171,6 +206,8 @@ export function Settings() {
 
   // --- LÓGICA DE RESET POR MÓDULO ---
   const handleModuleReset = async (module: 'contracts' | 'clients' | 'financial' | 'kanban') => {
+    if (currentUserRole !== 'admin') return alert("Permissão negada.");
+
     const labels = {
         contracts: 'CONTRATOS',
         clients: 'CLIENTES',
@@ -191,21 +228,16 @@ export function Settings() {
             await supabase.from('kanban_tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         }
         else if (module === 'contracts') {
-            // Apaga dependências primeiro
             await supabase.from('financial_installments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('contract_timeline').delete().neq('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('contract_documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('contract_processes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('kanban_tasks').delete().not('contract_id', 'is', null);
-            // Apaga contratos
             await supabase.from('contracts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         }
         else if (module === 'clients') {
             const { error } = await supabase.from('clients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            if (error) {
-                // Erro comum de Foreign Key se houver contratos
-                throw new Error("Não é possível excluir clientes que possuem contratos vinculados. Exclua os contratos primeiro.");
-            }
+            if (error) throw new Error("Não é possível excluir clientes que possuem contratos vinculados.");
         }
 
         alert(`✅ Módulo ${labels[module]} limpo com sucesso!`);
@@ -220,8 +252,9 @@ export function Settings() {
 
   // --- LÓGICA DE RESET GLOBAL ---
   const handleFactoryReset = async () => {
-    const confirmation = window.prompt("🚨 ATENÇÃO: ZONA DE PERIGO 🚨\n\nEssa ação apagará TODOS os dados do sistema.\n\nPara confirmar, digite:\nDELETAR TUDO");
+    if (currentUserRole !== 'admin') return alert("Permissão negada.");
 
+    const confirmation = window.prompt("🚨 ATENÇÃO: ZONA DE PERIGO 🚨\n\nEssa ação apagará TODOS os dados do sistema.\n\nPara confirmar, digite:\nDELETAR TUDO");
     if (confirmation !== "DELETAR TUDO") return alert("Ação cancelada.");
 
     setLoading(true);
@@ -246,9 +279,7 @@ export function Settings() {
   };
 
   return (
-    // Removido max-w-7xl e mx-auto para alinhar com as outras páginas full-width
     <div className="p-8 animate-in fade-in duration-500 h-full flex flex-col">
-      {/* Estrutura do header padronizada */}
       <div className="flex justify-between items-center mb-8">
         <div>
             <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
@@ -262,12 +293,16 @@ export function Settings() {
         {/* SIDEBAR DE NAVEGAÇÃO */}
         <div className="w-full lg:w-64 flex-shrink-0 overflow-y-auto">
           <nav className="space-y-1">
-            <button 
-              onClick={() => setActiveTab('users')}
-              className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'users' ? 'bg-salomao-blue text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              <Users className="mr-3 h-5 w-5" /> Gerenciar Usuários
-            </button>
+            {/* ITEM: GERENCIAR USUÁRIOS (SÓ ADMIN) */}
+            {currentUserRole === 'admin' && (
+                <button 
+                onClick={() => setActiveTab('users')}
+                className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'users' ? 'bg-salomao-blue text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                <Users className="mr-3 h-5 w-5" /> Gerenciar Usuários
+                </button>
+            )}
+
             <button 
               onClick={() => setActiveTab('changelog')}
               className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'changelog' ? 'bg-salomao-blue text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
@@ -280,22 +315,26 @@ export function Settings() {
             >
               <Info className="mr-3 h-5 w-5" /> Sobre o Sistema
             </button>
-            <div className="pt-4 mt-4 border-t border-gray-200">
-                <button 
-                onClick={() => setActiveTab('system')}
-                className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'system' ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-gray-500 hover:bg-gray-100'}`}
-                >
-                <SettingsIcon className="mr-3 h-5 w-5" /> Sistema
-                </button>
-            </div>
+            
+            {/* ITEM: SISTEMA/RESET (SÓ ADMIN) */}
+            {currentUserRole === 'admin' && (
+                <div className="pt-4 mt-4 border-t border-gray-200">
+                    <button 
+                    onClick={() => setActiveTab('system')}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'system' ? 'bg-red-50 text-red-600 shadow-sm border border-red-100' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                    <SettingsIcon className="mr-3 h-5 w-5" /> Sistema
+                    </button>
+                </div>
+            )}
           </nav>
         </div>
 
-        {/* CONTEÚDO PRINCIPAL - Scroll independente */}
+        {/* CONTEÚDO PRINCIPAL */}
         <div className="flex-1 overflow-y-auto pr-2 pb-10">
           
-          {/* --- ABA USUÁRIOS --- */}
-          {activeTab === 'users' && (
+          {/* --- ABA USUÁRIOS (ADMIN ONLY) --- */}
+          {activeTab === 'users' && currentUserRole === 'admin' && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                 <div>
@@ -323,10 +362,8 @@ export function Settings() {
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="p-4 font-medium text-gray-800 flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                                {/* CORREÇÃO: Verifica se name existe, senão usa email ou '?' para evitar crash */}
                                 {(user.name || user.email || '?').charAt(0).toUpperCase()}
                             </div>
-                            {/* Exibe nome ou 'Sem nome' caso venha vazio */}
                             {user.name || 'Sem nome'}
                         </td>
                         <td className="p-4 text-gray-600">{user.email}</td>
@@ -356,6 +393,15 @@ export function Settings() {
                 </table>
               </div>
             </div>
+          )}
+
+          {/* CASO UM USUÁRIO TENTE ACESSAR ABA NÃO PERMITIDA */}
+          {((activeTab === 'users' || activeTab === 'system') && currentUserRole !== 'admin') && (
+               <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+                    <Ban className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-red-700">Acesso Restrito</h3>
+                    <p className="text-red-600 mt-2">Você não tem permissão para acessar esta área.</p>
+               </div>
           )}
 
           {/* --- ABA SOBRE --- */}
@@ -436,8 +482,8 @@ export function Settings() {
             </div>
           )}
 
-          {/* --- ABA SISTEMA (RESET) --- */}
-          {activeTab === 'system' && (
+          {/* --- ABA SISTEMA (RESET) - ADMIN ONLY --- */}
+          {activeTab === 'system' && currentUserRole === 'admin' && (
             <div className="space-y-6">
                 
                 {/* RESET MODULAR */}
