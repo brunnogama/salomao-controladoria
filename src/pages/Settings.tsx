@@ -323,9 +323,11 @@ export function Settings() {
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="p-4 font-medium text-gray-800 flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                                {user.name.charAt(0)}
+                                {/* CORREÇÃO: Verifica se name existe, senão usa email ou '?' para evitar crash */}
+                                {(user.name || user.email || '?').charAt(0).toUpperCase()}
                             </div>
-                            {user.name}
+                            {/* Exibe nome ou 'Sem nome' caso venha vazio */}
+                            {user.name || 'Sem nome'}
                         </td>
                         <td className="p-4 text-gray-600">{user.email}</td>
                         <td className="p-4">
