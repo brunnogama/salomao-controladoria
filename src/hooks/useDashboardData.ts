@@ -54,7 +54,8 @@ const isDateInLastMonthMTD = (dateString?: string) => {
 // Formata data curta (ex: 01/jan)
 const formatDateShort = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 
-export function useDashboardData() {
+// ATUALIZAÇÃO: Hook aceita filtros opcionais
+export function useDashboardData(selectedPartner?: string, selectedLocation?: string) {
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -87,6 +88,14 @@ export function useDashboardData() {
     // Data de início para gráficos de 12 meses
     const dataInicioFixo = new Date(2025, 5, 1); 
     
+    // --- FILTRAGEM DOS DADOS ---
+    const filteredContracts = contracts.filter(c => {
+        const matchesPartner = selectedPartner ? c.partner_id === selectedPartner : true;
+        const matchesLocation = selectedLocation ? c.billing_location === selectedLocation : true;
+        return matchesPartner && matchesLocation;
+    });
+    // ---------------------------
+
     // --- GERAÇÃO DOS LABELS DE PERÍODO ---
     const primeiroDiaMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     const periodoAtualStr = `${formatDateShort(primeiroDiaMesAtual)} - ${formatDateShort(hoje)}`;
@@ -171,8 +180,8 @@ export function useDashboardData() {
     }
     const dataLimite12Meses = dataInicioFixo;
 
-    // --- LOOP PRINCIPAL DE CÁLCULO ---
-    contracts.forEach((c) => {
+    // --- LOOP PRINCIPAL DE CÁLCULO (USANDO FILTRADOS) ---
+    filteredContracts.forEach((c) => {
       // 1. LEITURA DOS VALORES (Foco nos totais do placeholder)
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
@@ -409,7 +418,7 @@ export function useDashboardData() {
     const contractsByPartner = Object.entries(partnerCounts).map(([name, stats]: any) => ({ name, ...stats })).sort((a: any, b: any) => b.total - a.total);
 
     return { metrics, funil, evolucaoMensal, financeiro12Meses, statsFinanceiro, propostas12Meses, statsPropostas, mediasFinanceiras, mediasPropostas, rejectionData, contractsByPartner };
-  }, [contracts, partners]);
+  }, [contracts, partners, selectedPartner, selectedLocation]);
 
   return { loading, refresh: fetchDashboardData, ...dashboardData };
 }

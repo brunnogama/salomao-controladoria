@@ -6,10 +6,10 @@ import {
   Loader2, BarChart4, Layers, XCircle, CheckCircle2, Briefcase, Clock, Mail,
   LayoutDashboard, TrendingUp, TrendingDown, Minus, Ban, Scale, Activity, DollarSign,
   ArrowUpRight, GitCommit, HeartHandshake, AlertCircle, FileSearch, Lightbulb,
-  Percent, Users, Banknote, Shield
+  Percent, Users, Banknote, Shield, MapPin
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase'; // Importação do supabase adicionada
+import { supabase } from '../lib/supabase';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { EmptyState } from '../components/ui/EmptyState';
 
@@ -22,15 +22,49 @@ interface FinItemProps {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  
+  // --- ESTADOS DE FILTROS ---
+  const [selectedPartner, setSelectedPartner] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
+  
+  const [partnersList, setPartnersList] = useState<{id: string, name: string}[]>([]);
+  const [locationsList, setLocationsList] = useState<string[]>([]);
+
+  // Passamos os filtros para o hook (O hook precisará ser atualizado para aceitar isso)
   const {
     loading, metrics, funil, evolucaoMensal, financeiro12Meses, statsFinanceiro,
     propostas12Meses, statsPropostas, mediasFinanceiras, mediasPropostas,
     rejectionData, contractsByPartner
-  } = useDashboardData();
+  } = useDashboardData(selectedPartner, selectedLocation);
 
   const [exporting, setExporting] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
   const dashboardRef = useRef<HTMLDivElement>(null);
+
+  // --- EFEITO PARA CARREGAR OPÇÕES DE FILTRO ---
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+        // Busca Sócios
+        const { data: partners } = await supabase
+            .from('partners')
+            .select('id, name')
+            .eq('active', true)
+            .order('name');
+        
+        if (partners) setPartnersList(partners);
+
+        // Busca Locais de Faturamento (Distinct)
+        const { data: contracts } = await supabase
+            .from('contracts')
+            .select('billing_location');
+        
+        if (contracts) {
+            const uniqueLocations = Array.from(new Set(contracts.map(c => c.billing_location).filter(Boolean)));
+            setLocationsList(uniqueLocations.sort());
+        }
+    };
+    fetchFilterOptions();
+  }, []);
 
   // --- EFEITO PARA VERIFICAR PERMISSÃO ---
   useEffect(() => {
@@ -58,7 +92,7 @@ export function Dashboard() {
             scale: 2,
             useCORS: true,
             backgroundColor: '#F8FAFC',
-            ignoreElements: (element) => element.id === 'export-button-container'
+            ignoreElements: (element) => element.id === 'export-button-container' || element.id === 'dashboard-filters'
         });
 
         const imgData = canvas.toDataURL('image/png');
@@ -178,7 +212,7 @@ export function Dashboard() {
   return (
     <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
       
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
             <h1 className='text-3xl font-bold text-salomao-blue flex items-center gap-2'>
               <LayoutDashboard className="w-8 h-8" /> Controladoria Jurídica
@@ -201,15 +235,50 @@ export function Dashboard() {
                 )}
             </div>
         </div>
-        <div id="export-button-container">
-            <button 
-                onClick={handleExportAndEmail} 
-                disabled={exporting}
-                className="flex items-center bg-salomao-blue text-white px-4 py-2 rounded-lg hover:bg-blue-900 transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-                {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                Enviar por E-mail
-            </button>
+
+        {/* ÁREA DE AÇÕES E FILTROS */}
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto" id="dashboard-filters">
+            {/* Filtro de Sócio */}
+            <div className="relative w-full sm:w-48">
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <select 
+                    value={selectedPartner} 
+                    onChange={(e) => setSelectedPartner(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none appearance-none cursor-pointer"
+                >
+                    <option value="">Todos os Sócios</option>
+                    {partnersList.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Filtro de Local */}
+            <div className="relative w-full sm:w-48">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <select 
+                    value={selectedLocation} 
+                    onChange={(e) => setSelectedLocation(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-salomao-blue outline-none appearance-none cursor-pointer"
+                >
+                    <option value="">Todos Locais</option>
+                    {locationsList.map(l => (
+                        <option key={l} value={l}>{l}</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* Botão Exportar */}
+            <div id="export-button-container">
+                <button 
+                    onClick={handleExportAndEmail} 
+                    disabled={exporting}
+                    className="flex items-center justify-center bg-salomao-blue text-white px-4 py-2 rounded-lg hover:bg-blue-900 transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed w-full sm:w-auto"
+                >
+                    {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                    <span className="whitespace-nowrap">Enviar E-mail</span>
+                </button>
+            </div>
         </div>
       </div>
 
