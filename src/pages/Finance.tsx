@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash, FileText, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash, FileText, ArrowRight, FileDown } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
 import * as XLSX from 'xlsx';
 
 export function Finance() {
+  const navigate = useNavigate();
   // --- ROLE STATE ---
   const [userRole, setUserRole] = useState<'admin' | 'editor' | 'viewer' | null>(null);
 
   const [installments, setInstallments] = useState<FinancialInstallment[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
-  
+   
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -21,7 +23,7 @@ export function Finance() {
 
   const [selectedPartner, setSelectedPartner] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
-  
+   
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<FinancialInstallment | null>(null);
   const [billingDate, setBillingDate] = useState(new Date().toISOString().split('T')[0]);
@@ -150,6 +152,15 @@ export function Finance() {
     fetchData();
   };
 
+  const handleDownloadContractPDF = (contractId: string) => {
+    // Placeholder para lógica de download
+    alert(`Baixando contrato ${contractId}... (Implementar lógica de Storage)`);
+  };
+
+  const handleNavigateToContract = (contractId: string) => {
+    navigate(`/contracts/${contractId}`);
+  };
+
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'pro_labore': return 'Pró-Labore';
@@ -186,7 +197,7 @@ export function Finance() {
   const exportToPDF = () => {
     alert("Funcionalidade de PDF deve ser implementada com biblioteca jsPDF.");
   };
-  
+   
   const clearFilters = () => {
       setSearchTerm('');
       setSelectedPartner('');
@@ -208,11 +219,15 @@ export function Finance() {
   
   const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
 
-  // --- LOGICA PRÓXIMAS 5 PARCELAS ---
-  const nextFiveInstallments = installments
-    .filter(i => i.status === 'pending')
-    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
-    .slice(0, 5);
+  // --- LOGICA RECEBIMENTO MÊS CORRENTE ---
+  const currentMonthTotal = filteredInstallments
+    .filter(i => {
+      if (i.status !== 'pending' || !i.due_date) return false;
+      const date = new Date(i.due_date);
+      const now = new Date();
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    })
+    .reduce((acc, curr) => acc + curr.amount, 0);
 
   // --- CÁLCULO DISCRIMINADO ---
   const calculateBreakdown = (status: 'pending' | 'paid') => {
@@ -248,42 +263,28 @@ export function Finance() {
         </div>
       </div>
 
-      {/* ÁREA SUPERIOR: Próximos Recebimentos (Esq) + Filtros/Ações (Dir) */}
+      {/* ÁREA SUPERIOR: Recebimentos Mês Atual (Esq) + Filtros/Ações (Dir) */}
       <div className="flex flex-col xl:flex-row gap-6 items-end justify-between">
         
-        {/* LADO ESQUERDO: Card Próximas Parcelas */}
-        <div className="w-full xl:w-1/3 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48">
-            <div className="flex items-center gap-2 mb-2">
-                <div className="bg-blue-50 p-2 rounded-lg text-salomao-blue">
-                    <CalendarDays className="w-4 h-4" />
+        {/* LADO ESQUERDO: Card Mês Atual */}
+        <div className="w-full xl:w-1/3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center h-48 relative overflow-hidden group">
+             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <CalendarDays className="w-24 h-24 text-salomao-blue" />
+             </div>
+             <div>
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="bg-blue-50 p-2 rounded-lg text-salomao-blue">
+                        <CalendarDays className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-bold text-gray-500 uppercase tracking-wider text-sm">Previsão Mês Atual</h3>
                 </div>
-                <h3 className="font-bold text-gray-800 text-sm">Próximos Recebimentos</h3>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                {nextFiveInstallments.length === 0 ? (
-                    <p className="text-xs text-gray-400 italic mt-4">Nenhuma parcela pendente.</p>
-                ) : (
-                    nextFiveInstallments.map(inst => (
-                        <div key={inst.id} className="flex justify-between items-center text-xs border-b border-gray-50 pb-1 last:border-0">
-                            <div className="flex flex-col">
-                                <span className="font-semibold text-gray-700 truncate max-w-[120px]">{inst.contract?.client_name}</span>
-                                <span className="text-gray-400">{new Date(inst.due_date!).toLocaleDateString()}</span>
-                            </div>
-                            <span className="font-bold text-salomao-blue">
-                                {inst.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                            </span>
-                        </div>
-                    ))
-                )}
-            </div>
-            {nextFiveInstallments.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end">
-                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                        Ver todas <ArrowRight className="w-3 h-3" />
-                    </span>
+                <div className="flex items-baseline gap-1">
+                    <h2 className="text-4xl font-bold text-salomao-blue">
+                        {currentMonthTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </h2>
                 </div>
-            )}
+                <p className="text-xs text-gray-400 mt-2">Valor acumulado para recebimento no mês corrente.</p>
+             </div>
         </div>
 
         {/* LADO DIREITO: Filtros e Ações Agrupados */}
@@ -390,7 +391,7 @@ export function Finance() {
             </div>
             <div className="bg-orange-50 p-3 rounded-full text-orange-500"><Clock className="w-6 h-6" /></div>
           </div>
-          
+           
           {selectedPartner && (
               <div className="mt-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2">
                   <div className="space-y-1">
@@ -449,7 +450,11 @@ export function Finance() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredInstallments.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                  <tr 
+                    key={item.id} 
+                    className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                    onClick={() => handleNavigateToContract(item.contract!.id)}
+                  >
                     <td className="px-6 py-4 font-mono text-xs text-gray-500">{(item.contract as any)?.display_id}</td>
                     <td className="px-6 py-4">
                       {item.status === 'paid' ? <span className="flex items-center text-green-600 font-bold text-xs uppercase mb-1"><CheckCircle2 className="w-4 h-4 mr-1" /> Faturado</span> : <span className="flex items-center text-orange-500 font-bold text-xs uppercase mb-1"><Circle className="w-4 h-4 mr-1" /> Pendente</span>}
@@ -463,9 +468,10 @@ export function Finance() {
                     <td className="px-6 py-4 text-right font-bold text-gray-800">{item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                     <td className="px-6 py-4 text-right">
                       {item.status === 'pending' && userRole !== 'viewer' && (
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => handleEditDueDate(item)} className="bg-blue-50 text-blue-700 border border-blue-200 p-1.5 rounded-lg hover:bg-blue-100 transition-colors" title="Alterar Vencimento"><CalendarDays className="w-4 h-4" /></button>
-                          <button onClick={() => handleMarkAsPaid(item)} className="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors text-xs font-bold flex items-center"><DollarSign className="w-3 h-3 mr-1" /> Faturar</button>
+                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={(e) => { e.stopPropagation(); handleEditDueDate(item); }} className="bg-blue-50 text-blue-700 border border-blue-200 p-1.5 rounded-lg hover:bg-blue-100 transition-colors" title="Alterar Vencimento"><CalendarDays className="w-4 h-4" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDownloadContractPDF(item.contract!.id); }} className="bg-gray-50 text-gray-700 border border-gray-200 p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Baixar Contrato PDF"><FileDown className="w-4 h-4" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMarkAsPaid(item); }} className="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors text-xs font-bold flex items-center"><DollarSign className="w-3 h-3 mr-1" /> Faturar</button>
                         </div>
                       )}
                     </td>
