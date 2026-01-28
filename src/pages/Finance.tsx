@@ -11,7 +11,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 
-// --- COMPONENTES AUXILIARES (Mesmo padrão do Contracts) ---
+// --- COMPONENTES AUXILIARES ---
 
 const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { icon?: React.ElementType, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], placeholder: string }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -165,6 +165,17 @@ export function Finance() {
     return dueDateStr < todayStr;
   };
 
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'pro_labore': return 'Pró-Labore';
+      case 'success_fee': return 'Êxito';
+      case 'final_success_fee': return 'Êxito Final';
+      case 'fixed_monthly_fee': return 'Mensal';
+      case 'hourly_fee': return 'Horas';
+      default: return type;
+    }
+  };
+
   // --- FILTROS ---
   const filteredInstallments = installments.filter(i => {
     const term = searchTerm.toLowerCase();
@@ -199,6 +210,14 @@ export function Finance() {
 
     return matchesSearch && matchesPartner && matchesLocation && matchesStatus && matchesDate;
   });
+
+  // --- TOTAIS E CÁLCULOS ---
+  const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
+  const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
+  
+  // Total Pendente (Contagem) e Total Vencido (Contagem) para o Card de Alerta
+  const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
+  const totalOverdueCount = filteredInstallments.filter(i => isOverdue(i)).length;
 
   // --- AÇÕES ---
   const handleMarkAsPaid = (installment: FinancialInstallment) => {
@@ -245,7 +264,7 @@ export function Finance() {
       'Cliente': i.contract?.client_name,
       'HON': i.contract?.hon_number,
       'Cláusula': (i as any).clause || '',
-      'Tipo': i.type,
+      'Tipo': getTypeLabel(i.type), // Usando nome amigável
       'Parcela': `${i.installment_number}/${i.total_installments}`,
       'Valor': i.amount,
       'Vencimento': new Date(i.due_date!).toLocaleDateString(),
@@ -267,21 +286,6 @@ export function Finance() {
       setEndDate('');
       setIsSearchOpen(false);
   };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'pro_labore': return 'Pró-Labore';
-      case 'success_fee': return 'Êxito';
-      case 'final_success_fee': return 'Êxito Final';
-      case 'fixed_monthly_fee': return 'Mensal';
-      default: return type;
-    }
-  };
-
-  // --- TOTAIS ---
-  const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
-  const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-  const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
 
   const hasActiveFilters = searchTerm || selectedPartner || selectedLocation || statusFilter !== 'all' || startDate || endDate;
 
@@ -323,17 +327,32 @@ export function Finance() {
         </div>
       </div>
 
-      {/* CARDS DE TOTAIS (Preservados pois são essenciais para Financeiro) */}
+      {/* CARDS DE TOTAIS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        {/* CARD 1: A RECEBER / ALERTA DE ATRASO */}
+        <div className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-colors ${totalOverdueCount > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
           <div className="flex items-center justify-between">
             <div>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Receber (Qtd)</p>
-                <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPendingCount} <span className="text-sm font-normal text-gray-400">parcelas</span></h3>
+                <p className={`text-sm font-bold uppercase tracking-wider ${totalOverdueCount > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {totalOverdueCount > 0 ? 'Atenção: Atrasados' : 'A Receber (Qtd)'}
+                </p>
+                <h3 className={`text-3xl font-bold mt-1 ${totalOverdueCount > 0 ? 'text-red-700' : 'text-gray-800'}`}>
+                    {totalPendingCount} <span className={`text-sm font-normal ${totalOverdueCount > 0 ? 'text-red-400' : 'text-gray-400'}`}>parcelas</span>
+                </h3>
+                {totalOverdueCount > 0 && (
+                    <div className="flex items-center mt-1 text-red-600 font-semibold text-xs animate-pulse">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        {totalOverdueCount} parcelas vencidas!
+                    </div>
+                )}
             </div>
-            <div className="bg-blue-50 p-3 rounded-full text-blue-500"><Hash className="w-6 h-6" /></div>
+            <div className={`p-3 rounded-full ${totalOverdueCount > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-500'}`}>
+                {totalOverdueCount > 0 ? <AlertTriangle className="w-6 h-6" /> : <Hash className="w-6 h-6" />}
+            </div>
           </div>
         </div>
+
+        {/* CARD 2: PENDENTE R$ */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <div className="flex items-center justify-between">
             <div>
@@ -343,6 +362,8 @@ export function Finance() {
             <div className="bg-orange-50 p-3 rounded-full text-orange-500"><Clock className="w-6 h-6" /></div>
           </div>
         </div>
+
+        {/* CARD 3: FATURADO R$ */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <div className="flex items-center justify-between">
             <div>
