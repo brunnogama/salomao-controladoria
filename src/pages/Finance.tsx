@@ -1,3 +1,18 @@
+CONTEXTO: Estou enviando o código oficial e atualizado do arquivo: Cotracts.tsx e Fincance.tsx
+
+Atualize esse e me peça o restante que eu vou enviando, vamos atualizar um arquivo por vez.
+Veja se precisamos criar tabelas no Supabase
+
+SUA TAREFA: 
+1. Mude a posiçõ dos cads para baixo da barra
+2. Transforme o card A Receber (Qtd), em um card clicavel que informa, de forma de atenção, que há parecelas vencidas. Parcela vencida é baseada na data do Vencimento.
+Ao clicar no card, ele fará um filtro com todos os casos que estão com o vencimento atrasados.
+
+
+
+CÓDIGO FONTE:
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
