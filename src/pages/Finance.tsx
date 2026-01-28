@@ -219,16 +219,6 @@ export function Finance() {
   
   const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
 
-  // --- LOGICA RECEBIMENTO MÊS CORRENTE ---
-  const currentMonthTotal = filteredInstallments
-    .filter(i => {
-      if (i.status !== 'pending' || !i.due_date) return false;
-      const date = new Date(i.due_date);
-      const now = new Date();
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    })
-    .reduce((acc, curr) => acc + curr.amount, 0);
-
   // --- CÁLCULO DISCRIMINADO ---
   const calculateBreakdown = (status: 'pending' | 'paid') => {
       const list = filteredInstallments.filter(i => i.status === status);
@@ -263,30 +253,9 @@ export function Finance() {
         </div>
       </div>
 
-      {/* ÁREA SUPERIOR: Recebimentos Mês Atual (Esq) + Filtros/Ações (Dir) */}
-      <div className="flex flex-col xl:flex-row gap-6 items-end justify-between">
+      {/* ÁREA SUPERIOR: Filtros e Ações */}
+      <div className="flex flex-col xl:flex-row gap-6 items-end justify-end">
         
-        {/* LADO ESQUERDO: Card Mês Atual */}
-        <div className="w-full xl:w-1/3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center h-48 relative overflow-hidden group">
-             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <CalendarDays className="w-24 h-24 text-salomao-blue" />
-             </div>
-             <div>
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="bg-blue-50 p-2 rounded-lg text-salomao-blue">
-                        <CalendarDays className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-bold text-gray-500 uppercase tracking-wider text-sm">Previsão Mês Atual</h3>
-                </div>
-                <div className="flex items-baseline gap-1">
-                    <h2 className="text-4xl font-bold text-salomao-blue">
-                        {currentMonthTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </h2>
-                </div>
-                <p className="text-xs text-gray-400 mt-2">Valor acumulado para recebimento no mês corrente.</p>
-             </div>
-        </div>
-
         {/* LADO DIREITO: Filtros e Ações Agrupados */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto justify-end">
             
