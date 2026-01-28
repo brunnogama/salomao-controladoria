@@ -167,8 +167,9 @@ export function ContractFormModal(props: Props) {
     const fetchAuthorCNPJ = async () => {
         const authorName = (currentProcess as any).author;
         if (!authorName || authorName.length < 3) return;
-        const { data } = await supabase.from('authors').select('cnpj').eq('name', authorName).single();
-        if (data && data.cnpj) setCurrentProcess(prev => ({ ...prev, author_cnpj: maskCNPJ(data.cnpj) }));
+        // Tenta buscar o CNPJ se a coluna existir, senão falha silenciosamente ou retorna nulo
+        const { data, error } = await supabase.from('authors').select('cnpj').eq('name', authorName).maybeSingle();
+        if (!error && data && data.cnpj) setCurrentProcess(prev => ({ ...prev, author_cnpj: maskCNPJ(data.cnpj) }));
     };
     const timer = setTimeout(fetchAuthorCNPJ, 800);
     return () => clearTimeout(timer);
@@ -178,8 +179,9 @@ export function ContractFormModal(props: Props) {
   useEffect(() => {
     const fetchOpponentCNPJ = async () => {
         if (!currentProcess.opponent || currentProcess.opponent.length < 3) return;
-        const { data } = await supabase.from('opponents').select('cnpj').eq('name', currentProcess.opponent).single();
-        if (data && data.cnpj) setCurrentProcess(prev => ({ ...prev, opponent_cnpj: maskCNPJ(data.cnpj) }));
+        // Tenta buscar o CNPJ se a coluna existir
+        const { data, error } = await supabase.from('opponents').select('cnpj').eq('name', currentProcess.opponent).maybeSingle();
+        if (!error && data && data.cnpj) setCurrentProcess(prev => ({ ...prev, opponent_cnpj: maskCNPJ(data.cnpj) }));
     };
     const timer = setTimeout(fetchOpponentCNPJ, 800);
     return () => clearTimeout(timer);
@@ -488,6 +490,7 @@ export function ContractFormModal(props: Props) {
     } catch (error: any) { alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente.`); } finally { setLocalLoading(false); }
   };
 
+  // --- NOVA LÓGICA CORRIGIDA PARA AUTOR/RÉU ---
   const handlePartyCNPJSearch = async (type: 'author' | 'opponent') => {
     const cnpj = type === 'author' ? (currentProcess as any).author_cnpj : (currentProcess as any).opponent_cnpj;
     if (!cnpj) return;
@@ -500,14 +503,49 @@ export function ContractFormModal(props: Props) {
         if (!response.ok) throw new Error('CNPJ não encontrado.');
         const data = await response.json();
         const name = toTitleCase(data.razao_social || data.nome_fantasia || '');
-        if (type === 'author') {
-             if (!options.authorOptions.includes(name)) { await supabase.from('authors').insert({ name }); options.setAuthorOptions(prev => [...prev, name].sort((a,b)=>a.localeCompare(b))); }
-             setCurrentProcess(prev => ({ ...prev, author: name } as any));
+        const table = type === 'author' ? 'authors' : 'opponents';
+
+        // 1. Verificar se JÁ EXISTE no banco para evitar Erro 409
+        const { data: existing } = await supabase.from(table).select('id, name').ilike('name', name).maybeSingle();
+
+        if (!existing) {
+             // 2. Se não existir, tenta inserir.
+             // OBS: Se a coluna CNPJ ainda não tiver sido criada no Supabase, o insert abaixo pode falhar se passarmos cnpj.
+             // Para segurança, mantemos 'name' e tentamos passar 'cnpj' se o banco aceitar, mas lidamos com o erro.
+             const payload: any = { name };
+             // Tenta enviar o CNPJ junto (requer criar coluna no banco)
+             payload.cnpj = cleanCNPJ; 
+
+             const { error } = await supabase.from(table).insert(payload);
+             
+             // Se der erro de coluna inexistente (400) ou duplicidade (23505), ignoramos e seguimos
+             if (error && error.code !== '23505' && error.code !== '42703') {
+                 // Fallback: Tenta inserir só o nome se o CNPJ falhar
+                 await supabase.from(table).insert({ name });
+             }
         } else {
-             if (!options.opponentOptions.includes(name)) { await supabase.from('opponents').insert({ name }); options.setOpponentOptions(prev => [...prev, name].sort((a,b)=>a.localeCompare(b))); }
-             setCurrentProcess(prev => ({ ...prev, opponent: name }));
+             // Opcional: Atualizar CNPJ do registro existente se estiver faltando
+             // await supabase.from(table).update({ cnpj: cleanCNPJ }).eq('id', existing.id);
         }
-    } catch (error: any) { alert(`Erro ao buscar CNPJ: ${error.message}`); } finally { setLocalLoading(false); }
+
+        // 3. Atualizar Estado Local (Garante que aparece no Menu)
+        if (type === 'author') {
+             if (!options.authorOptions.includes(name)) {
+                 options.setAuthorOptions(prev => [...prev, name].sort((a,b)=>a.localeCompare(b)));
+             }
+             setCurrentProcess(prev => ({ ...prev, author: name, author_cnpj: maskCNPJ(cleanCNPJ) } as any));
+        } else {
+             if (!options.opponentOptions.includes(name)) {
+                 options.setOpponentOptions(prev => [...prev, name].sort((a,b)=>a.localeCompare(b)));
+             }
+             setCurrentProcess(prev => ({ ...prev, opponent: name, opponent_cnpj: maskCNPJ(cleanCNPJ) }));
+        }
+
+    } catch (error: any) { 
+        alert(`Erro ao buscar CNPJ: ${error.message}`); 
+    } finally { 
+        setLocalLoading(false); 
+    }
   };
 
   const handleCNJSearch = async () => {
