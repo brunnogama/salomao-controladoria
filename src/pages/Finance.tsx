@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { FinancialInstallment, Partner, Contract, ContractProcess, ContractDocument } from '../types';
 import { EmptyState } from '../components/ui/EmptyState';
-import { ContractDetailsModal } from '../components/contracts/modals/ContractDetailsModal';
+import { ContractDetailsModal } from '../components/contracts/ContractDetailsModal';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 
