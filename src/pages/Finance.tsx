@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -15,6 +15,10 @@ export function Finance() {
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const [selectedPartner, setSelectedPartner] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   
@@ -31,7 +35,24 @@ export function Finance() {
   useEffect(() => {
     checkUserRole();
     fetchData();
-  }, []);
+
+    // Click outside handler for search
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        if (searchTerm === '') {
+          setIsSearchExpanded(false);
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    if (isSearchExpanded && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchExpanded]);
 
   // --- ROLE CHECK ---
   const checkUserRole = async () => {
@@ -74,8 +95,7 @@ export function Finance() {
       .order('due_date', { ascending: true });
 
     if (installmentsData) {
-      // CORREÇÃO: Filtrar apenas parcelas de contratos que estão ATIVOS (active)
-      // Isso remove as parcelas "fantasmas" de propostas ou contratos rejeitados
+      // Filtrar apenas parcelas de contratos que estão ATIVOS (active)
       const activeInstallments = installmentsData.filter((i: any) => i.contracts?.status === 'active');
 
       const formatted = activeInstallments.map((i: any) => ({
@@ -167,6 +187,7 @@ export function Finance() {
       setSearchTerm('');
       setSelectedPartner('');
       setSelectedLocation('');
+      setIsSearchExpanded(false);
   };
 
   const filteredInstallments = installments.filter(i => {
@@ -180,8 +201,11 @@ export function Finance() {
 
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
   const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
+  
+  // Novo cálculo: Quantidade de parcelas pendentes
+  const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
 
-  // --- CÁLCULO DISCRIMINADO (USADO APENAS QUANDO SÓCIO ESTÁ SELECIONADO) ---
+  // --- CÁLCULO DISCRIMINADO ---
   const calculateBreakdown = (status: 'pending' | 'paid') => {
       const list = filteredInstallments.filter(i => i.status === status);
       const proLabore = list.filter(i => i.type === 'pro_labore').reduce((acc, curr) => acc + curr.amount, 0);
@@ -206,43 +230,19 @@ export function Finance() {
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <DollarSign className="w-8 h-8" /> Controle Financeiro
           </h1>
-          <div className="flex items-center gap-2 mt-1">
-                <p className="text-gray-500">Gestão de faturamento e recebíveis.</p>
-                {/* Badge de Perfil */}
-                {userRole && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border flex items-center gap-1 ${
-                        userRole === 'admin' 
-                            ? 'bg-purple-100 text-purple-700 border-purple-200' 
-                            : userRole === 'editor' 
-                                ? 'bg-blue-100 text-blue-700 border-blue-200'
-                                : 'bg-gray-100 text-gray-600 border-gray-200'
-                    }`}>
-                        <Shield className="w-3 h-3" />
-                        {userRole === 'admin' ? 'Administrador' : userRole === 'editor' ? 'Editor' : 'Visualizador'}
-                    </span>
-                )}
-          </div>
+          <p className="text-gray-500 mt-1">Gestão de faturamento e recebíveis.</p>
         </div>
       </div>
 
-      {/* ÁREA DE FILTROS E BUSCA (MOVIDA PARA CIMA) */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row gap-4 items-center">
-        <div className="flex-1 w-full relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input 
-                type="text" 
-                placeholder="Buscar por cliente, HON, ID..." 
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-salomao-blue outline-none" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-            />
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
+      {/* ÁREA DE FILTROS E AÇÕES */}
+      <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
+        {/* Filtros à Esquerda */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
           <div className="w-full sm:w-48">
               <CustomSelect 
                 value={selectedPartner} 
@@ -259,44 +259,86 @@ export function Finance() {
                 placeholder="Local Faturamento" 
               />
           </div>
-          
-          {hasActiveFilters && (
+        </div>
+
+        {/* Ações e Pesquisa à Direita */}
+        <div className="flex items-center gap-3 w-full xl:w-auto justify-end">
+            {hasActiveFilters && (
               <button 
                 onClick={clearFilters} 
-                className="text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium whitespace-nowrap"
-                title="Limpar Filtros"
+                className="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium"
               >
                   <X className="w-4 h-4" /> Limpar
               </button>
-          )}
+            )}
 
-          <button onClick={exportToExcel} className="bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium flex items-center justify-center min-w-[100px]">
-              <Download className="w-4 h-4 mr-2" /> XLS
-          </button>
+            {/* Pesquisa Expansível */}
+            <div 
+              ref={searchContainerRef}
+              className={`flex items-center bg-white border transition-all duration-300 ease-out rounded-full overflow-hidden ${
+                isSearchExpanded ? 'w-64 border-salomao-blue ring-2 ring-salomao-blue/10 shadow-sm' : 'w-10 border-transparent bg-transparent'
+              }`}
+            >
+              <button 
+                onClick={() => setIsSearchExpanded(true)}
+                className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
+                  isSearchExpanded ? 'text-salomao-blue' : 'text-gray-400 hover:text-salomao-blue hover:bg-gray-100'
+                }`}
+              >
+                <Search className="w-5 h-5" />
+              </button>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Buscar financeiro..."
+                className={`w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 placeholder-gray-400 px-2 ${
+                  isSearchExpanded ? 'opacity-100' : 'opacity-0'
+                }`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <button 
+              onClick={exportToExcel} 
+              className="bg-green-600 text-white w-10 h-10 rounded-full hover:bg-green-700 transition-all shadow-sm flex items-center justify-center"
+              title="Exportar Excel"
+            >
+              <Download className="w-4 h-4" />
+            </button>
         </div>
       </div>
 
-      {/* CARDS DE TOTAIS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* CARDS DE TOTAIS (Grid de 3) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* CARD QUANTIDADE */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Parcelas a Receber</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPendingCount}</h3>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-full text-blue-500"><Hash className="w-6 h-6" /></div>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Lançamentos pendentes</p>
+        </div>
+
         {/* CARD A FATURAR */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
             <div>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (Pendente)</p>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (R$)</p>
                 <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3>
             </div>
             <div className="bg-orange-50 p-3 rounded-full text-orange-500"><Clock className="w-6 h-6" /></div>
           </div>
           
-          {/* Detalhamento condicional por sócio */}
           {selectedPartner && (
               <div className="mt-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Detalhamento ({partners.find(p => p.id === selectedPartner)?.name})</p>
                   <div className="space-y-1">
                       <BreakdownItem label="Pró-Labore" value={pendingBreakdown.proLabore} colorClass="text-gray-700" />
                       <BreakdownItem label="Êxito" value={pendingBreakdown.exitos} colorClass="text-gray-700" />
-                      <BreakdownItem label="Honorários Mensais" value={pendingBreakdown.fixed} colorClass="text-gray-700" />
-                      <BreakdownItem label="Outros" value={pendingBreakdown.other} colorClass="text-gray-700" />
                   </div>
               </div>
           )}
@@ -306,21 +348,17 @@ export function Finance() {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
             <div>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Faturado</p>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Faturado (R$)</p>
                 <h3 className="text-3xl font-bold text-green-600 mt-1">{totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3>
             </div>
             <div className="bg-green-50 p-3 rounded-full text-green-500"><CheckCircle2 className="w-6 h-6" /></div>
           </div>
 
-          {/* Detalhamento condicional por sócio */}
           {selectedPartner && (
               <div className="mt-4 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Detalhamento ({partners.find(p => p.id === selectedPartner)?.name})</p>
                   <div className="space-y-1">
                       <BreakdownItem label="Pró-Labore" value={paidBreakdown.proLabore} colorClass="text-green-700" />
                       <BreakdownItem label="Êxito" value={paidBreakdown.exitos} colorClass="text-green-700" />
-                      <BreakdownItem label="Honorários Mensais" value={paidBreakdown.fixed} colorClass="text-green-700" />
-                      <BreakdownItem label="Outros" value={paidBreakdown.other} colorClass="text-green-700" />
                   </div>
               </div>
           )}
