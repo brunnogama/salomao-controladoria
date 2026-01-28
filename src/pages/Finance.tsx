@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash, FileText, ArrowRight } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -182,6 +182,10 @@ export function Finance() {
     XLSX.utils.book_append_sheet(wb, ws, "Financeiro");
     XLSX.writeFile(wb, "Relatorio_Financeiro.xlsx");
   };
+
+  const exportToPDF = () => {
+    alert("Funcionalidade de PDF deve ser implementada com biblioteca jsPDF.");
+  };
   
   const clearFilters = () => {
       setSearchTerm('');
@@ -202,8 +206,13 @@ export function Finance() {
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
   const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
   
-  // Novo cálculo: Quantidade de parcelas pendentes
   const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
+
+  // --- LOGICA PRÓXIMAS 5 PARCELAS ---
+  const nextFiveInstallments = installments
+    .filter(i => i.status === 'pending')
+    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
+    .slice(0, 5);
 
   // --- CÁLCULO DISCRIMINADO ---
   const calculateBreakdown = (status: 'pending' | 'paid') => {
@@ -239,44 +248,52 @@ export function Finance() {
         </div>
       </div>
 
-      {/* ÁREA DE FILTROS E AÇÕES */}
-      <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
-        {/* Filtros à Esquerda */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-          <div className="w-full sm:w-48">
-              <CustomSelect 
-                value={selectedPartner} 
-                onChange={setSelectedPartner} 
-                options={[{ label: 'Todos Sócios', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))]} 
-                placeholder="Sócio" 
-              />
-          </div>
-          <div className="w-full sm:w-48">
-              <CustomSelect 
-                value={selectedLocation} 
-                onChange={setSelectedLocation} 
-                options={[{ label: 'Todos Locais', value: '' }, ...locations.map(l => ({ label: l, value: l }))]} 
-                placeholder="Local Faturamento" 
-              />
-          </div>
+      {/* ÁREA SUPERIOR: Próximos Recebimentos (Esq) + Filtros/Ações (Dir) */}
+      <div className="flex flex-col xl:flex-row gap-6 items-end justify-between">
+        
+        {/* LADO ESQUERDO: Card Próximas Parcelas */}
+        <div className="w-full xl:w-1/3 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48">
+            <div className="flex items-center gap-2 mb-2">
+                <div className="bg-blue-50 p-2 rounded-lg text-salomao-blue">
+                    <CalendarDays className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-gray-800 text-sm">Próximos Recebimentos</h3>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+                {nextFiveInstallments.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic mt-4">Nenhuma parcela pendente.</p>
+                ) : (
+                    nextFiveInstallments.map(inst => (
+                        <div key={inst.id} className="flex justify-between items-center text-xs border-b border-gray-50 pb-1 last:border-0">
+                            <div className="flex flex-col">
+                                <span className="font-semibold text-gray-700 truncate max-w-[120px]">{inst.contract?.client_name}</span>
+                                <span className="text-gray-400">{new Date(inst.due_date!).toLocaleDateString()}</span>
+                            </div>
+                            <span className="font-bold text-salomao-blue">
+                                {inst.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                        </div>
+                    ))
+                )}
+            </div>
+            {nextFiveInstallments.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end">
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        Ver todas <ArrowRight className="w-3 h-3" />
+                    </span>
+                </div>
+            )}
         </div>
 
-        {/* Ações e Pesquisa à Direita */}
-        <div className="flex items-center gap-3 w-full xl:w-auto justify-end">
-            {hasActiveFilters && (
-              <button 
-                onClick={clearFilters} 
-                className="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium"
-              >
-                  <X className="w-4 h-4" /> Limpar
-              </button>
-            )}
-
+        {/* LADO DIREITO: Filtros e Ações Agrupados */}
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto justify-end">
+            
             {/* Pesquisa Expansível */}
             <div 
               ref={searchContainerRef}
               className={`flex items-center bg-white border transition-all duration-300 ease-out rounded-full overflow-hidden ${
-                isSearchExpanded ? 'w-64 border-salomao-blue ring-2 ring-salomao-blue/10 shadow-sm' : 'w-10 border-transparent bg-transparent'
+                isSearchExpanded ? 'w-48 border-salomao-blue ring-2 ring-salomao-blue/10 shadow-sm' : 'w-10 border-transparent bg-transparent'
               }`}
             >
               <button 
@@ -284,13 +301,14 @@ export function Finance() {
                 className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
                   isSearchExpanded ? 'text-salomao-blue' : 'text-gray-400 hover:text-salomao-blue hover:bg-gray-100'
                 }`}
+                title="Pesquisar"
               >
                 <Search className="w-5 h-5" />
               </button>
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Buscar financeiro..."
+                placeholder="Buscar..."
                 className={`w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 placeholder-gray-400 px-2 ${
                   isSearchExpanded ? 'opacity-100' : 'opacity-0'
                 }`}
@@ -299,36 +317,75 @@ export function Finance() {
               />
             </div>
 
-            <button 
-              onClick={exportToExcel} 
-              className="bg-green-600 text-white w-10 h-10 rounded-full hover:bg-green-700 transition-all shadow-sm flex items-center justify-center"
-              title="Exportar Excel"
-            >
-              <Download className="w-4 h-4" />
-            </button>
+            {/* Selects */}
+            <div className="w-full sm:w-40">
+                <CustomSelect 
+                  value={selectedPartner} 
+                  onChange={setSelectedPartner} 
+                  options={[{ label: 'Todos Sócios', value: '' }, ...partners.map(p => ({ label: p.name, value: p.id }))]} 
+                  placeholder="Sócios" 
+                />
+            </div>
+            <div className="w-full sm:w-40">
+                <CustomSelect 
+                  value={selectedLocation} 
+                  onChange={setSelectedLocation} 
+                  options={[{ label: 'Todos Locais', value: '' }, ...locations.map(l => ({ label: l, value: l }))]} 
+                  placeholder="Locais" 
+                />
+            </div>
+
+            {/* Limpar Filtros */}
+            {hasActiveFilters && (
+              <button 
+                onClick={clearFilters} 
+                className="text-red-500 hover:bg-red-50 px-2 py-2 rounded-lg transition-colors"
+                title="Limpar Filtros"
+              >
+                  <X className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Botões de Ação */}
+            <div className="flex items-center gap-2 border-l pl-3 border-gray-200">
+                <button 
+                onClick={exportToExcel} 
+                className="bg-green-600 text-white w-10 h-10 rounded-full hover:bg-green-700 transition-all shadow-sm flex items-center justify-center"
+                title="Baixar XLSX"
+                >
+                <Download className="w-4 h-4" />
+                </button>
+
+                <button 
+                onClick={exportToPDF} 
+                className="bg-red-600 text-white w-10 h-10 rounded-full hover:bg-red-700 transition-all shadow-sm flex items-center justify-center"
+                title="Baixar PDF"
+                >
+                <FileText className="w-4 h-4" />
+                </button>
+            </div>
         </div>
       </div>
 
-      {/* CARDS DE TOTAIS (Grid de 3) */}
+      {/* CARDS DE TOTAIS (Abaixo da área de filtros) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* CARD QUANTIDADE */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
             <div>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Parcelas a Receber</p>
-                <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPendingCount}</h3>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Receber</p>
+                <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPendingCount} <span className="text-sm font-normal text-gray-400">parcelas</span></h3>
             </div>
             <div className="bg-blue-50 p-3 rounded-full text-blue-500"><Hash className="w-6 h-6" /></div>
           </div>
-          <p className="text-xs text-gray-400 mt-1">Lançamentos pendentes</p>
         </div>
 
-        {/* CARD A FATURAR */}
+        {/* CARD VALOR A FATURAR */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
             <div>
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">A Faturar (R$)</p>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Pendente (R$)</p>
                 <h3 className="text-3xl font-bold text-gray-800 mt-1">{totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3>
             </div>
             <div className="bg-orange-50 p-3 rounded-full text-orange-500"><Clock className="w-6 h-6" /></div>
@@ -344,7 +401,7 @@ export function Finance() {
           )}
         </div>
 
-        {/* CARD FATURADO */}
+        {/* CARD VALOR FATURADO */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
             <div>
