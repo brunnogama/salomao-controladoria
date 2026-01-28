@@ -77,9 +77,9 @@ const FilterSelect = ({ icon: Icon, value, onChange, options, placeholder }: { i
   const displayValue = options.find((opt) => opt.value === value)?.label || placeholder;
 
   return (
-    <div className="relative min-w-[200px]" ref={wrapperRef}>
+    <div className="relative min-w-[180px]" ref={wrapperRef}>
       <div
-        className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors select-none"
+        className="flex items-center bg-white px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors select-none shadow-sm"
         onClick={() => setIsOpen(!isOpen)}
       >
         {Icon && <Icon className="w-4 h-4 text-gray-500 mr-2 shrink-0" />}
@@ -192,7 +192,6 @@ export function Contracts() {
 
   const fetchData = async () => {
     setLoading(true);
-    // ATUALIZADO: Adicionado 'file_name, file_path, uploaded_at' na seleção de documentos
     const [contractsRes, partnersRes, analystsRes] = await Promise.all([
       supabase.from('contracts').select(`*, partner:partners(name), analyst:analysts(name), processes:contract_processes(*), documents:contract_documents(id, file_name, file_path, uploaded_at)`).order('created_at', { ascending: false }),
       supabase.from('partners').select('*').eq('active', true).order('name'),
@@ -430,7 +429,7 @@ export function Contracts() {
     let sumFinal = 0;
     let sumTotalSuccess = 0;
 
-    // 2. Preparar Dados (Array of Arrays para garantir ordem)
+    // 2. Preparar Dados
     const header = [
         'ID', 'Status', 'Cliente', 'Sócio', 'HON', 'Data Relevante', 'Local Faturamento',
         'Pró-Labore', 'Cláusula Pró-Labore',
@@ -474,46 +473,42 @@ export function Contracts() {
           c.hon_number || '-',
           new Date(getRelevantDate(c) || '').toLocaleDateString('pt-BR'),
           c.billing_location || '-',
-          vPro,   // Coluna 7
-          (c as any).pro_labore_clause || '-', // Coluna 8 (Cláusula)
-          vOther, // Coluna 9
-          (c as any).other_fees_clause || '-', // Coluna 10 (Cláusula)
-          vFixed, // Coluna 11
-          (c as any).fixed_monthly_fee_clause || '-', // Coluna 12 (Cláusula)
-          vInter, // Coluna 13
-          (c.intermediate_fees_clauses && (c.intermediate_fees_clauses as any).length > 0) ? 'Ver detalhe abaixo' : '-', // Coluna 14 (Cláusula - Resumo)
-          vFinal, // Coluna 15
-          (c as any).final_success_fee_clause || '-', // Coluna 16 (Cláusula)
-          vTotalSuccess, // Coluna 17
-          c.observations || '-' // Coluna 18
+          vPro,   
+          (c as any).pro_labore_clause || '-', 
+          vOther, 
+          (c as any).other_fees_clause || '-', 
+          vFixed, 
+          (c as any).fixed_monthly_fee_clause || '-', 
+          vInter, 
+          (c.intermediate_fees_clauses && (c.intermediate_fees_clauses as any).length > 0) ? 'Ver detalhe abaixo' : '-', 
+          vFinal, 
+          (c as any).final_success_fee_clause || '-', 
+          vTotalSuccess, 
+          c.observations || '-' 
         ]);
 
-        // Linhas Extras para Cláusulas Detalhadas (se existirem e forem diferentes da linha principal)
+        // Linhas Extras para Cláusulas Detalhadas
         const clauses: {type: string, text: string}[] = [];
         
-        // Adiciona cláusulas extras de Pró-labore
         if((c as any).pro_labore_extras_clauses && Array.isArray((c as any).pro_labore_extras_clauses)) {
             (c as any).pro_labore_extras_clauses.forEach((cl: string) => clauses.push({type: 'Extra Pró-Labore', text: cl}));
         }
-        // Adiciona cláusulas de intermediários (separadas pois podem ser múltiplas)
         if((c.intermediate_fees_clauses as any) && Array.isArray((c.intermediate_fees_clauses as any))) {
              (c.intermediate_fees_clauses as any).forEach((cl: string) => clauses.push({type: 'Intermediário', text: cl}));
         }
-        // Adiciona cláusulas extras de Êxito Final
         if((c as any).final_success_extras_clauses && Array.isArray((c as any).final_success_extras_clauses)) {
             (c as any).final_success_extras_clauses.forEach((cl: string) => clauses.push({type: 'Extra Êxito Final', text: cl}));
         }
 
-        // Se houver cláusulas extras, adiciona linhas abaixo
         clauses.forEach(clause => {
             rows.push([
-                c.display_id, // Repete ID para referência
-                '', '', '', '', '', '', // Colunas vazias
-                '', clause.type === 'Extra Pró-Labore' ? clause.text : '', // Coluna 8
-                '', '', // Coluna 9-10
-                '', '', // Coluna 11-12
-                '', clause.type === 'Intermediário' ? clause.text : '', // Coluna 14
-                '', clause.type === 'Extra Êxito Final' ? clause.text : '', // Coluna 16
+                c.display_id, 
+                '', '', '', '', '', '', 
+                '', clause.type === 'Extra Pró-Labore' ? clause.text : '', 
+                '', '', 
+                '', '', 
+                '', clause.type === 'Intermediário' ? clause.text : '', 
+                '', clause.type === 'Extra Êxito Final' ? clause.text : '', 
                 '', ''
             ]);
         });
@@ -531,18 +526,16 @@ export function Contracts() {
     const ws = XLSX.utils.aoa_to_sheet(dataWithHeader);
 
     // 5. Formatação de Células (Moeda)
-    // Aplica formatação "R$ #,##0.00" nas colunas de valor (Indices: 7, 9, 11, 13, 15, 17)
     const currencyFormat = '"R$" #,##0.00';
     const range = XLSX.utils.decode_range(ws['!ref']!);
     const moneyCols = [7, 9, 11, 13, 15, 17];
     
-    // Itera sobre as linhas de dados (ignora cabeçalho)
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
         moneyCols.forEach(C => {
             const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
             if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
-                ws[cellRef].z = currencyFormat; // Define o formato
-                ws[cellRef].t = 'n'; // Garante que é tipo numérico
+                ws[cellRef].z = currencyFormat;
+                ws[cellRef].t = 'n';
             }
         });
     }
@@ -551,7 +544,6 @@ export function Contracts() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contratos");
     
-    // Nome do arquivo dinâmico
     const statusName = statusFilter === 'all' ? 'Geral' : getStatusLabel(statusFilter).replace(/ /g, '_');
     const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
     const fileName = `Salomão_${statusName}_${dateStr}.xlsx`;
@@ -586,7 +578,8 @@ export function Contracts() {
 
   return (
     <div className="p-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        {/* Esquerda: Título e Contagem */}
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <FileSignature className="w-8 h-8" /> Casos
@@ -598,17 +591,43 @@ export function Contracts() {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Direita: Filtros de Status/Sócio, Botão Novo, Notificações */}
+        <div className="flex flex-wrap items-center gap-2">
+           <FilterSelect
+              icon={Filter}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={statusOptions}
+              placeholder="Status"
+            />
+
+            <FilterSelect
+              icon={User}
+              value={partnerFilter}
+              onChange={setPartnerFilter}
+              options={partnerOptions}
+              placeholder="Sócios"
+            />
+
+          {/* Botão Novo Caso */}
+          {userRole !== 'viewer' && (
+            <button onClick={handleNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold h-[40px] whitespace-nowrap">
+                <Plus className="w-5 h-5 mr-2" /> Novo Caso
+            </button>
+          )}
+
+          {/* Notificações */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`p-2 rounded-full relative transition-all ${
+              className={`p-2 rounded-full relative transition-all h-[40px] w-[40px] flex items-center justify-center ${
                 notifications.length > 0
                   ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  : 'bg-white border border-gray-200 text-gray-400 hover:bg-gray-100'
               }`}
             >
-              <Bell className={`w-6 h-6 ${notifications.length > 0 ? 'animate-pulse' : ''}`} />
+              <Bell className={`w-5 h-5 ${notifications.length > 0 ? 'animate-pulse' : ''}`} />
               {notifications.length > 0 && (
                 <span className="absolute top-0 right-0 w-3 h-3 bg-red-600 border-2 border-white rounded-full"></span>
               )}
@@ -642,87 +661,52 @@ export function Contracts() {
               </div>
             )}
           </div>
-
-          {/* Botão Novo Caso - Escondido para Viewer */}
-          {userRole !== 'viewer' && (
-            <button onClick={handleNew} className="bg-salomao-gold hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-colors flex items-center font-bold">
-                <Plus className="w-5 h-5 mr-2" /> Novo Caso
-            </button>
-          )}
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 mb-6 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-        {/* Linha Superior: Busca e Datas */}
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1 flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-            <Search className="w-5 h-5 text-gray-400 mr-2" />
-            <input
-              type="text"
-              placeholder="Buscar por cliente, HON, ID, observações, referência..."
-              className="flex-1 bg-transparent outline-none text-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-               <span className="text-xs text-gray-400 mr-2">De</span>
-               <input 
-                 type="date" 
-                 value={startDate} 
-                 onChange={(e) => setStartDate(e.target.value)}
-                 className="bg-transparent text-sm text-gray-700 outline-none"
-               />
-            </div>
-            <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-               <span className="text-xs text-gray-400 mr-2">Até</span>
-               <input 
-                 type="date" 
-                 value={endDate} 
-                 onChange={(e) => setEndDate(e.target.value)}
-                 className="bg-transparent text-sm text-gray-700 outline-none"
-               />
-            </div>
-          </div>
+      {/* Barra de Controles (Busca, Data, Ordenação, Exportação) */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm items-center">
+        {/* Busca - Ocupa o espaço restante a esquerda */}
+        <div className="flex-1 w-full flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+          <Search className="w-5 h-5 text-gray-400 mr-2" />
+          <input
+            type="text"
+            placeholder="Buscar por cliente, HON, ID, observações, referência..."
+            className="flex-1 bg-transparent outline-none text-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
-        {/* Linha Inferior: Filtros de Select e Botões */}
-        <div className="flex flex-wrap gap-2 items-center justify-between">
-            <div className="flex gap-2 flex-wrap">
-              <FilterSelect
-                icon={Filter}
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={statusOptions}
-                placeholder="Status"
-              />
-
-              <FilterSelect
-                icon={User}
-                value={partnerFilter}
-                onChange={setPartnerFilter}
-                options={partnerOptions}
-                placeholder="Sócios"
-              />
+        {/* Grupo da Direita: Datas, Ações, View, Export */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+            {/* Filtros de Data */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                 <span className="text-xs text-gray-400 mr-2">De</span>
+                 <input 
+                   type="date" 
+                   value={startDate} 
+                   onChange={(e) => setStartDate(e.target.value)}
+                   className="bg-transparent text-sm text-gray-700 outline-none"
+                 />
+              </div>
+              <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                 <span className="text-xs text-gray-400 mr-2">Até</span>
+                 <input 
+                   type="date" 
+                   value={endDate} 
+                   onChange={(e) => setEndDate(e.target.value)}
+                   className="bg-transparent text-sm text-gray-700 outline-none"
+                 />
+              </div>
             </div>
 
-            <div className="flex gap-2 items-center">
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
-                  title="Limpar todos os filtros"
-                >
-                  <X className="w-4 h-4 mr-2" /> Limpar
-                </button>
-              )}
-
-              <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
+            {/* Ordenação */}
+            <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200 h-[42px] items-center">
                 <button
                   onClick={() => { if(sortBy !== 'name') { setSortBy('name'); setSortOrder('asc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
-                  className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all h-full ${sortBy === 'name' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
                   title="Ordenar por Nome"
                 >
                   Nome
@@ -730,23 +714,35 @@ export function Contracts() {
                 </button>
                 <button
                   onClick={() => { if(sortBy !== 'date') { setSortBy('date'); setSortOrder('desc'); } else { setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); } }}
-                  className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all ${sortBy === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-all h-full ${sortBy === 'date' ? 'bg-white shadow text-salomao-blue' : 'text-gray-500 hover:text-gray-700'}`}
                   title="Ordenar por Data do Status Atual"
                 >
                   Data
                   {sortBy === 'date' && <ArrowUpDown className="w-3 h-3 ml-1" />}
                 </button>
-              </div>
+            </div>
 
-              <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200">
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
-              </div>
+            {/* Visualização */}
+            <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200 h-[42px] items-center">
+                <button onClick={() => setViewMode('grid')} className={`p-1.5 h-full flex items-center rounded ${viewMode === 'grid' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid className="w-4 h-4" /></button>
+                <button onClick={() => setViewMode('list')} className={`p-1.5 h-full flex items-center rounded ${viewMode === 'list' ? 'bg-white shadow-sm text-salomao-blue' : 'text-gray-400 hover:text-gray-600'}`}><List className="w-4 h-4" /></button>
+            </div>
 
-              <button onClick={exportToExcel} className="flex items-center px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium whitespace-nowrap">
+             {/* Exportar */}
+             <button onClick={exportToExcel} className="flex items-center px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium whitespace-nowrap h-[42px]">
                 <Download className="w-4 h-4 mr-2" /> XLS
               </button>
-            </div>
+
+             {/* Limpar (se houver filtros) */}
+             {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors h-[42px]"
+                  title="Limpar todos os filtros"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
         </div>
       </div>
 
