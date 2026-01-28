@@ -50,6 +50,9 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     dateWarningMessage, duplicateHonCase
   } = props;
 
+  // Verifica se é Timesheet para desabilitar inputs financeiros visualmente
+  const isTimesheet = (formData as any).timesheet === true;
+
   // Helper para garantir string no input financeiro
   const safeString = (val: string | number | undefined) => {
       if (val === undefined || val === null) return '';
@@ -389,7 +392,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                         value={formData.hon_number} 
                         onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} 
                     />
-                    {/* Aviso de duplicidade HON (Opcional, já que é tratado no modal pai, mas útil visualmente aqui) */}
+                    {/* Aviso de duplicidade HON */}
                     {duplicateHonCase && (
                         <div className="flex items-center gap-1 mt-1 text-xs text-yellow-700 font-medium">
                             <AlertTriangle className="w-3 h-3" />
@@ -403,7 +406,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         )}
 
         {/* Linha 2: Pró-Labore | Outros Honorários | Fixo Mensal */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+        {/* Adicionado classe condicional para desabilitar visualmente se Timesheet estiver marcado */}
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-5 items-start ${isTimesheet ? 'opacity-40 pointer-events-none select-none filter grayscale' : ''}`}>
             {/* Pró-Labore */}
             <div className="space-y-2">
               <FinancialInputWithInstallments 
@@ -497,7 +501,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         </div>
 
         {/* Linha 3: Êxito Intermediário | Êxito Final | Êxito % */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+        {/* Adicionado classe condicional para desabilitar visualmente se Timesheet estiver marcado */}
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-5 items-start ${isTimesheet ? 'opacity-40 pointer-events-none select-none filter grayscale' : ''}`}>
             {/* Êxito Intermediário */}
             <div className="space-y-2">
               <FinancialInputWithInstallments 
@@ -613,10 +618,15 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                     id="timesheet_check"
                     checked={(formData as any).timesheet || false}
                     onChange={(e) => setFormData({...formData, timesheet: e.target.checked} as any)}
-                    className="w-4 h-4 text-salomao-blue rounded focus:ring-salomao-blue"
+                    className="w-4 h-4 text-salomao-blue rounded focus:ring-salomao-blue cursor-pointer"
                 />
-                <label htmlFor="timesheet_check" className="ml-2 text-sm text-gray-700">Utilizar Timesheet</label>
+                <label htmlFor="timesheet_check" className="ml-2 text-sm text-gray-700 cursor-pointer select-none">Utilizar Timesheet</label>
               </div>
+              {isTimesheet && (
+                 <p className="text-[10px] text-orange-600 mt-1 ml-1 animate-in fade-in">
+                    * Ao ativar o Timesheet, os valores de honorários fixos serão zerados no salvamento.
+                 </p>
+              )}
         </div>
       </div>
       )}
