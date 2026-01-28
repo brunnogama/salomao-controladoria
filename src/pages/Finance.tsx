@@ -6,8 +6,9 @@ import {
   CalendarDays, Receipt, X, Filter, MapPin, Hash, FileText, 
   AlertTriangle, Plus, ChevronDown, FileDown, Briefcase
 } from 'lucide-react';
-import { FinancialInstallment, Partner } from '../types';
+import { FinancialInstallment, Partner, Contract, ContractProcess, ContractDocument } from '../types';
 import { EmptyState } from '../components/ui/EmptyState';
+import { ContractDetailsModal } from '../components/contracts/modals/ContractDetailsModal';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 
@@ -76,13 +77,13 @@ export function Finance() {
 
   const [selectedPartner, setSelectedPartner] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, paid, overdue
+  const [statusFilter, setStatusFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   const [locations, setLocations] = useState<string[]>([]);
 
-  // Modais e Edição
+  // Modais
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<FinancialInstallment | null>(null);
   const [billingDate, setBillingDate] = useState(new Date().toISOString().split('T')[0]);
@@ -91,12 +92,18 @@ export function Finance() {
   const [installmentToEdit, setInstallmentToEdit] = useState<FinancialInstallment | null>(null);
   const [newDueDate, setNewDueDate] = useState('');
 
+  // NOVO: Modal de Detalhes do Contrato (usando o modal existente do sistema)
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [selectedContractData, setSelectedContractData] = useState<Contract | null>(null);
+  const [contractProcesses, setContractProcesses] = useState<ContractProcess[]>([]);
+  const [contractDocuments, setContractDocuments] = useState<ContractDocument[]>([]);
+
   useEffect(() => {
     checkUserRole();
     fetchData();
   }, []);
 
-  // Fechar busca ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -123,11 +130,9 @@ export function Finance() {
   const fetchData = async () => {
     setLoading(true);
     
-    // Busca parceiros
     const { data: partnersData } = await supabase.from('partners').select('*').order('name');
     if (partnersData) setPartners(partnersData);
 
-    // Busca parcelas
     const { data: installmentsData } = await supabase
       .from('financial_installments')
       .select(`
@@ -176,7 +181,6 @@ export function Finance() {
     }
   };
 
-  // --- NOVA FUNÇÃO: FILTRAR APENAS VENCIDAS ---
   const handleFilterOverdue = () => {
     setStatusFilter('overdue');
     setSearchTerm('');
@@ -193,6 +197,54 @@ export function Finance() {
     });
   };
 
+  // NOVA FUNÇÃO: Buscar dados completos do contrato e abrir modal
+  const handleOpenContractModal = async (contractId: string) => {
+    try {
+      // Buscar contrato completo
+      const { data: contractData, error: contractError } = await supabase
+        .from('contracts')
+        .select(`
+          *,
+          partners (name),
+          analyzed_by:profiles!analyzed_by (name)
+        `)
+        .eq('id', contractId)
+        .single();
+
+      if (contractError) throw contractError;
+
+      // Buscar processos do contrato
+      const { data: processesData } = await supabase
+        .from('contract_processes')
+        .select('*')
+        .eq('contract_id', contractId);
+
+      // Buscar documentos do contrato
+      const { data: documentsData } = await supabase
+        .from('contract_documents')
+        .select('*')
+        .eq('contract_id', contractId)
+        .order('uploaded_at', { ascending: false });
+
+      // Formatar dados do contrato
+      const formattedContract: Contract = {
+        ...contractData,
+        partner_name: contractData.partners?.name,
+        analyzed_by_name: contractData.analyzed_by?.name,
+        display_id: contractData.seq_id ? String(contractData.seq_id).padStart(6, '0') : '-'
+      };
+
+      setSelectedContractData(formattedContract);
+      setContractProcesses(processesData || []);
+      setContractDocuments(documentsData || []);
+      setSelectedContractId(contractId);
+      setIsContractModalOpen(true);
+    } catch (error: any) {
+      console.error('Erro ao carregar contrato:', error);
+      toast.error('Erro ao carregar detalhes do contrato');
+    }
+  };
+
   // --- FILTROS ---
   const filteredInstallments = installments.filter(i => {
     const term = searchTerm.toLowerCase();
@@ -203,7 +255,6 @@ export function Finance() {
     const matchesPartner = selectedPartner ? i.contract?.partner_id === selectedPartner : true;
     const matchesLocation = selectedLocation ? i.contract?.billing_location === selectedLocation : true;
     
-    // Filtro de Data
     let matchesDate = true;
     if (startDate || endDate) {
         const dateToCheck = i.paid_at ? new Date(i.paid_at) : (i.due_date ? new Date(i.due_date) : null);
@@ -219,7 +270,6 @@ export function Finance() {
         }
     }
 
-    // Filtro de Status
     let matchesStatus = true;
     if (statusFilter === 'pending') matchesStatus = i.status === 'pending';
     if (statusFilter === 'paid') matchesStatus = i.status === 'paid';
@@ -231,8 +281,6 @@ export function Finance() {
   // --- TOTAIS E CÁLCULOS ---
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
   const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-  
-  // IMPORTANTE: totalOverdueCount sempre calculado do TOTAL de installments (não filtrado)
   const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
   const totalOverdueCount = installments.filter(i => isOverdue(i)).length;
 
@@ -269,8 +317,6 @@ export function Finance() {
     toast.info(`Baixando contrato...`);
   };
 
-  const handleNavigateToContract = (contractId: string) => navigate(`/contracts/${contractId}`);
-
   const handleNewInvoice = () => {
      alert("Abrir modal de Cadastro de Casos / Faturamento avulso");
   };
@@ -306,7 +352,6 @@ export function Finance() {
 
   const hasActiveFilters = searchTerm || selectedPartner || selectedLocation || statusFilter !== 'all' || startDate || endDate;
 
-  // Options
   const statusOptions = [
       { label: 'Todos Status', value: 'all' },
       { label: 'Pendentes', value: 'pending' },
@@ -320,7 +365,7 @@ export function Finance() {
   return (
     <div className="p-8 animate-in fade-in duration-500">
       
-      {/* HEADER: Título (Esq) + Filtros/Ações (Dir) */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
@@ -346,7 +391,6 @@ export function Finance() {
 
       {/* CARDS DE TOTAIS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* CARD 1: ALERTA DE PARCELAS VENCIDAS - CLICÁVEL */}
         <div 
           onClick={totalOverdueCount > 0 ? handleFilterOverdue : undefined}
           className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-all duration-300 ${
@@ -380,7 +424,6 @@ export function Finance() {
           </div>
         </div>
 
-        {/* CARD 2: PENDENTE R$ */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <div className="flex items-center justify-between">
             <div>
@@ -391,7 +434,6 @@ export function Finance() {
           </div>
         </div>
 
-        {/* CARD 3: FATURADO R$ */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
           <div className="flex items-center justify-between">
             <div>
@@ -403,9 +445,8 @@ export function Finance() {
         </div>
       </div>
 
-      {/* BARRA DE CONTROLES INFERIOR */}
+      {/* BARRA DE CONTROLES */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm items-center justify-between">
-         {/* Total Count */}
          <div className="flex items-center gap-3 pr-4 border-r border-gray-100 mr-2 min-w-[200px]">
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                 <Receipt className="w-5 h-5" />
@@ -416,16 +457,10 @@ export function Finance() {
             </div>
          </div>
 
-         {/* Ferramentas: Busca, Data, Export */}
          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end flex-1">
-            {/* Busca Animada */}
             <div 
               ref={searchRef}
-              className={`
-                flex items-center overflow-hidden transition-all duration-300 ease-in-out bg-white
-                ${isSearchOpen ? 'w-64 border border-gray-200 shadow-sm px-3 rounded-lg' : 'w-10 border border-transparent justify-center cursor-pointer hover:bg-gray-50 rounded-lg'}
-                h-[42px]
-              `}
+              className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out bg-white ${isSearchOpen ? 'w-64 border border-gray-200 shadow-sm px-3 rounded-lg' : 'w-10 border border-transparent justify-center cursor-pointer hover:bg-gray-50 rounded-lg'} h-[42px]`}
               onClick={() => !isSearchOpen && setIsSearchOpen(true)}
             >
                 <Search className={`w-5 h-5 text-gray-400 shrink-0 ${!isSearchOpen && 'cursor-pointer'}`} />
@@ -444,7 +479,6 @@ export function Finance() {
 
             <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
 
-            {/* Inputs de Data */}
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 h-[42px]">
                  <span className="text-xs text-gray-400 mr-2">De</span>
@@ -456,12 +490,10 @@ export function Finance() {
               </div>
             </div>
 
-            {/* Exportar */}
             <button onClick={exportToExcel} className="flex items-center px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium whitespace-nowrap h-[42px]">
                 <Download className="w-4 h-4 mr-2" /> XLS
             </button>
 
-            {/* Limpar Filtros */}
             {hasActiveFilters && (
                 <button onClick={clearFilters} className="flex items-center px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors h-[42px]" title="Limpar Filtros">
                     <X className="w-4 h-4" />
@@ -506,7 +538,7 @@ export function Finance() {
                   <tr 
                     key={item.id} 
                     className="hover:bg-gray-50 transition-colors cursor-pointer group"
-                    onClick={() => handleNavigateToContract(item.contract!.id)}
+                    onClick={() => handleOpenContractModal(item.contract!.id)}
                   >
                     <td className="p-3 font-mono text-gray-500">{(item.contract as any)?.display_id}</td>
                     <td className="p-3">
@@ -554,6 +586,31 @@ export function Finance() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* MODAL: DETALHES DO CONTRATO */}
+      {selectedContractData && (
+        <ContractDetailsModal 
+          isOpen={isContractModalOpen}
+          onClose={() => {
+            setIsContractModalOpen(false);
+            setSelectedContractData(null);
+            setSelectedContractId(null);
+          }}
+          contract={selectedContractData}
+          onEdit={() => {
+            // Redirecionar para edição do contrato
+            navigate(`/contracts/edit/${selectedContractId}`);
+          }}
+          onDelete={() => {
+            // Função de deletar (se necessário)
+            toast.info('Função de exclusão não implementada');
+          }}
+          processes={contractProcesses}
+          documents={contractDocuments}
+          canEdit={userRole === 'admin' || userRole === 'editor'}
+          canDelete={userRole === 'admin'}
+        />
       )}
 
       {/* MODAL: DATA DE FATURAMENTO */}
