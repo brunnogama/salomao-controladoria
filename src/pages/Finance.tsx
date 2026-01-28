@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash, FileText, ArrowRight, FileDown, AlertTriangle } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash, FileText, ArrowRight, FileDown, AlertTriangle, Plus } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -164,6 +164,12 @@ export function Finance() {
     navigate(`/contracts/${contractId}`);
   };
 
+  const handleNewInvoice = () => {
+    // Aqui você pode abrir o modal ou navegar para a página de criação de contrato
+    // Exemplo: navigate('/contracts/new') ou setOpenNewCaseModal(true)
+    alert("Abrir modal de Cadastro de Casos");
+  };
+
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'pro_labore': return 'Pró-Labore';
@@ -266,46 +272,26 @@ export function Finance() {
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-6">
-        <div>
+      
+      {/* LINHA 1: Título (Esq) + Filtros e Ações (Dir) */}
+      <div className="flex flex-col xl:flex-row justify-between items-center mb-4 gap-4">
+        
+        {/* Título */}
+        <div className="flex-shrink-0 self-start xl:self-center">
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <DollarSign className="w-8 h-8" /> Controle Financeiro
           </h1>
           <p className="text-gray-500 mt-1">Gestão de faturamento e recebíveis.</p>
         </div>
-      </div>
 
-      {/* ÁREA SUPERIOR: Filtros e Ações */}
-      <div className="flex flex-col xl:flex-row gap-6 items-center justify-between">
-        
-        {/* LADO ESQUERDO: Card Atenção Vencidos */}
-        <div className="w-full xl:w-auto">
-            {overdueCount > 0 && (
-                <button 
-                    onClick={() => setShowOverdueOnly(!showOverdueOnly)}
-                    className={`h-10 px-4 rounded-lg flex items-center gap-2 transition-all border shadow-sm ${
-                        showOverdueOnly 
-                        ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-200' 
-                        : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                    }`}
-                >
-                    <AlertTriangle className="w-4 h-4" />
-                    <span className="text-sm font-bold">
-                        {overdueCount} {overdueCount === 1 ? 'Vencida' : 'Vencidas'}
-                    </span>
-                    {showOverdueOnly && <X className="w-3 h-3 ml-1" />}
-                </button>
-            )}
-        </div>
-
-        {/* LADO DIREITO: Filtros e Ações Agrupados */}
+        {/* Filtros e Ações Move para cá */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto justify-end">
             
-            {/* Pesquisa Expansível - LARGURA AUMENTADA E OUTLINE REMOVIDO */}
+            {/* Pesquisa Expansível */}
             <div 
               ref={searchContainerRef}
               className={`flex items-center bg-white border transition-all duration-300 ease-out rounded-full overflow-hidden ${
-                isSearchExpanded ? 'w-full sm:w-[600px] border-salomao-blue ring-2 ring-salomao-blue/10 shadow-sm' : 'w-10 border-transparent bg-transparent'
+                isSearchExpanded ? 'w-full sm:w-[500px] border-salomao-blue ring-2 ring-salomao-blue/10 shadow-sm' : 'w-10 border-transparent bg-transparent'
               }`}
             >
               <button 
@@ -358,7 +344,7 @@ export function Finance() {
               </button>
             )}
 
-            {/* Botões de Ação */}
+            {/* Botões de Exportação */}
             <div className="flex items-center gap-2 border-l pl-3 border-gray-200">
                 <button 
                 onClick={exportToExcel} 
@@ -376,7 +362,37 @@ export function Finance() {
                 <FileText className="w-4 h-4" />
                 </button>
             </div>
+
+             {/* BOTÃO NOVO FATURAMENTO */}
+            <button 
+              onClick={handleNewInvoice}
+              className="ml-2 bg-salomao-blue text-white px-4 py-2 rounded-full hover:bg-blue-900 transition-all shadow-md flex items-center gap-2 font-bold text-sm whitespace-nowrap"
+              title="Novo Faturamento (Cadastro de Casos)"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Faturamento
+            </button>
         </div>
+      </div>
+
+      {/* LINHA 2: Card Atenção Vencidos (Se houver) */}
+      <div className="mb-6 h-10 flex items-center">
+        {overdueCount > 0 && (
+            <button 
+                onClick={() => setShowOverdueOnly(!showOverdueOnly)}
+                className={`h-10 px-4 rounded-lg flex items-center gap-2 transition-all border shadow-sm animate-in slide-in-from-left-2 ${
+                    showOverdueOnly 
+                    ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-200' 
+                    : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                }`}
+            >
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-sm font-bold">
+                    {overdueCount} {overdueCount === 1 ? 'Vencida' : 'Vencidas'}
+                </span>
+                {showOverdueOnly && <X className="w-3 h-3 ml-1" />}
+            </button>
+        )}
       </div>
 
       {/* CARDS DE TOTAIS (Abaixo da área de filtros) */}
