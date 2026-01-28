@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash, FileText, ArrowRight, FileDown } from 'lucide-react';
+import { DollarSign, Search, Download, CheckCircle2, Circle, Clock, Loader2, CalendarDays, Receipt, X, Filter, Shield, Hash, FileText, ArrowRight, FileDown, AlertTriangle } from 'lucide-react';
 import { FinancialInstallment, Partner } from '../types';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -23,6 +23,9 @@ export function Finance() {
 
   const [selectedPartner, setSelectedPartner] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
+  
+  // Estado para filtro de vencidos
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
    
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<FinancialInstallment | null>(null);
@@ -202,8 +205,24 @@ export function Finance() {
       setSearchTerm('');
       setSelectedPartner('');
       setSelectedLocation('');
+      setShowOverdueOnly(false);
       setIsSearchExpanded(false);
   };
+
+  // --- Lógica de Vencimento ---
+  const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const isOverdue = (inst: FinancialInstallment) => {
+    if (inst.status !== 'pending' || !inst.due_date) return false;
+    const dueDateStr = inst.due_date.split('T')[0];
+    return dueDateStr < todayStr;
+  };
+
+  // Calcular contagem de vencidos (baseado nos filtros de sócio/local atuais, mas ignorando busca)
+  const overdueCount = installments.filter(i => {
+    const matchesPartner = selectedPartner ? i.contract?.partner_id === selectedPartner : true;
+    const matchesLocation = selectedLocation ? i.contract?.billing_location === selectedLocation : true;
+    return matchesPartner && matchesLocation && isOverdue(i);
+  }).length;
 
   const filteredInstallments = installments.filter(i => {
     const matchesSearch = i.contract?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -211,7 +230,10 @@ export function Finance() {
                           (i.contract as any)?.display_id?.includes(searchTerm);
     const matchesPartner = selectedPartner ? i.contract?.partner_id === selectedPartner : true;
     const matchesLocation = selectedLocation ? i.contract?.billing_location === selectedLocation : true;
-    return matchesSearch && matchesPartner && matchesLocation;
+    
+    const matchesOverdue = showOverdueOnly ? isOverdue(i) : true;
+
+    return matchesSearch && matchesPartner && matchesLocation && matchesOverdue;
   });
 
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
@@ -233,7 +255,7 @@ export function Finance() {
   const pendingBreakdown = calculateBreakdown('pending');
   const paidBreakdown = calculateBreakdown('paid');
 
-  const hasActiveFilters = searchTerm || selectedPartner || selectedLocation;
+  const hasActiveFilters = searchTerm || selectedPartner || selectedLocation || showOverdueOnly;
 
   const BreakdownItem = ({ label, value, colorClass }: { label: string, value: number, colorClass: string }) => (
       <div className="flex justify-between items-center text-xs py-1 border-b border-gray-50 last:border-0">
@@ -254,8 +276,28 @@ export function Finance() {
       </div>
 
       {/* ÁREA SUPERIOR: Filtros e Ações */}
-      <div className="flex flex-col xl:flex-row gap-6 items-end justify-end">
+      <div className="flex flex-col xl:flex-row gap-6 items-center justify-between">
         
+        {/* LADO ESQUERDO: Card Atenção Vencidos */}
+        <div className="w-full xl:w-auto">
+            {overdueCount > 0 && (
+                <button 
+                    onClick={() => setShowOverdueOnly(!showOverdueOnly)}
+                    className={`h-10 px-4 rounded-lg flex items-center gap-2 transition-all border shadow-sm ${
+                        showOverdueOnly 
+                        ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-200' 
+                        : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                    }`}
+                >
+                    <AlertTriangle className="w-4 h-4" />
+                    <span className="text-sm font-bold">
+                        {overdueCount} {overdueCount === 1 ? 'Vencida' : 'Vencidas'}
+                    </span>
+                    {showOverdueOnly && <X className="w-3 h-3 ml-1" />}
+                </button>
+            )}
+        </div>
+
         {/* LADO DIREITO: Filtros e Ações Agrupados */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto justify-end">
             
@@ -429,7 +471,15 @@ export function Finance() {
                       {item.status === 'paid' ? <span className="flex items-center text-green-600 font-bold text-xs uppercase mb-1"><CheckCircle2 className="w-4 h-4 mr-1" /> Faturado</span> : <span className="flex items-center text-orange-500 font-bold text-xs uppercase mb-1"><Circle className="w-4 h-4 mr-1" /> Pendente</span>}
                       <div className="text-xs font-mono text-gray-500">HON: {item.contract?.hon_number || '-'}</div>
                     </td>
-                    <td className="px-6 py-4 text-xs font-mono">{item.paid_at ? <span className="text-green-600">Pago: {new Date(item.paid_at).toLocaleDateString()}</span> : item.due_date ? new Date(item.due_date).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-4 text-xs font-mono">
+                      {item.paid_at ? (
+                        <span className="text-green-600">Pago: {new Date(item.paid_at).toLocaleDateString()}</span>
+                      ) : (
+                        <span className={isOverdue(item) ? "text-red-600 font-bold" : ""}>
+                          {item.due_date ? new Date(item.due_date).toLocaleDateString() : '-'}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-xs font-bold text-gray-700">{(item as any).clause || '-'}</td>
                     <td className="px-6 py-4"><div className="font-bold text-gray-800">{item.contract?.client_name}</div></td>
                     <td className="px-6 py-4"><div className="text-gray-700 font-medium">{getTypeLabel(item.type)}</div><div className="text-xs text-gray-400">Parcela {item.installment_number}/{item.total_installments}</div></td>
