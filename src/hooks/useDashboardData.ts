@@ -51,8 +51,8 @@ const isDateInLastMonthMTD = (dateString?: string) => {
     return isSameMonth && isWithinDayLimit;
 };
 
-// Formata data com ANO (ex: 01 jan 2026) - ALTERADO AQUI
-const formatDateLabel = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
+// Formata data curta (ex: 01/jan)
+const formatDateShort = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
 
 // ATUALIZAÇÃO: Hook aceita filtros opcionais
 export function useDashboardData(selectedPartner?: string, selectedLocation?: string) {
@@ -96,9 +96,9 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
     });
     // ---------------------------
 
-    // --- GERAÇÃO DOS LABELS DE PERÍODO (Com Ano) ---
+    // --- GERAÇÃO DOS LABELS DE PERÍODO ---
     const primeiroDiaMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const periodoAtualStr = `${formatDateLabel(primeiroDiaMesAtual)} - ${formatDateLabel(hoje)}`;
+    const periodoAtualStr = `${formatDateShort(primeiroDiaMesAtual)} - ${formatDateShort(hoje)}`;
 
     let lastMonth = hoje.getMonth() - 1;
     let lastYear = hoje.getFullYear();
@@ -113,7 +113,7 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
         diaLimiteMesAnterior.setDate(maxDaysInLastMonth);
     }
     
-    const periodoAnteriorStr = `${formatDateLabel(primeiroDiaMesAnterior)} - ${formatDateLabel(diaLimiteMesAnterior)}`;
+    const periodoAnteriorStr = `${formatDateShort(primeiroDiaMesAnterior)} - ${formatDateShort(diaLimiteMesAnterior)}`;
     // -------------------------------------
 
     const partnerMap = partners.reduce((acc: any, s: any) => {
@@ -182,27 +182,6 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
 
     // --- LOOP PRINCIPAL DE CÁLCULO (USANDO FILTRADOS) ---
     filteredContracts.forEach((c) => {
-      // ⭐ VERIFICAÇÃO CRÍTICA: Pula contratos sem valores (nem base nem extras)
-      const hasBaseValues = (
-        (c.pro_labore && safeParseMoney(c.pro_labore) > 0) ||
-        (c.final_success_fee && safeParseMoney(c.final_success_fee) > 0) ||
-        (c.fixed_monthly_fee && safeParseMoney(c.fixed_monthly_fee) > 0) ||
-        (c.other_fees && safeParseMoney(c.other_fees) > 0)
-      );
-      
-      const hasExtraValues = (
-        (c.pro_labore_extras && Array.isArray(c.pro_labore_extras) && c.pro_labore_extras.length > 0) ||
-        (c.final_success_extras && Array.isArray(c.final_success_extras) && c.final_success_extras.length > 0) ||
-        (c.intermediate_fees && Array.isArray(c.intermediate_fees) && c.intermediate_fees.length > 0) ||
-        (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras) && c.fixed_monthly_extras.length > 0) ||
-        (c.other_fees_extras && Array.isArray(c.other_fees_extras) && c.other_fees_extras.length > 0)
-      );
-      
-      // Se o contrato está ativo mas não tem valores, pula
-      if (c.status === 'active' && !hasBaseValues && !hasExtraValues) {
-        return; // Pula para o próximo contrato
-      }
-      
       // 1. LEITURA DOS VALORES (Foco nos totais do placeholder)
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
