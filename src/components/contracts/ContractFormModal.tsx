@@ -55,9 +55,17 @@ export function ContractFormModal(props: Props) {
   const [activeManager, setActiveManager] = useState<string | null>(null);
   
   const [initialFormData, setInitialFormData] = useState<Contract | null>(null);
+  
+  // Estados de Duplicidade
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
   const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
-  const [duplicateProcessWarning, setDuplicateProcessWarning] = useState<boolean>(false);
+  const [duplicateAuthorCases, setDuplicateAuthorCases] = useState<any[]>([]); // Novo
+  const [duplicateHonCase, setDuplicateHonCase] = useState<any | null>(null); // Novo
+  const [duplicateProcessData, setDuplicateProcessData] = useState<any | null>(null); // Atualizado para guardar dados, não só boolean
+
+  // Estados "Sem CNPJ" para aba Objeto
+  const [authorHasNoCnpj, setAuthorHasNoCnpj] = useState(false);
+  const [opponentHasNoCnpj, setOpponentHasNoCnpj] = useState(false);
 
   // Estados do UI Rico (Processos)
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
@@ -84,6 +92,9 @@ export function ContractFormModal(props: Props) {
   const options = useContractOptions({ formData, setFormData, currentProcess, setCurrentProcess, activeManager });
     
   const isLoading = parentLoading || localLoading;
+
+  // Warning de Data Vazia na Aba Status
+  const [dateWarningMessage, setDateWarningMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -115,29 +126,62 @@ export function ContractFormModal(props: Props) {
       // Reseta a posição para "Selecione"
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: '' })); 
       setNewSubject('');
+      
+      // Resetar Duplicidades
       setDuplicateClientCases([]);
       setDuplicateOpponentCases([]);
-      setDuplicateProcessWarning(false);
+      setDuplicateAuthorCases([]);
+      setDuplicateHonCase(null);
+      setDuplicateProcessData(null);
+      setAuthorHasNoCnpj(false);
+      setOpponentHasNoCnpj(false);
+
       setInitialFormData(null);
       setActiveManager(null);
-      setActiveTab(1); // Resetar para a primeira aba
+      setActiveTab(1); 
     }
   }, [isOpen, formData.id]);
 
+  // EFEITO: Verifica mensagem de data obrigatória
+  useEffect(() => {
+    let msg = null;
+    if (formData.status === 'analysis' && !formData.prospect_date) {
+        msg = "Data de Prospecção é necessária para o status Análise.";
+    } else if (formData.status === 'proposal' && !formData.proposal_date) {
+        msg = "Data da Proposta é necessária para o status Proposta Enviada.";
+    } else if (formData.status === 'active' && !formData.contract_date) {
+        msg = "Data de Assinatura é necessária para o status Contrato Fechado.";
+    }
+    setDateWarningMessage(msg);
+  }, [formData.status, formData.prospect_date, formData.proposal_date, formData.contract_date]);
+
+  // EFEITO: Check Duplicidade CLIENTE
   useEffect(() => {
     const checkClientDuplicates = async () => {
         if (!formData.client_name || formData.client_name.length < 3) return setDuplicateClientCases([]);
-        const { data } = await supabase.from('contracts').select('id, hon_number, status').ilike('client_name', `%${formData.client_name}%`).neq('id', formData.id || '00000000-0000-0000-0000-000000000000').limit(5);
+        const { data } = await supabase.from('contracts').select('id, hon_number, status, display_id').ilike('client_name', `%${formData.client_name}%`).neq('id', formData.id || '00000000-0000-0000-0000-000000000000').limit(5);
         if (data) setDuplicateClientCases(data);
     };
     const timer = setTimeout(checkClientDuplicates, 800);
     return () => clearTimeout(timer);
   }, [formData.client_name, formData.id]);
 
+  // EFEITO: Check Duplicidade HON NUMBER
+  useEffect(() => {
+    const checkHonDuplicates = async () => {
+        if (!formData.hon_number || formData.hon_number.length < 2) return setDuplicateHonCase(null);
+        const { data } = await supabase.from('contracts').select('id, client_name, display_id').eq('hon_number', formData.hon_number).neq('id', formData.id || '00000000-0000-0000-0000-000000000000').maybeSingle();
+        setDuplicateHonCase(data);
+    };
+    const timer = setTimeout(checkHonDuplicates, 800);
+    return () => clearTimeout(timer);
+  }, [formData.hon_number, formData.id]);
+
+  // EFEITO: Check Duplicidade CONTRÁRIO (Opponent)
   useEffect(() => {
     const checkOpponentDuplicates = async () => {
         if (!currentProcess.opponent || currentProcess.opponent.length < 3) return setDuplicateOpponentCases([]);
-        const { data } = await supabase.from('contract_processes').select('contract_id, contracts(id, client_name, hon_number)').ilike('opponent', `%${currentProcess.opponent}%`).limit(5);
+        const { data } = await supabase.from('contract_processes').select('contract_id, contracts(id, client_name, hon_number, display_id)').ilike('opponent', `%${currentProcess.opponent}%`).limit(5);
         if (data) {
             const uniqueCases = data.reduce((acc: any[], current: any) => {
                 const x = acc.find(item => item.contracts?.id === current.contracts?.id);
@@ -150,42 +194,77 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [currentProcess.opponent]);
 
+  // EFEITO: Check Duplicidade AUTOR (Author)
+  useEffect(() => {
+    const checkAuthorDuplicates = async () => {
+        const authorName = (currentProcess as any).author;
+        if (!authorName || authorName.length < 3) return setDuplicateAuthorCases([]);
+        
+        const { data } = await supabase.from('contract_processes').select('contract_id, contracts(id, client_name, hon_number, display_id)').ilike('author', `%${authorName}%`).limit(5);
+        
+        if (data) {
+            const uniqueCases = data.reduce((acc: any[], current: any) => {
+                const x = acc.find(item => item.contracts?.id === current.contracts?.id);
+                return (!x && current.contracts) ? acc.concat([current]) : acc;
+            }, []);
+            setDuplicateAuthorCases(uniqueCases);
+        }
+    };
+    const timer = setTimeout(checkAuthorDuplicates, 800);
+    return () => clearTimeout(timer);
+  }, [(currentProcess as any).author]);
+
+  // EFEITO: Check Duplicidade NÚMERO DO PROCESSO
   useEffect(() => {
     const checkProcessNumber = async () => {
         // Se houver um otherProcessType definido (Consultoria, Administrativo, etc), não valida duplicidade de processo
-        if (otherProcessType) return setDuplicateProcessWarning(false);
-        if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'OUTROS'].includes(currentProcess.process_number)) return setDuplicateProcessWarning(false);
-        const { data } = await supabase.from('contract_processes').select('id').eq('process_number', currentProcess.process_number).limit(1);
-        setDuplicateProcessWarning(!!(data && data.length > 0));
+        if (otherProcessType) return setDuplicateProcessData(null);
+        if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'OUTROS'].includes(currentProcess.process_number)) return setDuplicateProcessData(null);
+        
+        // Busca se existe algum processo com este número (excluindo o caso atual se estiver editando)
+        const { data } = await supabase.from('contract_processes')
+            .select('contract_id, contracts(id, client_name, display_id)')
+            .eq('process_number', currentProcess.process_number)
+            .neq('contract_id', formData.id || '00000000-0000-0000-0000-000000000000')
+            .limit(1)
+            .maybeSingle();
+            
+        setDuplicateProcessData(data);
     };
     const timer = setTimeout(checkProcessNumber, 800);
     return () => clearTimeout(timer);
-  }, [currentProcess.process_number, otherProcessType]);
+  }, [currentProcess.process_number, otherProcessType, formData.id]);
 
   // EFEITO: Auto-preenchimento de CNPJ do Autor
   useEffect(() => {
+    if (authorHasNoCnpj) {
+        setCurrentProcess(prev => ({ ...prev, author_cnpj: '' }));
+        return;
+    }
     const fetchAuthorCNPJ = async () => {
         const authorName = (currentProcess as any).author;
         if (!authorName || authorName.length < 3) return;
-        // Tenta buscar o CNPJ se a coluna existir, senão falha silenciosamente ou retorna nulo
         const { data, error } = await supabase.from('authors').select('cnpj').eq('name', authorName).maybeSingle();
         if (!error && data && data.cnpj) setCurrentProcess(prev => ({ ...prev, author_cnpj: maskCNPJ(data.cnpj) }));
     };
     const timer = setTimeout(fetchAuthorCNPJ, 800);
     return () => clearTimeout(timer);
-  }, [(currentProcess as any).author]);
+  }, [(currentProcess as any).author, authorHasNoCnpj]);
 
   // EFEITO: Auto-preenchimento de CNPJ do Contrário
   useEffect(() => {
+    if (opponentHasNoCnpj) {
+        setCurrentProcess(prev => ({ ...prev, opponent_cnpj: '' }));
+        return;
+    }
     const fetchOpponentCNPJ = async () => {
         if (!currentProcess.opponent || currentProcess.opponent.length < 3) return;
-        // Tenta buscar o CNPJ se a coluna existir
         const { data, error } = await supabase.from('opponents').select('cnpj').eq('name', currentProcess.opponent).maybeSingle();
         if (!error && data && data.cnpj) setCurrentProcess(prev => ({ ...prev, opponent_cnpj: maskCNPJ(data.cnpj) }));
     };
     const timer = setTimeout(fetchOpponentCNPJ, 800);
     return () => clearTimeout(timer);
-  }, [currentProcess.opponent]);
+  }, [currentProcess.opponent, opponentHasNoCnpj]);
 
   // EFEITO: Geração Automática de Parcelas Detalhadas
   useEffect(() => {
@@ -205,16 +284,13 @@ export function ContractFormModal(props: Props) {
         const valStr = (formData as any)[field];
         const instStr = (formData as any)[installField];
         
-        // Se não houver valor ou parcelas, ou for 1x, limpa o breakdown se existir
         if (!valStr || !instStr || instStr === '1x' || valStr === 'R$ 0,00' || valStr === '') {
-            // (newFormData as any)[breakdownField] = []; // Opcional: limpar se necessário
             return;
         }
 
         const count = parseInt(instStr.replace('x', '')) || 1;
         const currentBreakdown = (formData as any)[breakdownField] || [];
 
-        // Se o tamanho do array não bater com o número de parcelas, regenera
         if (currentBreakdown.length !== count && count > 1) {
             const total = safeParseFloat(valStr);
             const baseValue = total / count;
@@ -287,7 +363,6 @@ export function ContractFormModal(props: Props) {
     };
 
     if (clientData.cnpj) {
-      // FIX: Use maybeSingle instead of single to avoid 406 error
       const { data: existingClient } = await supabase.from('clients').select('id').eq('cnpj', clientData.cnpj).maybeSingle();
       if (existingClient) {
         await supabase.from('clients').update(clientData).eq('id', existingClient.id);
@@ -393,7 +468,6 @@ export function ContractFormModal(props: Props) {
       if (!formData.contract_date) return alert('A "Data Assinatura" é obrigatória para Contratos Fechados.');
       if (!formData.hon_number) return alert('O "Número HON" é obrigatório para Contratos Fechados.');
       if (!formData.billing_location) return alert('O "Local Faturamento" é obrigatório para Contratos Fechados.');
-      // Validação reforçada para Assinatura Física (Obrigatório e não pode ser vazio/undefined)
       if (formData.physical_signature === undefined || formData.physical_signature === null || (formData.physical_signature as any) === '') return alert('Informe se "Possui Assinatura Física" para Contratos Fechados.');
     }
 
@@ -408,7 +482,6 @@ export function ContractFormModal(props: Props) {
             pro_labore_clause: (formData as any).pro_labore_clause, final_success_fee_clause: (formData as any).final_success_fee_clause, fixed_monthly_fee_clause: (formData as any).fixed_monthly_fee_clause, other_fees_clause: (formData as any).other_fees_clause,
             pro_labore_extras_clauses: ensureArray((formData as any).pro_labore_extras_clauses), final_success_extras_clauses: ensureArray((formData as any).final_success_extras_clauses), fixed_monthly_extras_clauses: ensureArray((formData as any).fixed_monthly_extras_clauses), other_fees_extras_clauses: ensureArray((formData as any).other_fees_extras_clauses), intermediate_fees_clauses: ensureArray((formData as any).intermediate_fees_clauses),
             pro_labore_extras_installments: ensureArray((formData as any).pro_labore_extras_installments), final_success_extras_installments: ensureArray((formData as any).final_success_extras_installments), fixed_monthly_extras_installments: ensureArray((formData as any).fixed_monthly_extras_installments), other_fees_extras_installments: ensureArray((formData as any).other_fees_extras_installments), intermediate_fees_installments: ensureArray((formData as any).intermediate_fees_installments),
-            // Incluir os novos campos de detalhamento no payload para salvar
             pro_labore_breakdown: (formData as any).pro_labore_breakdown, final_success_fee_breakdown: (formData as any).final_success_fee_breakdown, fixed_monthly_fee_breakdown: (formData as any).fixed_monthly_fee_breakdown, other_fees_breakdown: (formData as any).other_fees_breakdown,
             partner_name: undefined, analyzed_by_name: undefined, process_count: undefined, analyst: undefined, analysts: undefined, client: undefined, partner: undefined, processes: undefined, partners: undefined, id: undefined, display_id: undefined, contract_documents: undefined, documents: undefined,
         };
@@ -439,14 +512,13 @@ export function ContractFormModal(props: Props) {
                         created_at, 
                         author_cnpj, 
                         opponent_cnpj, 
-                        cause_value, // Extrai cause_value para removê-lo do objeto enviado
+                        cause_value, 
                         ...rest 
                     } = p as any; 
                     
                     return { 
                         ...rest, 
                         contract_id: savedId,
-                        // Mapeia cause_value (string com R$) para value_of_cause (number no banco)
                         value_of_cause: cause_value ? safeParseFloat(cause_value) : 0
                     }; 
                 });
@@ -455,7 +527,6 @@ export function ContractFormModal(props: Props) {
                 if (processError) throw processError;
             }
             if (formData.status === 'active' && formData.physical_signature === false) {
-                // FIX: Use maybeSingle instead of single
                 const { data } = await supabase.from('kanban_tasks').select('id').eq('contract_id', savedId).eq('status', 'signature').maybeSingle();
                 if (!data) await supabase.from('kanban_tasks').insert({ title: `Coletar Assinatura: ${formData.client_name}`, description: `Contrato fechado em ${new Date().toLocaleDateString()}. Coletar assinatura física.`, priority: 'Alta', status: 'signature', contract_id: savedId, due_date: addDays(new Date(), 5).toISOString(), position: 0 });
             }
@@ -484,14 +555,16 @@ export function ContractFormModal(props: Props) {
       setFormData(prev => ({ ...prev, client_name: toTitleCase(data.razao_social || data.nome_fantasia || ''), uf: data.uf || prev.uf }));
       setClientExtraData({ address: toTitleCase(data.logradouro || ''), number: data.numero || '', complement: toTitleCase(data.complemento || ''), city: toTitleCase(data.municipio || ''), email: data.email || '', is_person: false });
       
-      // FIX: Use maybeSingle instead of single
       const { data: existingClient } = await supabase.from('clients').select('id, name').eq('cnpj', cnpjLimpo).maybeSingle();
       if (existingClient) setFormData(prev => ({ ...prev, client_id: existingClient.id }));
     } catch (error: any) { alert(`❌ ${error.message}\n\n💡 Você pode preencher manualmente.`); } finally { setLocalLoading(false); }
   };
 
-  // --- NOVA LÓGICA CORRIGIDA PARA AUTOR/RÉU ---
   const handlePartyCNPJSearch = async (type: 'author' | 'opponent') => {
+    // Se "Sem CNPJ" estiver marcado, não busca
+    if (type === 'author' && authorHasNoCnpj) return;
+    if (type === 'opponent' && opponentHasNoCnpj) return;
+
     const cnpj = type === 'author' ? (currentProcess as any).author_cnpj : (currentProcess as any).opponent_cnpj;
     if (!cnpj) return;
     const cleanCNPJ = cnpj.replace(/\D/g, '');
@@ -505,30 +578,17 @@ export function ContractFormModal(props: Props) {
         const name = toTitleCase(data.razao_social || data.nome_fantasia || '');
         const table = type === 'author' ? 'authors' : 'opponents';
 
-        // 1. Verificar se JÁ EXISTE no banco para evitar Erro 409
         const { data: existing } = await supabase.from(table).select('id, name').ilike('name', name).maybeSingle();
 
         if (!existing) {
-             // 2. Se não existir, tenta inserir.
-             // OBS: Se a coluna CNPJ ainda não tiver sido criada no Supabase, o insert abaixo pode falhar se passarmos cnpj.
-             // Para segurança, mantemos 'name' e tentamos passar 'cnpj' se o banco aceitar, mas lidamos com o erro.
              const payload: any = { name };
-             // Tenta enviar o CNPJ junto (requer criar coluna no banco)
              payload.cnpj = cleanCNPJ; 
-
              const { error } = await supabase.from(table).insert(payload);
-             
-             // Se der erro de coluna inexistente (400) ou duplicidade (23505), ignoramos e seguimos
              if (error && error.code !== '23505' && error.code !== '42703') {
-                 // Fallback: Tenta inserir só o nome se o CNPJ falhar
                  await supabase.from(table).insert({ name });
              }
-        } else {
-             // Opcional: Atualizar CNPJ do registro existente se estiver faltando
-             // await supabase.from(table).update({ cnpj: cleanCNPJ }).eq('id', existing.id);
         }
 
-        // 3. Atualizar Estado Local (Garante que aparece no Menu)
         if (type === 'author') {
              if (!options.authorOptions.includes(name)) {
                  options.setAuthorOptions(prev => [...prev, name].sort((a,b)=>a.localeCompare(b)));
@@ -691,14 +751,57 @@ export function ContractFormModal(props: Props) {
             {/* Conteúdo da Aba 1: Dados do Cliente */}
             {activeTab === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
-                    <ClientFormSection formData={formData} setFormData={setFormData} maskCNPJ={maskCNPJ} handleCNPJSearch={handleCNPJSearch} clientSelectOptions={clientSelectOptions} handleClientChange={handleClientChange} setActiveManager={setActiveManager} duplicateClientCases={duplicateClientCases} getStatusLabel={getStatusLabel} areaOptions={areaOptions} partnerSelectOptions={partnerSelectOptions} onOpenPartnerManager={onOpenPartnerManager} />
+                    <ClientFormSection 
+                        formData={formData} 
+                        setFormData={setFormData} 
+                        maskCNPJ={maskCNPJ} 
+                        handleCNPJSearch={handleCNPJSearch} 
+                        clientSelectOptions={clientSelectOptions} 
+                        handleClientChange={handleClientChange} 
+                        setActiveManager={setActiveManager} 
+                        duplicateClientCases={duplicateClientCases} 
+                        getStatusLabel={getStatusLabel} 
+                        areaOptions={areaOptions} 
+                        partnerSelectOptions={partnerSelectOptions} 
+                        onOpenPartnerManager={onOpenPartnerManager} 
+                    />
                 </div>
             )}
 
             {/* Conteúdo da Aba 2: Status */}
             {activeTab === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
-                    <StatusAndDatesSection formData={formData} setFormData={setFormData} statusOptions={statusOptions} handleCreateStatus={handleCreateStatus} ensureDateValue={ensureDateValue} analystSelectOptions={analystSelectOptions} onOpenAnalystManager={onOpenAnalystManager} rejectionByOptions={rejectionByOptions} rejectionReasonOptions={rejectionReasonOptions} partnerSelectOptions={partnerSelectOptions} billingOptions={billingOptions} maskHon={maskHon} setActiveManager={setActiveManager} signatureOptions={signatureOptions} formatForInput={formatForInput} handleAddToList={handleAddToList} removeExtra={removeExtra} newIntermediateFee={newIntermediateFee} setNewIntermediateFee={setNewIntermediateFee} interimInstallments={interimInstallments} setInterimInstallments={setInterimInstallments} handleAddIntermediateFee={handleAddIntermediateFee} interimClause={interimClause} setInterimClause={setInterimClause} handleRemoveIntermediateFee={handleRemoveIntermediateFee} ensureArray={ensureArray} />
+                    <StatusAndDatesSection 
+                        formData={formData} 
+                        setFormData={setFormData} 
+                        statusOptions={statusOptions} 
+                        handleCreateStatus={handleCreateStatus} 
+                        ensureDateValue={ensureDateValue} 
+                        analystSelectOptions={analystSelectOptions} 
+                        onOpenAnalystManager={onOpenAnalystManager} 
+                        rejectionByOptions={rejectionByOptions} 
+                        rejectionReasonOptions={rejectionReasonOptions} 
+                        partnerSelectOptions={partnerSelectOptions} 
+                        billingOptions={billingOptions} 
+                        maskHon={maskHon} 
+                        setActiveManager={setActiveManager} 
+                        signatureOptions={signatureOptions} 
+                        formatForInput={formatForInput} 
+                        handleAddToList={handleAddToList} 
+                        removeExtra={removeExtra} 
+                        newIntermediateFee={newIntermediateFee} 
+                        setNewIntermediateFee={setNewIntermediateFee} 
+                        interimInstallments={interimInstallments} 
+                        setInterimInstallments={setInterimInstallments} 
+                        handleAddIntermediateFee={handleAddIntermediateFee} 
+                        interimClause={interimClause} 
+                        setInterimClause={setInterimClause} 
+                        handleRemoveIntermediateFee={handleRemoveIntermediateFee} 
+                        ensureArray={ensureArray}
+                        // Novos Props de Validação
+                        duplicateHonCase={duplicateHonCase}
+                        dateWarningMessage={dateWarningMessage}
+                    />
                     
                     {(formData.status === 'analysis' || formData.status === 'proposal' || formData.status === 'active') && (
                         <div className="pt-6 border-t border-black/5 space-y-6">
@@ -727,7 +830,58 @@ export function ContractFormModal(props: Props) {
                             <button onClick={() => handleTypeChange('Outros')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${otherProcessType === 'Outros' ? 'bg-salomao-blue text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Outros</button>
                         </div>
 
-                        <LegalProcessForm formData={formData} setFormData={setFormData} currentProcess={currentProcess} setCurrentProcess={setCurrentProcess} isStandardCNJ={isStandardCNJ} setIsStandardCNJ={setIsStandardCNJ} otherProcessType={otherProcessType} setOtherProcessType={setOtherProcessType} duplicateProcessWarning={duplicateProcessWarning} searchingCNJ={searchingCNJ} handleCNJSearch={handleCNJSearch} handleOpenJusbrasil={handleOpenJusbrasil} courtSelectOptions={courtSelectOptions} ufOptions={ufOptions} positionOptions={positionOptions} authorOptions={options.authorOptions} opponentOptions={options.opponentOptions} duplicateOpponentCases={duplicateOpponentCases} magistrateTypes={magistrateTypes} magistrateOptions={options.magistrateOptions} newMagistrateTitle={newMagistrateTitle} setNewMagistrateTitle={setNewMagistrateTitle} newMagistrateName={newMagistrateName} setNewMagistrateName={setNewMagistrateName} addMagistrate={addMagistrate} removeMagistrate={removeMagistrate} numeralOptions={numeralOptions} varaSelectOptions={varaSelectOptions} comarcaSelectOptions={comarcaSelectOptions} justiceSelectOptions={justiceSelectOptions} classSelectOptions={classSelectOptions} subjectSelectOptions={subjectSelectOptions} newSubject={newSubject} setNewSubject={setNewSubject} addSubjectToProcess={addSubjectToProcess} removeSubject={removeSubject} editingProcessIndex={editingProcessIndex} handleProcessAction={handleProcessAction} handlePartyCNPJSearch={handlePartyCNPJSearch} localMaskCNJ={localMaskCNJ} ensureDateValue={ensureDateValue} setActiveManager={setActiveManager} />
+                        <LegalProcessForm 
+                            formData={formData} 
+                            setFormData={setFormData} 
+                            currentProcess={currentProcess} 
+                            setCurrentProcess={setCurrentProcess} 
+                            isStandardCNJ={isStandardCNJ} 
+                            setIsStandardCNJ={setIsStandardCNJ} 
+                            otherProcessType={otherProcessType} 
+                            setOtherProcessType={setOtherProcessType} 
+                            duplicateProcessWarning={!!duplicateProcessData} 
+                            searchingCNJ={searchingCNJ} 
+                            handleCNJSearch={handleCNJSearch} 
+                            handleOpenJusbrasil={handleOpenJusbrasil} 
+                            courtSelectOptions={courtSelectOptions} 
+                            ufOptions={ufOptions} 
+                            positionOptions={positionOptions} 
+                            authorOptions={options.authorOptions} 
+                            opponentOptions={options.opponentOptions} 
+                            duplicateOpponentCases={duplicateOpponentCases} 
+                            magistrateTypes={magistrateTypes} 
+                            magistrateOptions={options.magistrateOptions} 
+                            newMagistrateTitle={newMagistrateTitle} 
+                            setNewMagistrateTitle={setNewMagistrateTitle} 
+                            newMagistrateName={newMagistrateName} 
+                            setNewMagistrateName={setNewMagistrateName} 
+                            addMagistrate={addMagistrate} 
+                            removeMagistrate={removeMagistrate} 
+                            numeralOptions={numeralOptions} 
+                            varaSelectOptions={varaSelectOptions} 
+                            comarcaSelectOptions={comarcaSelectOptions} 
+                            justiceSelectOptions={justiceSelectOptions} 
+                            classSelectOptions={classSelectOptions} 
+                            subjectSelectOptions={subjectSelectOptions} 
+                            newSubject={newSubject} 
+                            setNewSubject={setNewSubject} 
+                            addSubjectToProcess={addSubjectToProcess} 
+                            removeSubject={removeSubject} 
+                            editingProcessIndex={editingProcessIndex} 
+                            handleProcessAction={handleProcessAction} 
+                            handlePartyCNPJSearch={handlePartyCNPJSearch} 
+                            localMaskCNJ={localMaskCNJ} 
+                            ensureDateValue={ensureDateValue} 
+                            setActiveManager={setActiveManager}
+                            // Novos Props de Validação
+                            duplicateProcessData={duplicateProcessData} 
+                            duplicateAuthorCases={duplicateAuthorCases}
+                            // Estados Sem CNPJ
+                            authorHasNoCnpj={authorHasNoCnpj}
+                            setAuthorHasNoCnpj={setAuthorHasNoCnpj}
+                            opponentHasNoCnpj={opponentHasNoCnpj}
+                            setOpponentHasNoCnpj={setOpponentHasNoCnpj}
+                        />
                         <LegalProcessList processes={processes} setViewProcess={setViewProcess} setViewProcessIndex={setViewProcessIndex} editProcess={editProcess} removeProcess={removeProcess} />
                     </section>
                     <div>

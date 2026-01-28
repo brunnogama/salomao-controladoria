@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Plus, X, Settings, AlertTriangle } from 'lucide-react';
+import { Plus, X, Settings, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Contract } from '../../../types';
 import { CustomSelect } from '../../ui/CustomSelect';
 import { FinancialInputWithInstallments } from './FinancialInputWithInstallments';
@@ -33,6 +33,10 @@ interface StatusAndDatesSectionProps {
   setInterimClause: (v: string) => void;
   handleRemoveIntermediateFee: (idx: number) => void;
   ensureArray: (val: any) => string[];
+  // Nova prop para mensagem de aviso de data
+  dateWarningMessage?: string | null;
+  // Nova prop para aviso de duplicidade de HON (opcional, se quiser mostrar aqui também)
+  duplicateHonCase?: any | null; 
 }
 
 export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
@@ -42,7 +46,8 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
     partnerSelectOptions, billingOptions, maskHon, setActiveManager, signatureOptions,
     formatForInput, handleAddToList, removeExtra,
     newIntermediateFee, setNewIntermediateFee, interimInstallments, setInterimInstallments,
-    handleAddIntermediateFee, interimClause, setInterimClause, handleRemoveIntermediateFee, ensureArray
+    handleAddIntermediateFee, interimClause, setInterimClause, handleRemoveIntermediateFee, ensureArray,
+    dateWarningMessage, duplicateHonCase
   } = props;
 
   // Helper para garantir string no input financeiro
@@ -311,7 +316,7 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                 </label>
                 <input 
                     type="date" 
-                    className="w-full border border-gray-300 p-2.5 rounded-lg text-sm bg-white focus:border-salomao-blue outline-none" 
+                    className={`w-full border p-2.5 rounded-lg text-sm bg-white outline-none transition-colors ${dateWarningMessage ? 'border-red-300 bg-red-50 focus:border-red-500' : 'border-gray-300 focus:border-salomao-blue'}`}
                     value={ensureDateValue(
                         formData.status === 'analysis' ? formData.prospect_date :
                         formData.status === 'proposal' ? formData.proposal_date :
@@ -328,6 +333,14 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
                         else if(formData.status === 'probono') setFormData({...formData, probono_date: val});
                     }} 
                 />
+                
+                {/* MENSAGEM DE AVISO DE DATA */}
+                {dateWarningMessage && (
+                    <div className="flex items-center gap-2 mt-1 text-xs text-red-600 animate-in slide-in-from-top-1 font-medium bg-red-100/50 p-1.5 rounded">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                        <span>{dateWarningMessage}</span>
+                    </div>
+                )}
             </div>
           )}
       </div>
@@ -367,7 +380,23 @@ export function StatusAndDatesSection(props: StatusAndDatesSectionProps) {
         
         {formData.status === 'active' && (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4 animate-in fade-in">
-                <div className="md:col-span-4"><label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label><input type="text" className="w-full border-2 border-green-200 p-2.5 rounded-lg text-green-900 font-mono font-bold bg-white focus:border-green-500 outline-none" placeholder="00.000.000/000" value={formData.hon_number} onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} /></div>
+                <div className="md:col-span-4">
+                    <label className="text-xs font-medium block mb-1 text-green-800">Número HON (Único) <span className="text-red-500">*</span></label>
+                    <input 
+                        type="text" 
+                        className={`w-full border-2 p-2.5 rounded-lg font-mono font-bold bg-white outline-none ${duplicateHonCase ? 'border-yellow-400 text-yellow-800 bg-yellow-50 focus:border-yellow-500' : 'border-green-200 text-green-900 focus:border-green-500'}`}
+                        placeholder="00.000.000/000" 
+                        value={formData.hon_number} 
+                        onChange={e => setFormData({...formData, hon_number: maskHon(e.target.value)})} 
+                    />
+                    {/* Aviso de duplicidade HON (Opcional, já que é tratado no modal pai, mas útil visualmente aqui) */}
+                    {duplicateHonCase && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-yellow-700 font-medium">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Em uso por: {duplicateHonCase.display_id}</span>
+                        </div>
+                    )}
+                </div>
                 <div className="md:col-span-4"><CustomSelect label="Local Faturamento *" value={formData.billing_location || ''} onChange={(val: string) => setFormData({...formData, billing_location: val})} options={billingOptions} onAction={() => setActiveManager('location')} actionLabel="Gerenciar Locais" actionIcon={Settings} /></div>
                 <div className="md:col-span-4"><CustomSelect label="Possui Assinatura Física? *" value={formData.physical_signature === true ? 'true' : formData.physical_signature === false ? 'false' : ''} onChange={(val: string) => { setFormData({...formData, physical_signature: val === 'true' ? true : val === 'false' ? false : undefined}); }} options={signatureOptions} /></div>
             </div>

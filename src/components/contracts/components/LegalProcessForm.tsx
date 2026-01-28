@@ -13,7 +13,8 @@ interface LegalProcessFormProps {
   setIsStandardCNJ: (v: boolean) => void;
   otherProcessType: string;
   setOtherProcessType: (v: string) => void;
-  duplicateProcessWarning: boolean;
+  // duplicateProcessWarning: boolean; // Removido em favor de duplicateProcessData
+  duplicateProcessData: any | null; // Novo: Objeto com dados do caso duplicado
   searchingCNJ: boolean;
   handleCNJSearch: () => void;
   handleOpenJusbrasil: () => void;
@@ -23,6 +24,7 @@ interface LegalProcessFormProps {
   authorOptions: string[];
   opponentOptions: string[];
   duplicateOpponentCases: any[];
+  duplicateAuthorCases: any[]; // Novo: Lista de casos do autor
   magistrateTypes: { label: string; value: string }[];
   magistrateOptions: string[];
   newMagistrateTitle: string;
@@ -47,17 +49,23 @@ interface LegalProcessFormProps {
   localMaskCNJ: (v: string) => string;
   ensureDateValue: (v?: string | null) => string;
   setActiveManager: (v: string) => void;
+  // Novos estados para Sem CNPJ
+  authorHasNoCnpj: boolean;
+  setAuthorHasNoCnpj: (v: boolean) => void;
+  opponentHasNoCnpj: boolean;
+  setOpponentHasNoCnpj: (v: boolean) => void;
 }
 
 export function LegalProcessForm(props: LegalProcessFormProps) {
   const {
     formData, setFormData, currentProcess, setCurrentProcess, isStandardCNJ, setIsStandardCNJ,
-    otherProcessType, setOtherProcessType, duplicateProcessWarning, searchingCNJ, handleCNJSearch, handleOpenJusbrasil,
-    courtSelectOptions, ufOptions, positionOptions, authorOptions, opponentOptions, duplicateOpponentCases,
+    otherProcessType, setOtherProcessType, duplicateProcessData, searchingCNJ, handleCNJSearch, handleOpenJusbrasil,
+    courtSelectOptions, ufOptions, positionOptions, authorOptions, opponentOptions, duplicateOpponentCases, duplicateAuthorCases,
     magistrateTypes, magistrateOptions, newMagistrateTitle, setNewMagistrateTitle, newMagistrateName, setNewMagistrateName,
     addMagistrate, removeMagistrate, numeralOptions, varaSelectOptions, comarcaSelectOptions, justiceSelectOptions,
     classSelectOptions, subjectSelectOptions, newSubject, setNewSubject, addSubjectToProcess, removeSubject,
-    editingProcessIndex, handleProcessAction, handlePartyCNPJSearch, localMaskCNJ, ensureDateValue, setActiveManager
+    editingProcessIndex, handleProcessAction, handlePartyCNPJSearch, localMaskCNJ, ensureDateValue, setActiveManager,
+    authorHasNoCnpj, setAuthorHasNoCnpj, opponentHasNoCnpj, setOpponentHasNoCnpj
   } = props;
 
   // Atualizado para incluir 'Outros' e os tipos corretos vindos do ContractFormModal
@@ -157,7 +165,7 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
                     <div className="flex-1 relative">
                           <input 
                               type="text" 
-                              className={`w-full border-b ${duplicateProcessWarning ? 'border-orange-300 bg-orange-50' : 'border-gray-300'} focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8`} 
+                              className={`w-full border-b ${duplicateProcessData ? 'border-orange-300 bg-orange-50 text-orange-900' : 'border-gray-300'} focus:border-salomao-blue outline-none py-1.5 text-sm font-mono pr-8`} 
                               placeholder={isStandardCNJ ? "0000000-00..." : "Nº Processo"} 
                               value={currentProcess.process_number} 
                               onChange={(e) => setCurrentProcess({
@@ -171,13 +179,20 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
                               className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
                               title={isStandardCNJ ? "Identificar Tribunal e UF (Apenas CNJ)" : "Busca automática indisponível para este formato"}
                           >
-                                          {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                              {searchingCNJ ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                           </button>
                     </div>
                 </div>
-                {duplicateProcessWarning && (
-                  <div className="text-[10px] text-orange-600 mt-1 flex items-center font-bold">
-                     <AlertTriangle className="w-3 h-3 mr-1" /> Já cadastrado em outro caso.
+                {/* AVISO DE DUPLICIDADE DE PROCESSO COM LINK */}
+                {duplicateProcessData && (
+                  <div className="text-[10px] text-orange-700 mt-2 flex items-center font-bold bg-orange-50 border border-orange-200 p-1.5 rounded animate-in slide-in-from-top-1">
+                      <AlertTriangle className="w-3 h-3 mr-1.5 flex-shrink-0" /> 
+                      <span>
+                        Já cadastrado em: 
+                        <a href={`/contracts/${duplicateProcessData.contract_id || duplicateProcessData.id}`} target="_blank" rel="noreferrer" className="ml-1 underline hover:text-orange-900">
+                            {duplicateProcessData.contracts?.client_name || duplicateProcessData.client_name}
+                        </a>
+                      </span>
                   </div>
                 )}
             </div>
@@ -223,16 +238,29 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
                 <div className="relative">
                     <input 
                         type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm"
+                        disabled={authorHasNoCnpj}
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-400"
                         value={(currentProcess as any).author_cnpj || ''}
                         onChange={(e) => setCurrentProcess({ ...currentProcess, author_cnpj: maskCNPJ(e.target.value) } as any)}
+                        placeholder={authorHasNoCnpj ? "Sem CNPJ" : ""}
                     />
                     <button 
                         onClick={() => handlePartyCNPJSearch('author')}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold"
+                        disabled={authorHasNoCnpj}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30"
                     >
                         <Search className="w-4 h-4" />
                     </button>
+                </div>
+                <div className="flex items-center mt-1">
+                    <input 
+                        type="checkbox" 
+                        id="no_cnpj_author" 
+                        checked={authorHasNoCnpj} 
+                        onChange={(e) => setAuthorHasNoCnpj(e.target.checked)}
+                        className="rounded text-salomao-blue w-3 h-3 mr-1"
+                    />
+                    <label htmlFor="no_cnpj_author" className="text-[10px] text-gray-500 cursor-pointer">Sem CNPJ</label>
                 </div>
             </div>
 
@@ -248,6 +276,16 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
                     actionIcon={Settings}
                     placeholder="Selecione ou adicione"
                 />
+                {duplicateAuthorCases.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                        <span className="text-[10px] text-blue-600 font-bold mr-1">Similar:</span>
+                        {duplicateAuthorCases.map(c => (
+                            <a key={c.contract_id} href={`/contracts/${c.contracts?.id}`} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 hover:bg-blue-100 truncate max-w-[150px]">
+                                            {c.contracts?.client_name}
+                            </a>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* CNPJ Contrário */}
@@ -256,16 +294,29 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
                 <div className="relative">
                     <input 
                         type="text" 
-                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm"
+                        disabled={opponentHasNoCnpj}
+                        className="w-full border-b border-gray-300 focus:border-salomao-blue outline-none py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-400"
                         value={(currentProcess as any).opponent_cnpj || ''}
                         onChange={(e) => setCurrentProcess({ ...currentProcess, opponent_cnpj: maskCNPJ(e.target.value) } as any)}
+                        placeholder={opponentHasNoCnpj ? "Sem CNPJ" : ""}
                     />
                     <button 
                         onClick={() => handlePartyCNPJSearch('opponent')}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold"
+                        disabled={opponentHasNoCnpj}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 text-salomao-blue hover:text-salomao-gold disabled:opacity-30"
                     >
                         <Search className="w-4 h-4" />
                     </button>
+                </div>
+                <div className="flex items-center mt-1">
+                    <input 
+                        type="checkbox" 
+                        id="no_cnpj_opponent" 
+                        checked={opponentHasNoCnpj} 
+                        onChange={(e) => setOpponentHasNoCnpj(e.target.checked)}
+                        className="rounded text-salomao-blue w-3 h-3 mr-1"
+                    />
+                    <label htmlFor="no_cnpj_opponent" className="text-[10px] text-gray-500 cursor-pointer">Sem CNPJ</label>
                 </div>
             </div>
 
@@ -398,7 +449,7 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
             <div>
                 <label className="text-[10px] text-gray-500 uppercase font-bold">Assunto</label>
                 <div className="flex gap-2">
-                     <div className="flex-1">
+                      <div className="flex-1">
                         <CustomSelect 
                             value={newSubject}
                             onChange={(val: string) => setNewSubject(val)}
@@ -408,7 +459,7 @@ export function LegalProcessForm(props: LegalProcessFormProps) {
                             actionLabel="Gerenciar Assuntos"
                             actionIcon={Settings}
                         />
-                     </div>
+                      </div>
                     <button onClick={addSubjectToProcess} className="text-salomao-blue hover:text-blue-700 font-bold px-3 rounded-lg bg-blue-50">+</button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">

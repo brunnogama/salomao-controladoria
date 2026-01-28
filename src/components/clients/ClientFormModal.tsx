@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Search, Loader2 } from 'lucide-react';
+import { X, Save, Search, Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { Client, Partner } from '../../types'; // Agora a interface Client existe
+import { Client, Partner } from '../../types';
 import { maskCNPJ, toTitleCase } from '../../utils/masks';
 import { CustomSelect } from '../ui/CustomSelect';
 
@@ -18,6 +18,9 @@ export function ClientFormModal({ isOpen, onClose, client, onSave }: Props) {
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [partners, setPartners] = useState<Partner[]>([]);
+  
+  // Estado para duplicidade
+  const [duplicateClients, setDuplicateClients] = useState<Client[]>([]);
   
   const emptyClient: Client = {
     name: '',
@@ -38,9 +41,29 @@ export function ClientFormModal({ isOpen, onClose, client, onSave }: Props) {
   useEffect(() => {
     if (isOpen) {
       setFormData(client ? { ...client } : emptyClient);
+      setDuplicateClients([]);
       fetchPartners();
     }
   }, [isOpen, client]);
+
+  // EFEITO: Checagem de Duplicidade de Cliente (Nome)
+  useEffect(() => {
+    const checkDuplicates = async () => {
+        if (!formData.name || formData.name.length < 3) return setDuplicateClients([]);
+        
+        const { data } = await supabase
+            .from('clients')
+            .select('*')
+            .ilike('name', `%${formData.name}%`)
+            .neq('id', client?.id || '00000000-0000-0000-0000-000000000000') // Não comparar consigo mesmo
+            .limit(3);
+            
+        if (data) setDuplicateClients(data);
+    };
+
+    const timer = setTimeout(checkDuplicates, 500);
+    return () => clearTimeout(timer);
+  }, [formData.name, client?.id]);
 
   const fetchPartners = async () => {
     const { data } = await supabase.from('partners').select('*').eq('active', true).order('name');
@@ -86,7 +109,6 @@ export function ClientFormModal({ isOpen, onClose, client, onSave }: Props) {
       if (!response.ok) throw new Error('CNPJ não encontrado');
       const data = await response.json();
 
-      // CORREÇÃO: Tipando explicitamente o prev para evitar erro TS7006
       setFormData((prev: Client) => ({
         ...prev,
         name: toTitleCase(data.razao_social || data.nome_fantasia || ''),
@@ -165,10 +187,27 @@ export function ClientFormModal({ isOpen, onClose, client, onSave }: Props) {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Nome Completo *</label>
                 <input 
                     type="text" 
-                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-salomao-blue"
+                    className={`w-full border rounded-lg p-2.5 text-sm outline-none focus:border-salomao-blue ${duplicateClients.length > 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}`}
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: toTitleCase(e.target.value)})}
                 />
+                
+                {/* AVISO DE DUPLICIDADE */}
+                {duplicateClients.length > 0 && (
+                    <div className="mt-2 p-2 bg-yellow-100 border border-yellow-200 rounded-lg animate-in fade-in slide-in-from-top-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                            <span className="text-xs font-bold text-yellow-700">Clientes similares encontrados:</span>
+                        </div>
+                        <ul className="space-y-1">
+                            {duplicateClients.map(dup => (
+                                <li key={dup.id} className="text-xs text-yellow-800 bg-yellow-50/50 p-1 rounded">
+                                    {dup.name} {dup.cnpj ? ` - ${maskCNPJ(dup.cnpj)}` : ''}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
 
             {/* Contato */}
