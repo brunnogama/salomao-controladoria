@@ -175,8 +175,12 @@ export function Finance() {
       case 'pro_labore': return 'Pró-Labore';
       case 'success_fee': return 'Êxito';
       case 'final_success_fee': return 'Êxito Final';
-      case 'fixed_monthly_fee': return 'Mensal';
-      case 'hourly_fee': return 'Horas';
+      case 'intermediate_fee': return 'Êxito Intermediário';
+      case 'fixed_monthly_fee': return 'Fixo Mensal';
+      case 'fixed': return 'Fixo Mensal';
+      case 'hourly_fee': return 'Por Hora';
+      case 'other_fees': return 'Outros';
+      case 'other': return 'Outros';
       default: return type;
     }
   };
@@ -584,7 +588,7 @@ export function Finance() {
                     <td className="p-3 text-right font-bold text-gray-800">{item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                     <td className="p-3 text-right">
                       {item.status === 'pending' && userRole !== 'viewer' && (
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-2 transition-opacity" onClick={(e) => e.stopPropagation()}>
                           <button onClick={(e) => { e.stopPropagation(); handleEditDueDate(item); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Alterar Vencimento"><CalendarDays className="w-4 h-4" /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleDownloadContractPDF(item.contract!.id); }} className="text-gray-500 hover:bg-gray-100 p-1 rounded" title="Baixar PDF"><FileDown className="w-4 h-4" /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleMarkAsPaid(item); }} className="bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded hover:bg-green-100 text-[10px] font-bold uppercase flex items-center"><DollarSign className="w-3 h-3 mr-1" /> Faturar</button>
