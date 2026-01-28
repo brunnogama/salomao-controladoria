@@ -179,7 +179,6 @@ export function Finance() {
   // --- NOVA FUNÇÃO: FILTRAR APENAS VENCIDAS ---
   const handleFilterOverdue = () => {
     setStatusFilter('overdue');
-    // Limpar outros filtros para focar apenas em vencidas
     setSearchTerm('');
     setSelectedPartner('');
     setSelectedLocation('');
@@ -187,14 +186,11 @@ export function Finance() {
     setEndDate('');
     setIsSearchOpen(false);
     
-    // Feedback visual (será executado após o state update)
-    setTimeout(() => {
-      const overdueCount = installments.filter(i => isOverdue(i)).length;
-      toast.info(`Filtrando ${overdueCount} parcela${overdueCount !== 1 ? 's' : ''} vencida${overdueCount !== 1 ? 's' : ''}`, {
-        description: 'Exibindo apenas parcelas com vencimento atrasado',
-        duration: 3000,
-      });
-    }, 100);
+    const overdueCount = installments.filter(i => isOverdue(i)).length;
+    toast.info(`Filtrando ${overdueCount} parcela${overdueCount !== 1 ? 's' : ''} vencida${overdueCount !== 1 ? 's' : ''}`, {
+      description: 'Exibindo apenas parcelas com vencimento atrasado',
+      duration: 3000,
+    });
   };
 
   // --- FILTROS ---
@@ -236,9 +232,9 @@ export function Finance() {
   const totalPending = filteredInstallments.filter(i => i.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
   const totalPaid = filteredInstallments.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
   
-  // Total Pendente (Contagem) e Total Vencido (Contagem) para o Card de Alerta
+  // IMPORTANTE: totalOverdueCount sempre calculado do TOTAL de installments (não filtrado)
   const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
-  const totalOverdueCount = installments.filter(i => isOverdue(i)).length; // SEMPRE do total, não do filtrado
+  const totalOverdueCount = installments.filter(i => isOverdue(i)).length;
 
   // --- AÇÕES ---
   const handleMarkAsPaid = (installment: FinancialInstallment) => {
@@ -350,10 +346,10 @@ export function Finance() {
 
       {/* CARDS DE TOTAIS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* CARD 1: A RECEBER / ALERTA DE ATRASO - AGORA CLICÁVEL */}
+        {/* CARD 1: ALERTA DE PARCELAS VENCIDAS - CLICÁVEL */}
         <div 
           onClick={totalOverdueCount > 0 ? handleFilterOverdue : undefined}
-          className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-all ${
+          className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-all duration-300 ${
             totalOverdueCount > 0 
               ? 'bg-red-50 border-red-200 cursor-pointer hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]' 
               : 'bg-white border-gray-100'
@@ -361,7 +357,7 @@ export function Finance() {
           title={totalOverdueCount > 0 ? `Clique para filtrar ${totalOverdueCount} parcela${totalOverdueCount !== 1 ? 's' : ''} vencida${totalOverdueCount !== 1 ? 's' : ''}` : ''}
         >
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
                 <p className={`text-sm font-bold uppercase tracking-wider ${totalOverdueCount > 0 ? 'text-red-500' : 'text-gray-400'}`}>
                     {totalOverdueCount > 0 ? '⚠️ Atenção: Atrasados' : 'A Receber (Qtd)'}
                 </p>
@@ -369,10 +365,12 @@ export function Finance() {
                     {totalPendingCount} <span className={`text-sm font-normal ${totalOverdueCount > 0 ? 'text-red-400' : 'text-gray-400'}`}>parcelas</span>
                 </h3>
                 {totalOverdueCount > 0 && (
-                    <div className="flex items-center mt-2 text-red-600 font-bold text-xs animate-pulse">
-                        <AlertTriangle className="w-4 h-4 mr-1" />
-                        {totalOverdueCount} vencida{totalOverdueCount !== 1 ? 's' : ''}
-                        <span className="ml-2 text-red-500 font-normal">• Clique para filtrar</span>
+                    <div className="flex items-center mt-2 gap-1">
+                        <div className="flex items-center text-red-600 font-bold text-xs animate-pulse">
+                            <AlertTriangle className="w-4 h-4 mr-1" />
+                            {totalOverdueCount} vencida{totalOverdueCount !== 1 ? 's' : ''}
+                        </div>
+                        <span className="text-red-500 font-normal text-xs">• Clique para filtrar</span>
                     </div>
                 )}
             </div>
