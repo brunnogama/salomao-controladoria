@@ -123,6 +123,9 @@ export function Contracts() {
 
   // Filtros e Ordenação
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // Estado para animação da busca
+  const searchRef = useRef<HTMLDivElement>(null); // Ref para fechar ao clicar fora
+
   const [statusFilter, setStatusFilter] = useState('all');
   const [partnerFilter, setPartnerFilter] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -174,6 +177,19 @@ export function Contracts() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Fechar busca ao clicar fora, se estiver vazia
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        if (!searchTerm) {
+            setIsSearchOpen(false);
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [searchRef, searchTerm]);
 
   // --- ROLE CHECK ---
   const checkUserRole = async () => {
@@ -558,6 +574,7 @@ export function Contracts() {
     setPartnerFilter('');
     setStartDate('');
     setEndDate('');
+    setIsSearchOpen(false);
   };
 
   const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || partnerFilter !== '' || startDate !== '' || endDate !== '';
@@ -579,28 +596,13 @@ export function Contracts() {
   return (
     <div className="p-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        {/* Esquerda: Título e Contagem (ALTERADO PARA CARD) */}
+        {/* Esquerda: Título */}
         <div>
           <h1 className="text-3xl font-bold text-salomao-blue flex items-center gap-2">
             <FileSignature className="w-8 h-8" /> Casos
           </h1>
-          <div className="flex items-center gap-6 mt-4">
-             {/* Card Elegante para Total */}
-             <div className="flex items-center gap-3 bg-white pl-2 pr-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                  <Briefcase className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total de Casos</p>
-                  <p className="text-xl font-bold text-gray-800 leading-none">{contracts.length}</p>
-                </div>
-             </div>
-             
-             {/* Divisor vertical suave */}
-             <div className="h-8 w-px bg-gray-200 hidden sm:block"></div>
-             
-             {/* Descrição */}
-             <p className="text-gray-500 text-sm hidden sm:block">Gestão completa de casos e propostas.</p>
+          <div className="flex items-center mt-1">
+            <p className="text-gray-500 mr-3">Gestão completa de casos e propostas.</p>
           </div>
         </div>
 
@@ -676,40 +678,75 @@ export function Contracts() {
         </div>
       </div>
 
-      {/* Barra de Controles (Busca, Data, Ordenação, Exportação) */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm items-center">
-        {/* Busca - Ocupa o espaço restante a esquerda */}
-        <div className="flex-1 w-full flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-          <Search className="w-5 h-5 text-gray-400 mr-2" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, HON, ID, observações, referência..."
-            className="flex-1 bg-transparent outline-none text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* Barra de Controles Inferior (Card Total + Ferramentas) */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm items-center justify-between">
+        
+        {/* Esquerda: Card de Total (FIXO) */}
+        <div className="flex items-center gap-3 pr-4 border-r border-gray-100 mr-2 min-w-[200px]">
+            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <Briefcase className="w-5 h-5" />
+            </div>
+            <div>
+                <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Total de Casos</p>
+                <p className="text-xl font-bold text-gray-800 leading-none">{contracts.length}</p>
+            </div>
         </div>
 
-        {/* Grupo da Direita: Datas, Ações, View, Export */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+        {/* Grupo da Direita: Busca Animada, Datas, Ações */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end flex-1">
+            
+            {/* Busca Animada Expandível */}
+            <div 
+              ref={searchRef}
+              className={`
+                flex items-center overflow-hidden transition-all duration-300 ease-in-out bg-white
+                ${isSearchOpen ? 'w-64 border border-gray-200 shadow-sm px-3 rounded-lg' : 'w-10 border border-transparent justify-center cursor-pointer hover:bg-gray-50 rounded-lg'}
+                h-[42px]
+              `}
+              onClick={() => !isSearchOpen && setIsSearchOpen(true)}
+            >
+                <Search className={`w-5 h-5 text-gray-400 shrink-0 ${!isSearchOpen && 'cursor-pointer'}`} />
+                
+                <input
+                    type="text"
+                    placeholder="Buscar..."
+                    className={`ml-2 bg-transparent outline-none text-sm w-full text-gray-700 ${!isSearchOpen && 'hidden'}`}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    autoFocus={isSearchOpen}
+                />
+
+                {isSearchOpen && searchTerm && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setSearchTerm(''); }}
+                        className="ml-1 text-gray-400 hover:text-red-500"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+
+            {/* Separador Visual */}
+            <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
+
             {/* Filtros de Data */}
             <div className="flex items-center gap-2">
-              <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+              <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 h-[42px]">
                  <span className="text-xs text-gray-400 mr-2">De</span>
                  <input 
                    type="date" 
                    value={startDate} 
                    onChange={(e) => setStartDate(e.target.value)}
-                   className="bg-transparent text-sm text-gray-700 outline-none"
+                   className="bg-transparent text-sm text-gray-700 outline-none w-[110px]"
                  />
               </div>
-              <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+              <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 h-[42px]">
                  <span className="text-xs text-gray-400 mr-2">Até</span>
                  <input 
                    type="date" 
                    value={endDate} 
                    onChange={(e) => setEndDate(e.target.value)}
-                   className="bg-transparent text-sm text-gray-700 outline-none"
+                   className="bg-transparent text-sm text-gray-700 outline-none w-[110px]"
                  />
               </div>
             </div>
