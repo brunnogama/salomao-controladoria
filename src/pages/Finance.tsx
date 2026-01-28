@@ -217,7 +217,7 @@ export function Finance() {
   
   // Total Pendente (Contagem) e Total Vencido (Contagem) para o Card de Alerta
   const totalPendingCount = filteredInstallments.filter(i => i.status === 'pending').length;
-  const totalOverdueCount = filteredInstallments.filter(i => isOverdue(i)).length;
+  const totalOverdueCount = installments.filter(i => isOverdue(i)).length; // SEMPRE do total, não do filtrado
 
   // --- AÇÕES ---
   const handleMarkAsPaid = (installment: FinancialInstallment) => {
@@ -264,7 +264,7 @@ export function Finance() {
       'Cliente': i.contract?.client_name,
       'HON': i.contract?.hon_number,
       'Cláusula': (i as any).clause || '',
-      'Tipo': getTypeLabel(i.type), // Usando nome amigável
+      'Tipo': getTypeLabel(i.type),
       'Parcela': `${i.installment_number}/${i.total_installments}`,
       'Valor': i.amount,
       'Vencimento': new Date(i.due_date!).toLocaleDateString(),
@@ -329,24 +329,33 @@ export function Finance() {
 
       {/* CARDS DE TOTAIS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* CARD 1: A RECEBER / ALERTA DE ATRASO */}
-        <div className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-colors ${totalOverdueCount > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
+        {/* CARD 1: A RECEBER / ALERTA DE ATRASO - AGORA CLICÁVEL */}
+        <div 
+          onClick={totalOverdueCount > 0 ? handleFilterOverdue : undefined}
+          className={`p-6 rounded-2xl shadow-sm border flex flex-col justify-center transition-all ${
+            totalOverdueCount > 0 
+              ? 'bg-red-50 border-red-200 cursor-pointer hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]' 
+              : 'bg-white border-gray-100'
+          }`}
+          title={totalOverdueCount > 0 ? `Clique para filtrar ${totalOverdueCount} parcela${totalOverdueCount !== 1 ? 's' : ''} vencida${totalOverdueCount !== 1 ? 's' : ''}` : ''}
+        >
           <div className="flex items-center justify-between">
             <div>
                 <p className={`text-sm font-bold uppercase tracking-wider ${totalOverdueCount > 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                    {totalOverdueCount > 0 ? 'Atenção: Atrasados' : 'A Receber (Qtd)'}
+                    {totalOverdueCount > 0 ? '⚠️ Atenção: Atrasados' : 'A Receber (Qtd)'}
                 </p>
                 <h3 className={`text-3xl font-bold mt-1 ${totalOverdueCount > 0 ? 'text-red-700' : 'text-gray-800'}`}>
                     {totalPendingCount} <span className={`text-sm font-normal ${totalOverdueCount > 0 ? 'text-red-400' : 'text-gray-400'}`}>parcelas</span>
                 </h3>
                 {totalOverdueCount > 0 && (
-                    <div className="flex items-center mt-1 text-red-600 font-semibold text-xs animate-pulse">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        {totalOverdueCount} parcelas vencidas!
+                    <div className="flex items-center mt-2 text-red-600 font-bold text-xs animate-pulse">
+                        <AlertTriangle className="w-4 h-4 mr-1" />
+                        {totalOverdueCount} vencida{totalOverdueCount !== 1 ? 's' : ''}
+                        <span className="ml-2 text-red-500 font-normal">• Clique para filtrar</span>
                     </div>
                 )}
             </div>
-            <div className={`p-3 rounded-full ${totalOverdueCount > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-500'}`}>
+            <div className={`p-3 rounded-full ${totalOverdueCount > 0 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-blue-50 text-blue-500'}`}>
                 {totalOverdueCount > 0 ? <AlertTriangle className="w-6 h-6" /> : <Hash className="w-6 h-6" />}
             </div>
           </div>
