@@ -259,11 +259,11 @@ export function Finance() {
         {/* LADO DIREITO: Filtros e Ações Agrupados */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto justify-end">
             
-            {/* Pesquisa Expansível */}
+            {/* Pesquisa Expansível - LARGURA AUMENTADA E OUTLINE REMOVIDO */}
             <div 
               ref={searchContainerRef}
               className={`flex items-center bg-white border transition-all duration-300 ease-out rounded-full overflow-hidden ${
-                isSearchExpanded ? 'w-48 border-salomao-blue ring-2 ring-salomao-blue/10 shadow-sm' : 'w-10 border-transparent bg-transparent'
+                isSearchExpanded ? 'w-full sm:w-[600px] border-salomao-blue ring-2 ring-salomao-blue/10 shadow-sm' : 'w-10 border-transparent bg-transparent'
               }`}
             >
               <button 
@@ -279,7 +279,7 @@ export function Finance() {
                 ref={searchInputRef}
                 type="text"
                 placeholder="Buscar..."
-                className={`w-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 placeholder-gray-400 px-2 ${
+                className={`w-full bg-transparent border-none focus:ring-0 outline-none focus:outline-none text-sm text-gray-700 placeholder-gray-400 px-2 ${
                   isSearchExpanded ? 'opacity-100' : 'opacity-0'
                 }`}
                 value={searchTerm}
