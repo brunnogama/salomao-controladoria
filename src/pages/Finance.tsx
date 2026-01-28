@@ -329,9 +329,9 @@ export function Finance() {
   };
 
   const handleDownloadContractPDF = async (contractId: string) => {
+    const loadingToast = toast.loading('Buscando documento do contrato...');
+    
     try {
-      toast.loading('Buscando documento do contrato...');
-      
       // Buscar documentos do contrato
       const { data: documents, error } = await supabase
         .from('contract_documents')
@@ -342,6 +342,7 @@ export function Finance() {
       if (error) throw error;
 
       if (!documents || documents.length === 0) {
+        toast.dismiss(loadingToast);
         toast.error('Nenhum documento encontrado para este contrato');
         return;
       }
@@ -366,9 +367,11 @@ export function Finance() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      toast.dismiss(loadingToast);
       toast.success('Download concluído!');
     } catch (error: any) {
       console.error('Erro ao baixar PDF:', error);
+      toast.dismiss(loadingToast);
       toast.error('Erro ao baixar documento: ' + (error.message || 'Erro desconhecido'));
     }
   };
