@@ -476,8 +476,16 @@ export function ContractFormModal(props: Props) {
         const clientId = await upsertClient();
         if (!clientId) throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
         
+        // LÓGICA DE TIMESHEET: Se for timesheet, zera os honorários
+        const isTimesheet = (formData as any).timesheet === true;
+
         const contractPayload: any = {
-            ...formData, client_id: clientId, pro_labore: safeParseFloat(formData.pro_labore), final_success_fee: safeParseFloat(formData.final_success_fee), fixed_monthly_fee: safeParseFloat(formData.fixed_monthly_fee), other_fees: safeParseFloat(formData.other_fees),
+            ...formData, 
+            client_id: clientId, 
+            pro_labore: isTimesheet ? 0 : safeParseFloat(formData.pro_labore),
+            final_success_fee: isTimesheet ? 0 : safeParseFloat(formData.final_success_fee),
+            fixed_monthly_fee: isTimesheet ? 0 : safeParseFloat(formData.fixed_monthly_fee),
+            other_fees: isTimesheet ? 0 : safeParseFloat(formData.other_fees),
             pro_labore_extras: (formData as any).pro_labore_extras, final_success_extras: (formData as any).final_success_extras, fixed_monthly_extras: (formData as any).fixed_monthly_extras, other_fees_extras: (formData as any).other_fees_extras, timesheet: (formData as any).timesheet,
             pro_labore_clause: (formData as any).pro_labore_clause, final_success_fee_clause: (formData as any).final_success_fee_clause, fixed_monthly_fee_clause: (formData as any).fixed_monthly_fee_clause, other_fees_clause: (formData as any).other_fees_clause,
             pro_labore_extras_clauses: ensureArray((formData as any).pro_labore_extras_clauses), final_success_extras_clauses: ensureArray((formData as any).final_success_extras_clauses), fixed_monthly_extras_clauses: ensureArray((formData as any).fixed_monthly_extras_clauses), other_fees_extras_clauses: ensureArray((formData as any).other_fees_extras_clauses), intermediate_fees_clauses: ensureArray((formData as any).intermediate_fees_clauses),
