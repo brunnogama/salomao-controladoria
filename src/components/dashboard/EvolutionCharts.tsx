@@ -1,6 +1,6 @@
 import React from 'react';
 import { BarChart3, BarChart4, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { formatMoney, formatCompact } from '../../utils/dashboardHelpers';
+import { formatMoney, formatCompact } from './dashboardHelpers';
 import { EmptyState } from '../ui/EmptyState';
 
 interface EvolutionChartsProps {

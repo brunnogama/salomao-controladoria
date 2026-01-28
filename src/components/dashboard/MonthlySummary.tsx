@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   CalendarRange, Layers, ArrowUpRight, GitCommit, Lightbulb 
 } from 'lucide-react';
-import { formatMoney, calcDelta, getTrendText } from '../../utils/dashboardHelpers';
+import { formatMoney, calcDelta, getTrendText } from './dashboardHelpers';
 import { FinItem } from './FinItem';
 
 interface MonthlySummaryProps {

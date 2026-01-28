@@ -1,6 +1,6 @@
 import React from 'react';
 import { Briefcase, Banknote } from 'lucide-react';
-import { formatMoney } from '../../utils/dashboardHelpers';
+import { formatMoney } from './dashboardHelpers';
 
 interface PartnerStatsProps {
   contractsByPartner: any[];

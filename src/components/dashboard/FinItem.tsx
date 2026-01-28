@@ -1,6 +1,5 @@
 import React from 'react';
-import { formatMoney } from '../../utils/dashboardHelpers';
-
+import { formatMoney } from './dashboardHelpers';
 interface FinItemProps {
   label: string;
   value: number;

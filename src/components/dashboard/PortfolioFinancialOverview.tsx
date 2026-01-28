@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Camera, Clock, Briefcase, CheckCircle2, XCircle, HeartHandshake, Layers 
 } from 'lucide-react';
-import { formatMoney } from '../../utils/dashboardHelpers';
+import { formatMoney } from './dashboardHelpers';
 
 interface PortfolioFinancialOverviewProps {
   metrics: any;
