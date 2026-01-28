@@ -328,8 +328,49 @@ export function Finance() {
     fetchData();
   };
 
-  const handleDownloadContractPDF = (contractId: string) => {
-    toast.info(`Baixando contrato...`);
+  const handleDownloadContractPDF = async (contractId: string) => {
+    try {
+      toast.loading('Buscando documento do contrato...');
+      
+      // Buscar documentos do contrato
+      const { data: documents, error } = await supabase
+        .from('contract_documents')
+        .select('*')
+        .eq('contract_id', contractId)
+        .order('uploaded_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!documents || documents.length === 0) {
+        toast.error('Nenhum documento encontrado para este contrato');
+        return;
+      }
+
+      // Pegar o primeiro documento (mais recente)
+      const doc = documents[0];
+
+      // Download do arquivo do Supabase Storage
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('contract-documents')
+        .download(doc.file_path);
+
+      if (downloadError) throw downloadError;
+
+      // Criar URL e fazer download
+      const url = URL.createObjectURL(fileData);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name || 'contrato.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Download concluído!');
+    } catch (error: any) {
+      console.error('Erro ao baixar PDF:', error);
+      toast.error('Erro ao baixar documento: ' + (error.message || 'Erro desconhecido'));
+    }
   };
 
   const handleNewInvoice = () => {
@@ -590,7 +631,7 @@ export function Finance() {
                       {item.status === 'pending' && userRole !== 'viewer' && (
                         <div className="flex justify-end gap-2 transition-opacity" onClick={(e) => e.stopPropagation()}>
                           <button onClick={(e) => { e.stopPropagation(); handleEditDueDate(item); }} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Alterar Vencimento"><CalendarDays className="w-4 h-4" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDownloadContractPDF(item.contract!.id); }} className="text-gray-500 hover:bg-gray-100 p-1 rounded" title="Baixar PDF"><FileDown className="w-4 h-4" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDownloadContractPDF(item.contract!.id); }} className="text-gray-500 hover:bg-gray-100 p-1 rounded" title="Baixar Documento do Contrato"><FileDown className="w-4 h-4" /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleMarkAsPaid(item); }} className="bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded hover:bg-green-100 text-[10px] font-bold uppercase flex items-center"><DollarSign className="w-3 h-3 mr-1" /> Faturar</button>
                         </div>
                       )}
