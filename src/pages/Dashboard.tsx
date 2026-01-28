@@ -30,7 +30,7 @@ export function Dashboard() {
   const [partnersList, setPartnersList] = useState<{id: string, name: string}[]>([]);
   const [locationsList, setLocationsList] = useState<string[]>([]);
 
-  // Passamos os filtros para o hook (O hook precisará ser atualizado para aceitar isso)
+  // Passamos os filtros para o hook
   const {
     loading, metrics, funil, evolucaoMensal, financeiro12Meses, statsFinanceiro,
     propostas12Meses, statsPropostas, mediasFinanceiras, mediasPropostas,
@@ -142,15 +142,15 @@ export function Dashboard() {
     );
   };
 
-// DEPOIS ✅
-// CORREÇÃO CRÍTICA: Não renderizar até ter dados reais carregados
-if (loading || !metrics || metrics.geral.totalCasos === 0) {
-  return (
-    <div className="flex justify-center items-center h-full">
-      <Loader2 className="w-8 h-8 text-salomao-gold animate-spin" />
-    </div>
-  );
-}
+  // Verificação de carregamento
+  if (loading || !metrics || metrics.geral.totalCasos === 0) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="w-8 h-8 text-salomao-gold animate-spin" />
+      </div>
+    );
+  }
+
   // Cálculos protegidos com fallback para 0
   const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + 
                         (metrics?.geral?.totalFechadoExito || 0) + 
@@ -525,13 +525,15 @@ if (loading || !metrics || metrics.geral.totalCasos === 0) {
                         <span>Comparativo Financeiro (Semana Atual vs Anterior)</span>
                         <span className="text-gray-500 font-normal normal-case">Valores totais</span>
                     </p>
+                    {/* AQUI AUMENTAMOS O GAP PARA EVITAR SOBREPOSIÇÃO */}
                     <div className="grid grid-cols-2 gap-8 h-48">
                         {/* Propostas */}
                         <div className="flex flex-col justify-end relative border-r border-gray-100 pr-4">
                             <p className="text-xs font-bold text-blue-600 uppercase mb-2 text-center">Propostas</p>
-                            <div className="flex items-end justify-center gap-3 h-full">
+                            {/* AQUI AUMENTAMOS O GAP PARA EVITAR SOBREPOSIÇÃO */}
+                            <div className="flex items-end justify-center gap-8 h-full">
                                 <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                    <span className="text-xs text-gray-500 mb-1 font-extrabold">{formatMoney(valPropSemanaAnt)}</span>
+                                    <span className="text-xs text-gray-500 mb-1 font-extrabold whitespace-nowrap">{formatMoney(valPropSemanaAnt)}</span>
                                     <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valPropSemanaAnt > 0 ? (valPropSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
                                     <span className="text-[10px] text-gray-500 mt-1 font-semibold">Anterior</span>
                                 </div>
@@ -539,7 +541,7 @@ if (loading || !metrics || metrics.geral.totalCasos === 0) {
                                     <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaPropSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                         {deltaPropSemana > 0 ? '+' : ''}{deltaPropSemana.toFixed(0)}%
                                     </div>
-                                    <span className={`text-xs mb-1 font-extrabold ${deltaPropSemana >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                                    <span className={`text-xs mb-1 font-extrabold whitespace-nowrap ${deltaPropSemana >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
                                         {formatMoney(valPropSemana)}
                                     </span>
                                     <div className="w-full bg-blue-500 rounded-t transition-all" style={{ height: `${valPropSemana > 0 ? (valPropSemana / maxSemanaChart) * 60 : 2}%` }}></div>
@@ -551,9 +553,10 @@ if (loading || !metrics || metrics.geral.totalCasos === 0) {
                         {/* Fechados */}
                         <div className="flex flex-col justify-end relative">
                             <p className="text-xs font-bold text-green-600 uppercase mb-2 text-center">Fechados</p>
-                            <div className="flex items-end justify-center gap-3 h-full">
+                            {/* AQUI AUMENTAMOS O GAP PARA EVITAR SOBREPOSIÇÃO */}
+                            <div className="flex items-end justify-center gap-8 h-full">
                                 <div className="flex flex-col items-center justify-end h-full w-14 group">
-                                    <span className="text-xs text-gray-500 mb-1 font-extrabold">{formatMoney(valFechSemanaAnt)}</span>
+                                    <span className="text-xs text-gray-500 mb-1 font-extrabold whitespace-nowrap">{formatMoney(valFechSemanaAnt)}</span>
                                     <div className="w-full bg-gray-300 rounded-t transition-all" style={{ height: `${valFechSemanaAnt > 0 ? (valFechSemanaAnt / maxSemanaChart) * 60 : 2}%` }}></div>
                                     <span className="text-[10px] text-gray-500 mt-1 font-semibold">Anterior</span>
                                 </div>
@@ -561,7 +564,7 @@ if (loading || !metrics || metrics.geral.totalCasos === 0) {
                                     <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 ${deltaFechSemana >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                         {deltaFechSemana > 0 ? '+' : ''}{deltaFechSemana.toFixed(0)}%
                                     </div>
-                                    <span className={`text-xs mb-1 font-extrabold ${deltaFechSemana >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    <span className={`text-xs mb-1 font-extrabold whitespace-nowrap ${deltaFechSemana >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                                         {formatMoney(valFechSemana)}
                                     </span>
                                     <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${valFechSemana > 0 ? (valFechSemana / maxSemanaChart) * 60 : 2}%` }}></div>
@@ -657,13 +660,17 @@ if (loading || !metrics || metrics.geral.totalCasos === 0) {
                     </div>
                 </div>
             </div>
-
+            
             {/* Gráfico Mês + Insights */}
             <div className="mt-4 flex flex-col md:flex-row gap-4">
                 <div className="bg-white p-4 rounded-xl border border-blue-100 flex-1 h-64">
-                    <p className="text-xs font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between items-center">
-                        <span>Comparativo Financeiro - <span className="text-gray-500 font-normal normal-case">Períodos comparados: {metrics.executivo.periodoAnteriorLabel} e {metrics.executivo.periodoAtualLabel}</span></span>
-                        <span className="text-gray-500 font-normal normal-case">Valores totais</span>
+                    {/* AQUI ATUALIZAMOS O CABEÇALHO PARA IGUALAR AO SEMANAL (text-sm) E REORGANIZAMOS */}
+                    <p className="text-sm font-bold text-gray-600 uppercase mb-4 border-b border-gray-100 pb-2 flex justify-between items-center">
+                        <span>Comparativo Financeiro</span>
+                        {/* A data deve vir com o ano do hook. Se não vier, precisa ajustar no useDashboardData */}
+                        <span className="text-gray-500 font-normal normal-case text-xs">
+                             {metrics.executivo.periodoAnteriorLabel} vs {metrics.executivo.periodoAtualLabel}
+                        </span>
                     </p>
                     <div className="grid grid-cols-2 gap-8 h-48">
                         {/* Propostas */}
