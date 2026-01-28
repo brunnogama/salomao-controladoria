@@ -51,8 +51,8 @@ const isDateInLastMonthMTD = (dateString?: string) => {
     return isSameMonth && isWithinDayLimit;
 };
 
-// Formata data curta (ex: 01/jan)
-const formatDateShort = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+// Formata data com ANO (ex: 01 jan 2026) - ALTERADO AQUI
+const formatDateLabel = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
 
 // ATUALIZAÇÃO: Hook aceita filtros opcionais
 export function useDashboardData(selectedPartner?: string, selectedLocation?: string) {
@@ -96,9 +96,9 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
     });
     // ---------------------------
 
-    // --- GERAÇÃO DOS LABELS DE PERÍODO ---
+    // --- GERAÇÃO DOS LABELS DE PERÍODO (Com Ano) ---
     const primeiroDiaMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const periodoAtualStr = `${formatDateShort(primeiroDiaMesAtual)} - ${formatDateShort(hoje)}`;
+    const periodoAtualStr = `${formatDateLabel(primeiroDiaMesAtual)} - ${formatDateLabel(hoje)}`;
 
     let lastMonth = hoje.getMonth() - 1;
     let lastYear = hoje.getFullYear();
@@ -113,7 +113,7 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
         diaLimiteMesAnterior.setDate(maxDaysInLastMonth);
     }
     
-    const periodoAnteriorStr = `${formatDateShort(primeiroDiaMesAnterior)} - ${formatDateShort(diaLimiteMesAnterior)}`;
+    const periodoAnteriorStr = `${formatDateLabel(primeiroDiaMesAnterior)} - ${formatDateLabel(diaLimiteMesAnterior)}`;
     // -------------------------------------
 
     const partnerMap = partners.reduce((acc: any, s: any) => {
