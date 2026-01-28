@@ -142,8 +142,15 @@ export function Dashboard() {
     );
   };
 
-  if (loading) return <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 text-salomao-gold animate-spin" /></div>;
-
+// DEPOIS ✅
+// CORREÇÃO CRÍTICA: Não renderizar até ter dados reais carregados
+if (loading || !metrics || metrics.geral.totalCasos === 0) {
+  return (
+    <div className="flex justify-center items-center h-full">
+      <Loader2 className="w-8 h-8 text-salomao-gold animate-spin" />
+    </div>
+  );
+}
   // Cálculos protegidos com fallback para 0
   const totalCarteira = (metrics?.geral?.totalFechadoPL || 0) + 
                         (metrics?.geral?.totalFechadoExito || 0) + 
