@@ -59,9 +59,9 @@ export function ContractFormModal(props: Props) {
   // Estados de Duplicidade
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
   const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
-  const [duplicateAuthorCases, setDuplicateAuthorCases] = useState<any[]>([]); // Novo
-  const [duplicateHonCase, setDuplicateHonCase] = useState<any | null>(null); // Novo
-  const [duplicateProcessData, setDuplicateProcessData] = useState<any | null>(null); // Atualizado para guardar dados, não só boolean
+  const [duplicateAuthorCases, setDuplicateAuthorCases] = useState<any[]>([]); 
+  const [duplicateHonCase, setDuplicateHonCase] = useState<any | null>(null); 
+  const [duplicateProcessData, setDuplicateProcessData] = useState<any | null>(null);
 
   // Estados "Sem CNPJ" para aba Objeto
   const [authorHasNoCnpj, setAuthorHasNoCnpj] = useState(false);
@@ -839,7 +839,6 @@ export function ContractFormModal(props: Props) {
                             setIsStandardCNJ={setIsStandardCNJ} 
                             otherProcessType={otherProcessType} 
                             setOtherProcessType={setOtherProcessType} 
-                            duplicateProcessWarning={!!duplicateProcessData} 
                             searchingCNJ={searchingCNJ} 
                             handleCNJSearch={handleCNJSearch} 
                             handleOpenJusbrasil={handleOpenJusbrasil} 
