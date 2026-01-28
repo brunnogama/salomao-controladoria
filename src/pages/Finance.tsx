@@ -176,6 +176,27 @@ export function Finance() {
     }
   };
 
+  // --- NOVA FUNÇÃO: FILTRAR APENAS VENCIDAS ---
+  const handleFilterOverdue = () => {
+    setStatusFilter('overdue');
+    // Limpar outros filtros para focar apenas em vencidas
+    setSearchTerm('');
+    setSelectedPartner('');
+    setSelectedLocation('');
+    setStartDate('');
+    setEndDate('');
+    setIsSearchOpen(false);
+    
+    // Feedback visual (será executado após o state update)
+    setTimeout(() => {
+      const overdueCount = installments.filter(i => isOverdue(i)).length;
+      toast.info(`Filtrando ${overdueCount} parcela${overdueCount !== 1 ? 's' : ''} vencida${overdueCount !== 1 ? 's' : ''}`, {
+        description: 'Exibindo apenas parcelas com vencimento atrasado',
+        duration: 3000,
+      });
+    }, 100);
+  };
+
   // --- FILTROS ---
   const filteredInstallments = installments.filter(i => {
     const term = searchTerm.toLowerCase();
