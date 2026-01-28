@@ -55,7 +55,7 @@ export function Finance() {
     const { data: partnersData } = await supabase.from('partners').select('*').order('name');
     if (partnersData) setPartners(partnersData);
 
-    // Busca parcelas trazendo o ID fixo (seq_id) do contrato
+    // Busca parcelas trazendo o ID fixo (seq_id) e STATUS do contrato
     const { data: installmentsData } = await supabase
       .from('financial_installments')
       .select(`
@@ -67,13 +67,18 @@ export function Finance() {
           client_name,
           partner_id,
           billing_location,
+          status,
           partners (name)
         )
       `)
       .order('due_date', { ascending: true });
 
     if (installmentsData) {
-      const formatted = installmentsData.map((i: any) => ({
+      // CORREÇÃO: Filtrar apenas parcelas de contratos que estão ATIVOS (active)
+      // Isso remove as parcelas "fantasmas" de propostas ou contratos rejeitados
+      const activeInstallments = installmentsData.filter((i: any) => i.contracts?.status === 'active');
+
+      const formatted = activeInstallments.map((i: any) => ({
         ...i,
         contract: {
           ...i.contracts,
