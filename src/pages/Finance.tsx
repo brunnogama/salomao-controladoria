@@ -200,13 +200,12 @@ export function Finance() {
   // NOVA FUNÇÃO: Buscar dados completos do contrato e abrir modal
   const handleOpenContractModal = async (contractId: string) => {
     try {
-      // Buscar contrato completo
+      // Buscar contrato completo (SEM analyzed_by para evitar erro de relacionamento)
       const { data: contractData, error: contractError } = await supabase
         .from('contracts')
         .select(`
           *,
-          partners (name),
-          analyzed_by:profiles!analyzed_by (name)
+          partners (name)
         `)
         .eq('id', contractId)
         .single();
@@ -226,11 +225,23 @@ export function Finance() {
         .eq('contract_id', contractId)
         .order('uploaded_at', { ascending: false });
 
+      // Buscar nome do analista separadamente (se existir analyzed_by)
+      let analyzedByName = null;
+      if (contractData.analyzed_by) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', contractData.analyzed_by)
+          .single();
+        
+        analyzedByName = profileData?.name;
+      }
+
       // Formatar dados do contrato
       const formattedContract: Contract = {
         ...contractData,
         partner_name: contractData.partners?.name,
-        analyzed_by_name: contractData.analyzed_by?.name,
+        analyzed_by_name: analyzedByName,
         display_id: contractData.seq_id ? String(contractData.seq_id).padStart(6, '0') : '-'
       };
 
