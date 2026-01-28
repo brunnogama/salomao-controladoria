@@ -182,6 +182,27 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
 
     // --- LOOP PRINCIPAL DE CÁLCULO (USANDO FILTRADOS) ---
     filteredContracts.forEach((c) => {
+      // ⭐ VERIFICAÇÃO CRÍTICA: Pula contratos sem valores (nem base nem extras)
+      const hasBaseValues = (
+        (c.pro_labore && safeParseMoney(c.pro_labore) > 0) ||
+        (c.final_success_fee && safeParseMoney(c.final_success_fee) > 0) ||
+        (c.fixed_monthly_fee && safeParseMoney(c.fixed_monthly_fee) > 0) ||
+        (c.other_fees && safeParseMoney(c.other_fees) > 0)
+      );
+      
+      const hasExtraValues = (
+        (c.pro_labore_extras && Array.isArray(c.pro_labore_extras) && c.pro_labore_extras.length > 0) ||
+        (c.final_success_extras && Array.isArray(c.final_success_extras) && c.final_success_extras.length > 0) ||
+        (c.intermediate_fees && Array.isArray(c.intermediate_fees) && c.intermediate_fees.length > 0) ||
+        (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras) && c.fixed_monthly_extras.length > 0) ||
+        (c.other_fees_extras && Array.isArray(c.other_fees_extras) && c.other_fees_extras.length > 0)
+      );
+      
+      // Se o contrato está ativo mas não tem valores, pula
+      if (c.status === 'active' && !hasBaseValues && !hasExtraValues) {
+        return; // Pula para o próximo contrato
+      }
+      
       // 1. LEITURA DOS VALORES (Foco nos totais do placeholder)
       let pl = safeParseMoney(c.pro_labore);
       let exito = safeParseMoney(c.final_success_fee);
@@ -195,8 +216,6 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
       // 2. ADIÇÃO DE EXTRAS
       if (c.pro_labore_extras && Array.isArray(c.pro_labore_extras)) pl += c.pro_labore_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.final_success_extras && Array.isArray(c.final_success_extras)) exito += c.final_success_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
-      if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) mensal += c.fixed_monthly_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
-      if (c.other_fees_extras && Array.isArray(c.other_fees_extras)) outros += c.other_fees_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.fixed_monthly_extras && Array.isArray(c.fixed_monthly_extras)) mensal += c.fixed_monthly_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       if (c.other_fees_extras && Array.isArray(c.other_fees_extras)) outros += c.other_fees_extras.reduce((acc, val) => acc + safeParseMoney(val), 0);
       
@@ -376,38 +395,7 @@ export function useDashboardData(selectedPartner?: string, selectedLocation?: st
       if (c.status === 'active') fFechados++;
       else if (c.status === 'rejected') c.proposal_date ? fPerdaNegociacao++ : fPerdaAnalise++;
     });
-// =====================================================
-// PATCH DE DEBUG PARA useDashboardData.ts
-// =====================================================
-// Cole este código logo APÓS a linha 270 (final do loop forEach)
 
-console.log('==========================================');
-console.log('📊 DEBUG FINAL - MÉTRICAS GERAIS');
-console.log('==========================================');
-console.log('Total de contratos ativos:', mGeral.fechados);
-console.log('');
-console.log('💰 VALORES DOS CONTRATOS FECHADOS:');
-console.log('   Pro-labore:', mGeral.totalFechadoPL);
-console.log('   Êxito:', mGeral.totalFechadoExito);
-console.log('   Fixo Mensal:', mGeral.receitaRecorrenteAtiva);
-console.log('   Outros:', mGeral.totalFechadoOutros);
-console.log('');
-console.log('📈 VALORES DAS PROPOSTAS:');
-console.log('   Pro-labore:', mGeral.valorEmNegociacaoPL);
-console.log('   Êxito:', mGeral.valorEmNegociacaoExito);
-console.log('   Fixo Mensal:', mGeral.valorEmNegociacaoMensal);
-console.log('   Outros:', mGeral.valorEmNegociacaoOutros);
-console.log('==========================================');
-
-// =====================================================
-// INSTRUÇÕES:
-// 1. Cole este código no arquivo useDashboardData.ts
-// 2. Salve o arquivo
-// 3. Abra o Dashboard no navegador
-// 4. Pressione F12 para abrir o console
-// 5. Recarregue a página (Ctrl+R ou Cmd+R)
-// 6. Me envie o que aparece no console
-// =====================================================
     // Totais Calculados
     mSemana.totalUnico = mSemana.novos + mSemana.propQtd + mSemana.fechQtd + mSemana.rejeitados + mSemana.probono;
     mMes.totalUnico = mMes.analysis + mMes.propQtd + mMes.fechQtd + mMes.rejected + mMes.probono;
