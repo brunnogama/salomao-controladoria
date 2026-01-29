@@ -40,7 +40,7 @@ export function CustomSelect({
     opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calcula a posição do portal toda vez que abre ou redimensiona
+  // Função para calcular posição
   const updateCoords = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
@@ -55,24 +55,33 @@ export function CustomSelect({
   useEffect(() => {
     if (isOpen) {
       updateCoords();
-      window.addEventListener('scroll', updateCoords, true);
+
+      // Fecha o menu se houver scroll em qualquer lugar (evita o menu flutuando)
+      const handleScroll = (event: Event) => {
+        // Se o scroll não for dentro da própria lista de opções, fecha o menu
+        const target = event.target as HTMLElement;
+        if (target.id !== 'select-options-list') {
+          setIsOpen(false);
+        }
+      };
+
+      // O 'true' no final captura o evento de scroll em qualquer container pai (como o modal)
+      window.addEventListener('scroll', handleScroll, true);
       window.addEventListener('resize', updateCoords);
+
+      return () => {
+        window.removeEventListener('scroll', handleScroll, true);
+        window.removeEventListener('resize', updateCoords);
+      };
     }
-    return () => {
-      window.removeEventListener('scroll', updateCoords, true);
-      window.removeEventListener('resize', updateCoords);
-    };
   }, [isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        // Verifica se o clique foi no portal (para não fechar ao clicar na busca/opções)
         const portalContent = document.getElementById('select-portal-root');
         if (portalContent && portalContent.contains(event.target as Node)) return;
-        
         setIsOpen(false);
-        setSearchTerm('');
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -88,13 +97,12 @@ export function CustomSelect({
   const selectedOption = normalizedOptions.find(opt => opt.value === value);
   const displayValue = selectedOption ? selectedOption.label : value;
 
-  // Conteúdo do Menu Suspenso
   const dropdownMenu = (
     <div 
       id="select-portal-root"
       className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl animate-in fade-in zoom-in-95 origin-top"
       style={{ 
-        top: coords.top + 4, 
+        top: coords.top + 4 - window.scrollY, // Ajuste para a posição fixa
         left: coords.left, 
         width: coords.width 
       }}
@@ -105,7 +113,7 @@ export function CustomSelect({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input
             type="text"
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:border-salomao-blue focus:ring-1 focus:ring-salomao-blue outline-none bg-white"
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:border-salomao-blue outline-none bg-white"
             placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -114,7 +122,10 @@ export function CustomSelect({
         </div>
       </div>
 
-      <div className="max-h-60 overflow-y-auto">
+      <div 
+        id="select-options-list" 
+        className="max-h-60 overflow-y-auto scrollbar-thin"
+      >
         {filteredOptions.length > 0 ? (
           filteredOptions.map((opt) => (
             <div
@@ -157,7 +168,7 @@ export function CustomSelect({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue focus:ring-1 focus:ring-salomao-blue outline-none flex justify-between items-center transition-all ${
+        className={`w-full border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none flex justify-between items-center transition-all ${
           disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : 'hover:border-gray-400'
         } ${isOpen ? 'border-salomao-blue ring-1 ring-salomao-blue' : ''}`}
       >
@@ -167,7 +178,6 @@ export function CustomSelect({
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Renderiza o menu no final do body para não ser cortado pelo overflow */}
       {isOpen && createPortal(dropdownMenu, document.body)}
     </div>
   );
