@@ -57,17 +57,33 @@ export function useContractOptions({ formData, setFormData, currentProcess, setC
     const { data: justices } = await supabase.from('process_justice_types').select('name').order('name');
     if (justices) setJusticeOptions(Array.from(new Set([...DEFAULT_JUSTICES, ...justices.map(j => j.name)])).sort((a, b) => a.localeCompare(b)));
 
+    // 🔧 CORREÇÃO: Remover duplicatas de magistrados
     const { data: mags } = await supabase.from('magistrates').select('name').order('name');
-    if (mags) setMagistrateOptions(mags.map(m => m.name));
+    if (mags) {
+      const uniqueMagistrates = Array.from(new Set(mags.map(m => m.name))).sort((a, b) => a.localeCompare(b));
+      setMagistrateOptions(uniqueMagistrates);
+    }
 
+    // 🔧 CORREÇÃO: Remover duplicatas de contrários
     const { data: opps } = await supabase.from('opponents').select('name').order('name');
-    if (opps) setOpponentOptions(opps.map(o => o.name));
+    if (opps) {
+      const uniqueOpponents = Array.from(new Set(opps.map(o => o.name))).sort((a, b) => a.localeCompare(b));
+      setOpponentOptions(uniqueOpponents);
+    }
     
+    // 🔧 CORREÇÃO: Remover duplicatas de autores
     const { data: authors } = await supabase.from('authors').select('name').order('name');
-    if (authors) setAuthorOptions(authors.map(a => a.name));
+    if (authors) {
+      const uniqueAuthors = Array.from(new Set(authors.map(a => a.name))).sort((a, b) => a.localeCompare(b));
+      setAuthorOptions(uniqueAuthors);
+    }
 
+    // 🔧 CORREÇÃO PRINCIPAL: Remover duplicatas de clientes
     const { data: clients } = await supabase.from('clients').select('name').order('name');
-    if (clients) setClientOptions(clients.map(c => c.name));
+    if (clients) {
+      const uniqueClients = Array.from(new Set(clients.map(c => c.name).filter(name => name && name.trim() !== ''))).sort((a, b) => a.localeCompare(b));
+      setClientOptions(uniqueClients);
+    }
 
     fetchComarcas(currentProcess.uf);
   };
