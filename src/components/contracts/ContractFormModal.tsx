@@ -51,23 +51,19 @@ export function ContractFormModal(props: Props) {
   const [interimInstallments, setInterimInstallments] = useState('1x');
   const [interimClause, setInterimClause] = useState('');
   
-  // Estado Unificado de Gerenciamento
   const [activeManager, setActiveManager] = useState<string | null>(null);
   
   const [initialFormData, setInitialFormData] = useState<Contract | null>(null);
   
-  // Estados de Duplicidade
   const [duplicateClientCases, setDuplicateClientCases] = useState<any[]>([]);
   const [duplicateOpponentCases, setDuplicateOpponentCases] = useState<any[]>([]);
   const [duplicateAuthorCases, setDuplicateAuthorCases] = useState<any[]>([]); 
   const [duplicateHonCase, setDuplicateHonCase] = useState<any | null>(null); 
   const [duplicateProcessData, setDuplicateProcessData] = useState<any | null>(null);
 
-  // Estados "Sem CNPJ" para aba Objeto
   const [authorHasNoCnpj, setAuthorHasNoCnpj] = useState(false);
   const [opponentHasNoCnpj, setOpponentHasNoCnpj] = useState(false);
 
-  // Estados do UI Rico (Processos)
   const [newMagistrateTitle, setNewMagistrateTitle] = useState('');
   const [newMagistrateName, setNewMagistrateName] = useState('');
   const [isStandardCNJ, setIsStandardCNJ] = useState(true);
@@ -77,10 +73,8 @@ export function ContractFormModal(props: Props) {
   const [viewProcessIndex, setViewProcessIndex] = useState<number | null>(null);
   const numeralOptions = Array.from({ length: 100 }, (_, i) => ({ label: `${i + 1}º`, value: `${i + 1}º` }));
 
-  // Estado para controle das abas (STEPS)
   const [activeTab, setActiveTab] = useState(1);
 
-  // Definição dos Passos do Stepper
   const steps = [
     { id: 1, label: 'Dados do Cliente', icon: User },
     { id: 2, label: 'Status & Valores', icon: DollarSign },
@@ -88,12 +82,10 @@ export function ContractFormModal(props: Props) {
     { id: 4, label: 'GED (Arquivos)', icon: Files }
   ];
 
-  // Novo Hook de Opções
   const options = useContractOptions({ formData, setFormData, currentProcess, setCurrentProcess, activeManager });
     
   const isLoading = parentLoading || localLoading;
 
-  // Warning de Data Vazia na Aba Status
   const [dateWarningMessage, setDateWarningMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -108,10 +100,8 @@ export function ContractFormModal(props: Props) {
       if (!formData.fixed_monthly_fee_installments) setFormData(prev => ({...prev, fixed_monthly_fee_installments: '1x'}));
       if (!formData.other_fees_installments) setFormData(prev => ({...prev, other_fees_installments: '1x'}));
 
-      // Define "Selecione" como padrão se a posição estiver vazia ao abrir
       setCurrentProcess(prev => ({ ...prev, position: prev.position || '' }));
 
-      // Se for um novo contrato, força a assinatura física para undefined (Selecione)
       if (!formData.id) {
         setFormData(prev => ({ ...prev, physical_signature: undefined }));
       }
@@ -123,11 +113,9 @@ export function ContractFormModal(props: Props) {
       setInterimClause('');
       setIsStandardCNJ(true);
       setOtherProcessType('');
-      // Reseta a posição para "Selecione"
       setCurrentProcess(prev => ({ ...prev, process_number: '', uf: '', position: '' })); 
       setNewSubject('');
       
-      // Resetar Duplicidades
       setDuplicateClientCases([]);
       setDuplicateOpponentCases([]);
       setDuplicateAuthorCases([]);
@@ -142,7 +130,6 @@ export function ContractFormModal(props: Props) {
     }
   }, [isOpen, formData.id]);
 
-  // EFEITO: Verifica mensagem de data obrigatória
   useEffect(() => {
     let msg = null;
     if (formData.status === 'analysis' && !formData.prospect_date) {
@@ -155,7 +142,6 @@ export function ContractFormModal(props: Props) {
     setDateWarningMessage(msg);
   }, [formData.status, formData.prospect_date, formData.proposal_date, formData.contract_date]);
 
-  // EFEITO: Check Duplicidade CLIENTE
   useEffect(() => {
     const checkClientDuplicates = async () => {
         if (!formData.client_name || formData.client_name.length < 3) return setDuplicateClientCases([]);
@@ -166,7 +152,6 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [formData.client_name, formData.id]);
 
-  // EFEITO: Check Duplicidade HON NUMBER
   useEffect(() => {
     const checkHonDuplicates = async () => {
         if (!formData.hon_number || formData.hon_number.length < 2) return setDuplicateHonCase(null);
@@ -177,7 +162,6 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [formData.hon_number, formData.id]);
 
-  // EFEITO: Check Duplicidade CONTRÁRIO (Opponent)
   useEffect(() => {
     const checkOpponentDuplicates = async () => {
         if (!currentProcess.opponent || currentProcess.opponent.length < 3) return setDuplicateOpponentCases([]);
@@ -194,7 +178,6 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [currentProcess.opponent]);
 
-  // EFEITO: Check Duplicidade AUTOR (Author)
   useEffect(() => {
     const checkAuthorDuplicates = async () => {
         const authorName = (currentProcess as any).author;
@@ -214,14 +197,11 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [(currentProcess as any).author]);
 
-  // EFEITO: Check Duplicidade NÚMERO DO PROCESSO
   useEffect(() => {
     const checkProcessNumber = async () => {
-        // Se houver um otherProcessType definido (Consultoria, Administrativo, etc), não valida duplicidade de processo
         if (otherProcessType) return setDuplicateProcessData(null);
         if (!currentProcess.process_number || currentProcess.process_number.length < 15 || ['CONSULTORIA', 'ASSESSORIA JURÍDICA', 'PROCESSO ADMINISTRATIVO', 'OUTROS'].includes(currentProcess.process_number)) return setDuplicateProcessData(null);
         
-        // Busca se existe algum processo com este número (excluindo o caso atual se estiver editando)
         const { data } = await supabase.from('contract_processes')
             .select('contract_id, contracts(id, client_name, display_id)')
             .eq('process_number', currentProcess.process_number)
@@ -235,7 +215,6 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [currentProcess.process_number, otherProcessType, formData.id]);
 
-  // EFEITO: Auto-preenchimento de CNPJ do Autor
   useEffect(() => {
     if (authorHasNoCnpj) {
         setCurrentProcess(prev => ({ ...prev, author_cnpj: '' }));
@@ -251,7 +230,6 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [(currentProcess as any).author, authorHasNoCnpj]);
 
-  // EFEITO: Auto-preenchimento de CNPJ do Contrário
   useEffect(() => {
     if (opponentHasNoCnpj) {
         setCurrentProcess(prev => ({ ...prev, opponent_cnpj: '' }));
@@ -266,7 +244,6 @@ export function ContractFormModal(props: Props) {
     return () => clearTimeout(timer);
   }, [currentProcess.opponent, opponentHasNoCnpj]);
 
-  // EFEITO: Geração Automática de Parcelas Detalhadas
   useEffect(() => {
     if (!['proposal', 'active'].includes(formData.status)) return;
 
@@ -456,7 +433,6 @@ export function ContractFormModal(props: Props) {
   };
 
   const handleSaveWithIntegrations = async () => {
-    // Validação: Processo pendente de adição/edição
     if (editingProcessIndex !== null) return alert('⚠️ Finalize a edição do processo (clique no check ✔️) antes de salvar o caso.');
     if (currentProcess.process_number || otherProcessType) return alert('⚠️ Você inseriu dados de um processo mas não o adicionou.\n\nClique no botão Adicionar (+) na aba Dados do Objeto para incluir o processo no caso antes de salvar.');
 
@@ -476,7 +452,6 @@ export function ContractFormModal(props: Props) {
         const clientId = await upsertClient();
         if (!clientId) throw new Error("Falha ao salvar dados do cliente (CNPJ Duplicado ou Inválido).");
         
-        // LÓGICA DE TIMESHEET: Se for timesheet, zera os honorários
         const isTimesheet = (formData as any).timesheet === true;
 
         const contractPayload: any = {
@@ -569,7 +544,6 @@ export function ContractFormModal(props: Props) {
   };
 
   const handlePartyCNPJSearch = async (type: 'author' | 'opponent') => {
-    // Se "Sem CNPJ" estiver marcado, não busca
     if (type === 'author' && authorHasNoCnpj) return;
     if (type === 'opponent' && opponentHasNoCnpj) return;
 
@@ -718,13 +692,11 @@ export function ContractFormModal(props: Props) {
           <button onClick={onClose}><X className="w-6 h-6 text-gray-400" /></button>
         </div>
 
-        <div className="flex-1 p-8 space-y-8 overflow-y-auto">
+        {/* Removida a classe overflow-y-auto do container pai para evitar o corte dos dropdowns */}
+        <div className="flex-1 p-8 space-y-8 overflow-y-auto overflow-x-visible">
             
-            {/* NOVO STEPPER VISUAL */}
             <div className="flex items-center justify-between w-full mb-8 px-4 relative">
-                {/* Linha de Conexão (Background) */}
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -z-10 transform -translate-y-1/2 rounded-full"></div>
-                {/* Linha de Progresso (Ativa) */}
                 <div 
                     className="absolute top-1/2 left-0 h-1 bg-salomao-blue -z-10 transform -translate-y-1/2 rounded-full transition-all duration-500"
                     style={{ width: `${((activeTab - 1) / (steps.length - 1)) * 100}%` }}
@@ -756,9 +728,8 @@ export function ContractFormModal(props: Props) {
                 })}
             </div>
 
-            {/* Conteúdo da Aba 1: Dados do Cliente */}
             {activeTab === 1 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200 overflow-visible">
                     <ClientFormSection 
                         formData={formData} 
                         setFormData={setFormData} 
@@ -776,9 +747,8 @@ export function ContractFormModal(props: Props) {
                 </div>
             )}
 
-            {/* Conteúdo da Aba 2: Status */}
             {activeTab === 2 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200 overflow-visible">
                     <StatusAndDatesSection 
                         formData={formData} 
                         setFormData={setFormData} 
@@ -806,7 +776,6 @@ export function ContractFormModal(props: Props) {
                         setInterimClause={setInterimClause} 
                         handleRemoveIntermediateFee={handleRemoveIntermediateFee} 
                         ensureArray={ensureArray}
-                        // Novos Props de Validação
                         duplicateHonCase={duplicateHonCase}
                         dateWarningMessage={dateWarningMessage}
                     />
@@ -824,10 +793,10 @@ export function ContractFormModal(props: Props) {
                 </div>
             )}
 
-            {/* Conteúdo da Aba 3: Dados do Objeto */}
             {activeTab === 3 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
-                    <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30">
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200 overflow-visible">
+                    {/* section com overflow-visible para os menus de busca */}
+                    <section className="space-y-4 bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm backdrop-blur-sm relative z-30 overflow-visible">
                         <h3 className="text-lg font-semibold text-gray-700 mb-2">Casos</h3>
                         
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -880,10 +849,8 @@ export function ContractFormModal(props: Props) {
                             localMaskCNJ={localMaskCNJ} 
                             ensureDateValue={ensureDateValue} 
                             setActiveManager={setActiveManager}
-                            // Novos Props de Validação
                             duplicateProcessData={duplicateProcessData} 
                             duplicateAuthorCases={duplicateAuthorCases}
-                            // Estados Sem CNPJ
                             authorHasNoCnpj={authorHasNoCnpj}
                             setAuthorHasNoCnpj={setAuthorHasNoCnpj}
                             opponentHasNoCnpj={opponentHasNoCnpj}
@@ -898,9 +865,8 @@ export function ContractFormModal(props: Props) {
                 </div>
             )}
 
-            {/* Conteúdo da Aba 4: GED */}
             {activeTab === 4 && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200">
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-2 duration-200 overflow-visible">
                     <ContractDocuments documents={documents} isEditing={isEditing} uploading={uploading} status={formData.status} onUpload={handleFileUpload} onDownload={handleDownload} onDelete={handleDeleteDocument} />
                 </div>
             )}
