@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Settings, AlertCircle, Link as LinkIcon } from 'lucide-react';
-import { Contract } from '../../../types'; // Caminho corrigido
-import { CustomSelect } from '../../ui/CustomSelect'; // Caminho corrigido
+import { Contract } from '../../../types'; 
+import { CustomSelect } from '../../ui/CustomSelect'; 
 
 interface ClientFormSectionProps {
   formData: Contract;
@@ -33,10 +33,33 @@ export function ClientFormSection(props: ClientFormSectionProps) {
           <div className="md:col-span-3">
             <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ/CPF</label>
             <div className="flex gap-2 items-center">
-              <input type="text" disabled={formData.has_no_cnpj} className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" placeholder="00.000.000/0000-00" value={formData.cnpj} onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}/>
-              <button type="button" onClick={handleCNPJSearch} disabled={formData.has_no_cnpj || !formData.cnpj} className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"><Search className="w-4 h-4" /></button>
+              <input 
+                type="text" 
+                disabled={formData.has_no_cnpj} 
+                className="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:border-salomao-blue outline-none min-w-0" 
+                placeholder="00.000.000/0000-00" 
+                value={formData.cnpj || ''} 
+                onChange={(e) => setFormData({...formData, cnpj: maskCNPJ(e.target.value)})}
+              />
+              <button 
+                type="button" 
+                onClick={handleCNPJSearch} 
+                disabled={formData.has_no_cnpj || !formData.cnpj} 
+                className="bg-white hover:bg-gray-50 text-gray-600 p-2.5 rounded-lg border border-gray-300 disabled:opacity-50 shrink-0"
+              >
+                <Search className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex items-center mt-2"><input type="checkbox" id="no_cnpj" className="rounded text-salomao-blue focus:ring-salomao-blue" checked={formData.has_no_cnpj} onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}/><label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label></div>
+            <div className="flex items-center mt-2">
+              <input 
+                type="checkbox" 
+                id="no_cnpj" 
+                className="rounded text-salomao-blue focus:ring-salomao-blue" 
+                checked={formData.has_no_cnpj || false} 
+                onChange={(e) => setFormData({...formData, has_no_cnpj: e.target.checked, cnpj: ''})}
+              />
+              <label htmlFor="no_cnpj" className="ml-2 text-xs text-gray-500">Sem CNPJ (Pessoa Física)</label>
+            </div>
           </div>
           <div className="md:col-span-9">
             <CustomSelect 
@@ -66,8 +89,29 @@ export function ClientFormSection(props: ClientFormSectionProps) {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div><CustomSelect label="Área do Direito" value={formData.area || ''} onChange={(val: string) => setFormData({...formData, area: val})} options={areaOptions} onAction={() => setActiveManager('area')} actionIcon={Settings} actionLabel="Gerenciar Áreas" placeholder="Selecione" /></div>
-          <div><CustomSelect label="Responsável (Sócio) *" value={formData.partner_id} onChange={(val: string) => setFormData({...formData, partner_id: val})} options={partnerSelectOptions} onAction={onOpenPartnerManager} actionIcon={Settings} actionLabel="Gerenciar Sócios" /></div>
+          <div>
+            <CustomSelect 
+              label="Área do Direito" 
+              value={formData.area || ''} 
+              onChange={(val: string) => setFormData({...formData, area: val})} 
+              options={areaOptions} 
+              onAction={() => setActiveManager('area')} 
+              actionIcon={Settings} 
+              actionLabel="Gerenciar Áreas" 
+              placeholder="Selecione" 
+            />
+          </div>
+          <div>
+            <CustomSelect 
+              label="Responsável (Sócio) *" 
+              value={formData.partner_id || ''} 
+              onChange={(val: string) => setFormData({...formData, partner_id: val})} 
+              options={partnerSelectOptions} 
+              onAction={onOpenPartnerManager} 
+              actionIcon={Settings} 
+              actionLabel="Gerenciar Sócios" 
+            />
+          </div>
         </div>
     </section>
   );

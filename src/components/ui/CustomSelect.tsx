@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Search, Plus, Settings } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Search, Plus } from 'lucide-react';
 
 interface CustomSelectProps {
   label?: string;
@@ -28,24 +29,50 @@ export function CustomSelect({
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Normaliza as opções para o formato { label, value }
   const normalizedOptions = options.map(opt => 
     typeof opt === 'string' ? { label: opt, value: opt } : opt
   );
 
-  // Filtra opções pela busca
   const filteredOptions = normalizedOptions.filter(opt =>
     opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Fecha ao clicar fora
+  // Calcula a posição do portal toda vez que abre ou redimensiona
+  const updateCoords = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      updateCoords();
+      window.addEventListener('scroll', updateCoords, true);
+      window.addEventListener('resize', updateCoords);
+    }
+    return () => {
+      window.removeEventListener('scroll', updateCoords, true);
+      window.removeEventListener('resize', updateCoords);
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        // Verifica se o clique foi no portal (para não fechar ao clicar na busca/opções)
+        const portalContent = document.getElementById('select-portal-root');
+        if (portalContent && portalContent.contains(event.target as Node)) return;
+        
         setIsOpen(false);
-        setSearchTerm(''); // Limpa busca ao fechar
+        setSearchTerm('');
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -58,9 +85,69 @@ export function CustomSelect({
     setSearchTerm('');
   };
 
-  // Encontra o label do valor atual
   const selectedOption = normalizedOptions.find(opt => opt.value === value);
   const displayValue = selectedOption ? selectedOption.label : value;
+
+  // Conteúdo do Menu Suspenso
+  const dropdownMenu = (
+    <div 
+      id="select-portal-root"
+      className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl animate-in fade-in zoom-in-95 origin-top"
+      style={{ 
+        top: coords.top + 4, 
+        left: coords.left, 
+        width: coords.width 
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-2 border-b border-gray-100 bg-gray-50/50 rounded-t-lg">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            type="text"
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:border-salomao-blue focus:ring-1 focus:ring-salomao-blue outline-none bg-white"
+            placeholder="Buscar..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            autoFocus
+          />
+        </div>
+      </div>
+
+      <div className="max-h-60 overflow-y-auto">
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((opt) => (
+            <div
+              key={opt.value}
+              onClick={() => handleSelect(opt.value)}
+              className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 transition-colors flex items-center justify-between ${
+                value === opt.value ? 'bg-blue-50 text-salomao-blue font-medium' : 'text-gray-700'
+              }`}
+            >
+              {opt.label}
+              {value === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-salomao-blue" />}
+            </div>
+          ))
+        ) : (
+          <div className="px-3 py-4 text-xs text-center text-gray-400">
+            Nenhuma opção encontrada
+          </div>
+        )}
+      </div>
+
+      {onAction && (
+        <div 
+          onClick={() => { onAction(); setIsOpen(false); }}
+          className="border-t border-gray-100 p-2 bg-gray-50 rounded-b-lg cursor-pointer hover:bg-gray-100 transition-colors group"
+        >
+          <div className="flex items-center justify-center text-xs font-medium text-salomao-blue group-hover:text-blue-700">
+            <ActionIcon className="w-3.5 h-3.5 mr-1.5" />
+            {actionLabel || 'Gerenciar'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
@@ -80,65 +167,8 @@ export function CustomSelect({
         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl animate-in fade-in zoom-in-95 origin-top">
-          {/* Campo de Busca */}
-          <div className="p-2 border-b border-gray-100 bg-gray-50/50 rounded-t-lg sticky top-0">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:border-salomao-blue focus:ring-1 focus:ring-salomao-blue outline-none bg-white"
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          </div>
-
-          {/* Lista de Opções */}
-          <div className="max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt) => (
-                <div
-                  key={opt.value}
-                  onClick={() => handleSelect(opt.value)}
-                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 transition-colors flex items-center justify-between ${
-                    value === opt.value ? 'bg-blue-50 text-salomao-blue font-medium' : 'text-gray-700'
-                  }`}
-                >
-                  {opt.label}
-                  {value === opt.value && <div className="w-1.5 h-1.5 rounded-full bg-salomao-blue" />}
-                </div>
-              ))
-            ) : (
-              <div className="px-3 py-4 text-xs text-center text-gray-400">
-                Nenhuma opção encontrada
-              </div>
-            )}
-          </div>
-
-          {/* Botão de Ação / Gerenciar */}
-          {onAction && (
-            <div 
-              onClick={() => {
-                onAction();
-                // Não fechamos o menu aqui automaticamente para permitir interações como Prompts, 
-                // mas se for um modal, o modal se sobrepõe.
-                setIsOpen(false); 
-              }}
-              className="border-t border-gray-100 p-2 bg-gray-50 rounded-b-lg cursor-pointer hover:bg-gray-100 transition-colors group"
-            >
-              <div className="flex items-center justify-center text-xs font-medium text-salomao-blue group-hover:text-blue-700">
-                <ActionIcon className="w-3.5 h-3.5 mr-1.5" />
-                {actionLabel || 'Gerenciar'}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Renderiza o menu no final do body para não ser cortado pelo overflow */}
+      {isOpen && createPortal(dropdownMenu, document.body)}
     </div>
   );
 }
