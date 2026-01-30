@@ -187,8 +187,7 @@ export function EvolutionCharts({
       y: {
         beginAtZero: true,
         grid: {
-          color: '#e5e7eb',
-          drawBorder: false
+          color: '#e5e7eb'
         },
         ticks: {
           font: {
@@ -251,8 +250,7 @@ export function EvolutionCharts({
       y: {
         beginAtZero: true,
         grid: {
-          color: '#e5e7eb',
-          drawBorder: false
+          color: '#e5e7eb'
         },
         ticks: {
           font: {
@@ -261,7 +259,7 @@ export function EvolutionCharts({
           },
           color: '#6b7280',
           padding: 8,
-          callback: (value) => formatCompact(Number(value))
+          callback: (value) => formatCompact(Number(value) || 0)
         }
       },
       x: {
