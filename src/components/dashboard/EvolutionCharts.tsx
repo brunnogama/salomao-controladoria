@@ -87,32 +87,105 @@ export function EvolutionCharts({
               />
             </div>
           ) : (
-            <div className="h-72 flex flex-col">
-              {/* Área do Gráfico */}
-              <div className="flex-1 flex items-end justify-around gap-2 pb-8 border-b border-gray-100 relative px-4">
+            <div className="h-72 relative">
+              <svg className="w-full h-full" viewBox="0 0 1000 300" preserveAspectRatio="none">
+                {/* Grid lines */}
+                <defs>
+                  <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 0.3 }} />
+                    <stop offset="100%" style={{ stopColor: '#1e3a8a', stopOpacity: 0 }} />
+                  </linearGradient>
+                </defs>
+                
+                {/* Grid horizontal lines */}
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <line
+                    key={i}
+                    x1="0"
+                    y1={i * 75}
+                    x2="1000"
+                    y2={i * 75}
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                  />
+                ))}
+                
+                {/* Área preenchida */}
+                <path
+                  d={(() => {
+                    const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
+                    const points = entradaChartData.map((item, index) => {
+                      const x = (index / (entradaChartData.length - 1)) * 1000;
+                      const y = 280 - ((item.quantidade / maxQtd) * 260);
+                      return `${x},${y}`;
+                    });
+                    return `M 0,280 L ${points.join(' L ')} L 1000,280 Z`;
+                  })()}
+                  fill="url(#areaGradient)"
+                />
+                
+                {/* Linha principal */}
+                <path
+                  d={(() => {
+                    const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
+                    const points = entradaChartData.map((item, index) => {
+                      const x = (index / (entradaChartData.length - 1)) * 1000;
+                      const y = 280 - ((item.quantidade / maxQtd) * 260);
+                      return `${x},${y}`;
+                    });
+                    return `M ${points.join(' L ')}`;
+                  })()}
+                  fill="none"
+                  stroke="#1e3a8a"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                
+                {/* Pontos na linha */}
                 {entradaChartData.map((item, index) => {
                   const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                  const height = (item.quantidade / maxQtd) * 100;
-                  
+                  const x = (index / (entradaChartData.length - 1)) * 1000;
+                  const y = 280 - ((item.quantidade / maxQtd) * 260);
                   return (
-                    <div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group relative'>
-                      {/* Valor */}
-                      <span className='text-[10px] font-bold text-blue-600 mb-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                    <g key={index}>
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r="6"
+                        fill="white"
+                        stroke="#1e3a8a"
+                        strokeWidth="3"
+                        className="hover:r-8 transition-all cursor-pointer"
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+              
+              {/* Labels do eixo X */}
+              <div className="flex justify-between px-4 mt-2">
+                {entradaChartData.map((item, index) => (
+                  <span key={index} className='text-[9px] text-gray-600 font-black uppercase tracking-wider'>
+                    {item.mes}
+                  </span>
+                ))}
+              </div>
+              
+              {/* Valores nos pontos */}
+              <div className="absolute inset-0 flex justify-between items-end px-4 pb-8 pointer-events-none">
+                {entradaChartData.map((item, index) => {
+                  const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
+                  const bottomPercent = ((item.quantidade / maxQtd) * 85);
+                  return (
+                    <div 
+                      key={index} 
+                      className="flex flex-col items-center"
+                      style={{ marginBottom: `${bottomPercent}%` }}
+                    >
+                      <span className='text-[10px] font-bold text-blue-600 bg-white px-2 py-0.5 rounded-lg border border-blue-100 shadow-sm'>
                         {item.quantidade}
-                      </span>
-                      
-                      {/* Barra com gradiente */}
-                      <div 
-                        className='relative w-full max-w-[50px] bg-gradient-to-t from-[#1e3a8a] to-[#112240] rounded-t-xl hover:from-[#112240] hover:to-[#0a192f] transition-all cursor-pointer shadow-lg'
-                        style={{ height: `${Math.max(height, 3)}%` }}
-                      >
-                        {/* Shine effect */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl" />
-                      </div>
-                      
-                      {/* Mês */}
-                      <span className='text-[9px] text-gray-600 font-black uppercase tracking-wider mt-1'>
-                        {item.mes}
                       </span>
                     </div>
                   );
@@ -214,36 +287,86 @@ export function EvolutionCharts({
                   />
                 </div>
               ) : (
-                <div className="h-60 flex items-end justify-around gap-2 pb-4 border-b border-gray-100">
-                  {propostasChartData.map((item, index) => {
-                    const maxTotal = Math.max(...propostasChartData.map(d => d.total));
-                    const totalHeight = (item.total / maxTotal) * 100;
+                <div className="h-60 relative">
+                  <svg className="w-full h-full" viewBox="0 0 1000 240" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="areaGradientProp" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 0.3 }} />
+                        <stop offset="100%" style={{ stopColor: '#1e3a8a', stopOpacity: 0 }} />
+                      </linearGradient>
+                    </defs>
                     
-                    return (
-                      <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
-                        {/* Valor total */}
-                        {item.total > 0 && (
-                          <span className='text-[9px] font-bold text-gray-600 mb-1 whitespace-nowrap'>
+                    {/* Grid */}
+                    {[0, 1, 2, 3].map((i) => (
+                      <line key={i} x1="0" y1={i * 60} x2="1000" y2={i * 60} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3" />
+                    ))}
+                    
+                    {/* Área */}
+                    <path
+                      d={(() => {
+                        const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
+                        const points = propostasChartData.map((item, index) => {
+                          const x = (index / (propostasChartData.length - 1)) * 1000;
+                          const y = 220 - ((item.total / maxTotal) * 200);
+                          return `${x},${y}`;
+                        });
+                        return `M 0,220 L ${points.join(' L ')} L 1000,220 Z`;
+                      })()}
+                      fill="url(#areaGradientProp)"
+                    />
+                    
+                    {/* Linha */}
+                    <path
+                      d={(() => {
+                        const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
+                        const points = propostasChartData.map((item, index) => {
+                          const x = (index / (propostasChartData.length - 1)) * 1000;
+                          const y = 220 - ((item.total / maxTotal) * 200);
+                          return `${x},${y}`;
+                        });
+                        return `M ${points.join(' L ')}`;
+                      })()}
+                      fill="none"
+                      stroke="#1e3a8a"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    
+                    {/* Pontos */}
+                    {propostasChartData.map((item, index) => {
+                      const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
+                      const x = (index / (propostasChartData.length - 1)) * 1000;
+                      const y = 220 - ((item.total / maxTotal) * 200);
+                      return (
+                        <circle key={index} cx={x} cy={y} r="5" fill="white" stroke="#1e3a8a" strokeWidth="2.5" className="hover:r-7 transition-all" />
+                      );
+                    })}
+                  </svg>
+                  
+                  {/* Labels X */}
+                  <div className="flex justify-between px-2 mt-2">
+                    {propostasChartData.map((item, index) => (
+                      <span key={index} className='text-[8px] text-gray-600 font-black uppercase tracking-wider'>
+                        {item.mes}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {/* Valores */}
+                  <div className="absolute inset-0 flex justify-between items-end px-2 pb-6 pointer-events-none">
+                    {propostasChartData.map((item, index) => {
+                      const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
+                      const bottomPercent = ((item.total / maxTotal) * 80);
+                      return item.total > 0 ? (
+                        <div key={index} style={{ marginBottom: `${bottomPercent}%` }}>
+                          <span className='text-[9px] font-bold text-blue-600 bg-white px-1.5 py-0.5 rounded-md border border-blue-100 shadow-sm whitespace-nowrap'>
                             {formatCompact(item.total)}
                           </span>
-                        )}
-                        
-                        {/* Barra única com gradiente azul */}
-                        <div 
-                          className='relative w-full max-w-[32px] bg-gradient-to-t from-[#1e3a8a] to-[#112240] rounded-t-xl hover:from-[#112240] hover:to-[#0a192f] transition-all cursor-pointer shadow-lg'
-                          style={{ height: `${Math.max(totalHeight, 2)}%` }}
-                          title={`Total: ${formatMoney(item.total)}`}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl" />
                         </div>
-                        
-                        {/* Mês */}
-                        <span className='text-[8px] text-gray-600 font-black uppercase mt-2 tracking-wider'>
-                          {item.mes}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      ) : null;
+                    })}
+                  </div>
                 </div>
               )}
             </div>
