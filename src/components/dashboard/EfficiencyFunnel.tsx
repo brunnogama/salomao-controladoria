@@ -30,7 +30,7 @@ export function EfficiencyFunnel({ funil }: EfficiencyFunnelProps) {
         {/* Etapa 1 - Prospects */}
         <div className='md:col-span-1 relative'>
           <div className='bg-gradient-to-br from-[#112240] to-[#1e3a8a] p-5 rounded-xl border border-white/10 shadow-lg text-center group hover:shadow-blue-900/20 transition-all'>
-            <p className='text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-2'>
+            <p className='text-[10px] font-black text-white uppercase tracking-[0.2em] mb-2'>
               1. Prospects
             </p>
             <p className='text-[30px] font-black text-white tracking-tight'>
@@ -49,10 +49,10 @@ export function EfficiencyFunnel({ funil }: EfficiencyFunnelProps) {
             {funil.taxaConversaoProposta}% Avançam
           </div>
           
-          {/* Perdas */}
+          {/* Rejeições */}
           <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-red-50 text-red-700 border-red-100'>
             <XCircle className='w-3 h-3' />
-            {funil.perdaAnalise} Perdas
+            {funil.perdaAnalise} Rejeições
           </div>
           
           {/* Tempo Médio */}
@@ -72,7 +72,7 @@ export function EfficiencyFunnel({ funil }: EfficiencyFunnelProps) {
         {/* Etapa 2 - Propostas */}
         <div className='md:col-span-1 relative'>
           <div className='bg-gradient-to-br from-[#1a2c4e] to-[#112240] p-5 rounded-xl border border-white/10 shadow-lg text-center group hover:shadow-blue-900/20 transition-all'>
-            <p className='text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-2'>
+            <p className='text-[10px] font-black text-white uppercase tracking-[0.2em] mb-2'>
               2. Propostas
             </p>
             <p className='text-[30px] font-black text-white tracking-tight'>
@@ -91,10 +91,10 @@ export function EfficiencyFunnel({ funil }: EfficiencyFunnelProps) {
             {funil.taxaConversaoFechamento}% Fecham
           </div>
           
-          {/* Perdas */}
+          {/* Rejeições */}
           <div className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-red-50 text-red-700 border-red-100'>
             <XCircle className='w-3 h-3' />
-            {funil.perdaNegociacao} Perdas
+            {funil.perdaNegociacao} Rejeições
           </div>
           
           {/* Tempo Médio */}
@@ -114,7 +114,7 @@ export function EfficiencyFunnel({ funil }: EfficiencyFunnelProps) {
         {/* Etapa 3 - Fechados */}
         <div className='md:col-span-1'>
           <div className='bg-gradient-to-br from-green-700 to-green-600 p-5 rounded-xl border border-white/10 shadow-lg text-center group hover:shadow-green-900/20 transition-all'>
-            <p className='text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-2'>
+            <p className='text-[10px] font-black text-white uppercase tracking-[0.2em] mb-2'>
               3. Fechados
             </p>
             <p className='text-[30px] font-black text-white tracking-tight'>
