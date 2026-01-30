@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Shield, Users, MapPin, Loader2, Mail, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Users, MapPin, Loader2, Mail, ChevronDown } from 'lucide-react';
 
 interface DashboardHeaderProps {
   userRole: 'admin' | 'editor' | 'viewer' | null;
@@ -34,24 +34,9 @@ export function DashboardHeader({
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#112240] to-[#1e3a8a] text-white shadow-lg">
               <LayoutDashboard className="w-6 h-6" />
             </div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-[30px] font-black text-[#0a192f] tracking-tight">
-                Controladoria Jurídica
-              </h1>
-              {/* Badge de Role */}
-              {userRole && (
-                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
-                  userRole === 'admin' 
-                    ? 'bg-purple-50 text-purple-700 border-purple-100' 
-                    : userRole === 'editor' 
-                      ? 'bg-blue-50 text-blue-700 border-blue-100'
-                      : 'bg-gray-50 text-gray-600 border-gray-100'
-                }`}>
-                  <Shield className="w-3 h-3" />
-                  {userRole === 'admin' ? 'Admin' : userRole === 'editor' ? 'Editor' : 'Viewer'}
-                </div>
-              )}
-            </div>
+            <h1 className="text-[30px] font-black text-[#0a192f] tracking-tight">
+              Controladoria Jurídica
+            </h1>
           </div>
           <p className="text-sm font-semibold text-gray-500 ml-[52px]">
             Visão estratégica de contratos e resultados
