@@ -2,6 +2,33 @@ import React from 'react';
 import { BarChart3, BarChart4, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatMoney, formatCompact } from './dashboardHelpers';
 import { EmptyState } from '../ui/EmptyState';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  ChartOptions
+} from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
+// Registrar componentes do Chart.js
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  ChartDataLabels
+);
 
 interface EvolutionChartsProps {
   evolucaoMensal: any[];
@@ -30,28 +57,228 @@ export function EvolutionCharts({
   const penultimoQtd = evolucaoMensal.length > 1 ? evolucaoMensal[evolucaoMensal.length - 2].qtd : 0;
   const diffEntrada = ultimoQtd - penultimoQtd;
 
-  // Preparar dados para gráfico de linha (Entrada de Casos)
-  const entradaChartData = evolucaoMensal.map(item => ({
-    mes: item.mes,
-    quantidade: item.qtd
-  }));
+  // Preparar dados para Chart.js - Entrada de Casos
+  const entradaChartData = {
+    labels: evolucaoMensal.map(item => item.mes),
+    datasets: [
+      {
+        label: 'Quantidade',
+        data: evolucaoMensal.map(item => item.qtd),
+        borderColor: '#1e3a8a',
+        backgroundColor: (context: any) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+          gradient.addColorStop(0, 'rgba(30, 58, 138, 0.3)');
+          gradient.addColorStop(1, 'rgba(30, 58, 138, 0)');
+          return gradient;
+        },
+        borderWidth: 3,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#1e3a8a',
+        pointBorderWidth: 3,
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  };
 
-  // Preparar dados para gráficos de área (Propostas e Fechamentos)
-  const propostasChartData = propostas12Meses.map(item => ({
-    mes: item.mes,
-    proLabore: item.pl,
-    fixoMensal: item.fixo,
-    exito: item.exito,
-    total: item.pl + item.fixo + item.exito
-  }));
+  // Preparar dados para Chart.js - Propostas
+  const propostasChartData = {
+    labels: propostas12Meses.map(item => item.mes),
+    datasets: [
+      {
+        label: 'Total',
+        data: propostas12Meses.map(item => item.pl + item.fixo + item.exito),
+        borderColor: '#1e3a8a',
+        backgroundColor: (context: any) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+          gradient.addColorStop(0, 'rgba(30, 58, 138, 0.3)');
+          gradient.addColorStop(1, 'rgba(30, 58, 138, 0)');
+          return gradient;
+        },
+        borderWidth: 3,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#1e3a8a',
+        pointBorderWidth: 2.5,
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  };
 
-  const fechamentosChartData = financeiro12Meses.map(item => ({
-    mes: item.mes,
-    proLabore: item.pl,
-    fixoMensal: item.fixo,
-    exito: item.exito,
-    total: item.pl + item.fixo + item.exito
-  }));
+  // Preparar dados para Chart.js - Fechamentos
+  const fechamentosChartData = {
+    labels: financeiro12Meses.map(item => item.mes),
+    datasets: [
+      {
+        label: 'Total',
+        data: financeiro12Meses.map(item => item.pl + item.fixo + item.exito),
+        borderColor: '#15803d',
+        backgroundColor: (context: any) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+          gradient.addColorStop(0, 'rgba(21, 128, 61, 0.3)');
+          gradient.addColorStop(1, 'rgba(21, 128, 61, 0)');
+          return gradient;
+        },
+        borderWidth: 3,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#15803d',
+        pointBorderWidth: 2.5,
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  };
+
+  // Opções para Entrada de Casos (com valores sempre visíveis)
+  const entradaOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        backgroundColor: 'white',
+        titleColor: '#111827',
+        bodyColor: '#111827',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        displayColors: false,
+        titleFont: {
+          size: 12,
+          weight: 'bold'
+        },
+        bodyFont: {
+          size: 11,
+          weight: 'bold'
+        }
+      },
+      datalabels: {
+        display: true,
+        align: 'top',
+        anchor: 'end',
+        offset: 4,
+        backgroundColor: '#1e3a8a',
+        borderRadius: 6,
+        color: 'white',
+        font: {
+          weight: 'bold',
+          size: 11
+        },
+        padding: {
+          top: 4,
+          bottom: 4,
+          left: 8,
+          right: 8
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: '#e5e7eb',
+          drawBorder: false
+        },
+        ticks: {
+          font: {
+            size: 11,
+            weight: 'bold'
+          },
+          color: '#6b7280',
+          padding: 8
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          font: {
+            size: 10,
+            weight: 'bold'
+          },
+          color: '#6b7280',
+          padding: 8
+        }
+      }
+    }
+  };
+
+  // Opções para gráficos financeiros (sem valores sempre visíveis)
+  const financeiroOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        backgroundColor: 'white',
+        titleColor: '#111827',
+        bodyColor: '#111827',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        displayColors: false,
+        titleFont: {
+          size: 12,
+          weight: 'bold'
+        },
+        bodyFont: {
+          size: 11,
+          weight: 'bold'
+        },
+        callbacks: {
+          label: (context) => formatMoney(context.parsed.y)
+        }
+      },
+      datalabels: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: '#e5e7eb',
+          drawBorder: false
+        },
+        ticks: {
+          font: {
+            size: 11,
+            weight: 'bold'
+          },
+          color: '#6b7280',
+          padding: 8,
+          callback: (value) => formatCompact(Number(value))
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          font: {
+            size: 10,
+            weight: 'bold'
+          },
+          color: '#6b7280',
+          padding: 8
+        }
+      }
+    }
+  };
 
   return (
     <>
@@ -87,101 +314,8 @@ export function EvolutionCharts({
               />
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Área do Gráfico SVG */}
-              <div className="h-64 relative bg-gray-50/30 rounded-xl border border-gray-100 p-4">
-                <svg className="w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 0.3 }} />
-                      <stop offset="100%" style={{ stopColor: '#1e3a8a', stopOpacity: 0 }} />
-                    </linearGradient>
-                  </defs>
-                  
-                  {/* Grid horizontal lines */}
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <line
-                      key={i}
-                      x1="0"
-                      y1={i * 50}
-                      x2="1000"
-                      y2={i * 50}
-                      stroke="#e5e7eb"
-                      strokeWidth="1"
-                      strokeDasharray="5,5"
-                    />
-                  ))}
-                  
-                  {/* Área preenchida */}
-                  <path
-                    d={(() => {
-                      const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                      const points = entradaChartData.map((item, index) => {
-                        const x = (index / (entradaChartData.length - 1)) * 1000;
-                        const y = 180 - ((item.quantidade / maxQtd) * 160);
-                        return `${x},${y}`;
-                      });
-                      return `M 0,180 L ${points.join(' L ')} L 1000,180 Z`;
-                    })()}
-                    fill="url(#areaGradient)"
-                  />
-                  
-                  {/* Linha principal */}
-                  <path
-                    d={(() => {
-                      const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                      const points = entradaChartData.map((item, index) => {
-                        const x = (index / (entradaChartData.length - 1)) * 1000;
-                        const y = 180 - ((item.quantidade / maxQtd) * 160);
-                        return `${x},${y}`;
-                      });
-                      return `M ${points.join(' L ')}`;
-                    })()}
-                    fill="none"
-                    stroke="#1e3a8a"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  
-                  {/* Pontos na linha */}
-                  {entradaChartData.map((item, index) => {
-                    const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                    const x = (index / (entradaChartData.length - 1)) * 1000;
-                    const y = 180 - ((item.quantidade / maxQtd) * 160);
-                    return (
-                      <circle
-                        key={index}
-                        cx={x}
-                        cy={y}
-                        r="5"
-                        fill="white"
-                        stroke="#1e3a8a"
-                        strokeWidth="3"
-                        className="transition-all cursor-pointer hover:r-7"
-                      />
-                    );
-                  })}
-                </svg>
-              </div>
-              
-              {/* Labels e Valores ABAIXO do gráfico */}
-              <div className="flex justify-between px-4">
-                {entradaChartData.map((item, index) => (
-                  <div key={index} className="flex flex-col items-center gap-2">
-                    {/* Valor */}
-                    <div className="px-3 py-1.5 bg-gradient-to-br from-[#112240] to-[#1e3a8a] rounded-lg shadow-md">
-                      <span className='text-sm font-black text-white tracking-tight'>
-                        {item.quantidade}
-                      </span>
-                    </div>
-                    {/* Mês */}
-                    <span className='text-[9px] text-gray-600 font-black uppercase tracking-wider'>
-                      {item.mes}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className="h-72">
+              <Line data={entradaChartData} options={entradaOptions} />
             </div>
           )}
         </div>
@@ -278,86 +412,8 @@ export function EvolutionCharts({
                   />
                 </div>
               ) : (
-                <div className="h-60 relative">
-                  <svg className="w-full h-full" viewBox="0 0 1000 240" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="areaGradientProp" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 0.3 }} />
-                        <stop offset="100%" style={{ stopColor: '#1e3a8a', stopOpacity: 0 }} />
-                      </linearGradient>
-                    </defs>
-                    
-                    {/* Grid */}
-                    {[0, 1, 2, 3].map((i) => (
-                      <line key={i} x1="0" y1={i * 60} x2="1000" y2={i * 60} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3" />
-                    ))}
-                    
-                    {/* Área */}
-                    <path
-                      d={(() => {
-                        const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
-                        const points = propostasChartData.map((item, index) => {
-                          const x = (index / (propostasChartData.length - 1)) * 1000;
-                          const y = 220 - ((item.total / maxTotal) * 200);
-                          return `${x},${y}`;
-                        });
-                        return `M 0,220 L ${points.join(' L ')} L 1000,220 Z`;
-                      })()}
-                      fill="url(#areaGradientProp)"
-                    />
-                    
-                    {/* Linha */}
-                    <path
-                      d={(() => {
-                        const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
-                        const points = propostasChartData.map((item, index) => {
-                          const x = (index / (propostasChartData.length - 1)) * 1000;
-                          const y = 220 - ((item.total / maxTotal) * 200);
-                          return `${x},${y}`;
-                        });
-                        return `M ${points.join(' L ')}`;
-                      })()}
-                      fill="none"
-                      stroke="#1e3a8a"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    
-                    {/* Pontos */}
-                    {propostasChartData.map((item, index) => {
-                      const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
-                      const x = (index / (propostasChartData.length - 1)) * 1000;
-                      const y = 220 - ((item.total / maxTotal) * 200);
-                      return (
-                        <circle key={index} cx={x} cy={y} r="5" fill="white" stroke="#1e3a8a" strokeWidth="2.5" className="hover:r-7 transition-all" />
-                      );
-                    })}
-                  </svg>
-                  
-                  {/* Labels X */}
-                  <div className="flex justify-between px-2 mt-2">
-                    {propostasChartData.map((item, index) => (
-                      <span key={index} className='text-[8px] text-gray-600 font-black uppercase tracking-wider'>
-                        {item.mes}
-                      </span>
-                    ))}
-                  </div>
-                  
-                  {/* Valores */}
-                  <div className="absolute inset-0 flex justify-between items-end px-2 pb-6 pointer-events-none">
-                    {propostasChartData.map((item, index) => {
-                      const maxTotal = Math.max(...propostasChartData.map(d => d.total), 1);
-                      const bottomPercent = ((item.total / maxTotal) * 80);
-                      return item.total > 0 ? (
-                        <div key={index} style={{ marginBottom: `${bottomPercent}%` }}>
-                          <span className='text-[9px] font-bold text-blue-600 bg-white px-1.5 py-0.5 rounded-md border border-blue-100 shadow-sm whitespace-nowrap'>
-                            {formatCompact(item.total)}
-                          </span>
-                        </div>
-                      ) : null;
-                    })}
-                  </div>
+                <div className="h-60">
+                  <Line data={propostasChartData} options={financeiroOptions} />
                 </div>
               )}
             </div>
@@ -426,86 +482,8 @@ export function EvolutionCharts({
                   />
                 </div>
               ) : (
-                <div className="h-60 relative">
-                  <svg className="w-full h-full" viewBox="0 0 1000 240" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="areaGradientFech" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style={{ stopColor: '#15803d', stopOpacity: 0.3 }} />
-                        <stop offset="100%" style={{ stopColor: '#15803d', stopOpacity: 0 }} />
-                      </linearGradient>
-                    </defs>
-                    
-                    {/* Grid */}
-                    {[0, 1, 2, 3].map((i) => (
-                      <line key={i} x1="0" y1={i * 60} x2="1000" y2={i * 60} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3" />
-                    ))}
-                    
-                    {/* Área */}
-                    <path
-                      d={(() => {
-                        const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
-                        const points = fechamentosChartData.map((item, index) => {
-                          const x = (index / (fechamentosChartData.length - 1)) * 1000;
-                          const y = 220 - ((item.total / maxTotal) * 200);
-                          return `${x},${y}`;
-                        });
-                        return `M 0,220 L ${points.join(' L ')} L 1000,220 Z`;
-                      })()}
-                      fill="url(#areaGradientFech)"
-                    />
-                    
-                    {/* Linha */}
-                    <path
-                      d={(() => {
-                        const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
-                        const points = fechamentosChartData.map((item, index) => {
-                          const x = (index / (fechamentosChartData.length - 1)) * 1000;
-                          const y = 220 - ((item.total / maxTotal) * 200);
-                          return `${x},${y}`;
-                        });
-                        return `M ${points.join(' L ')}`;
-                      })()}
-                      fill="none"
-                      stroke="#15803d"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    
-                    {/* Pontos */}
-                    {fechamentosChartData.map((item, index) => {
-                      const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
-                      const x = (index / (fechamentosChartData.length - 1)) * 1000;
-                      const y = 220 - ((item.total / maxTotal) * 200);
-                      return (
-                        <circle key={index} cx={x} cy={y} r="5" fill="white" stroke="#15803d" strokeWidth="2.5" className="hover:r-7 transition-all" />
-                      );
-                    })}
-                  </svg>
-                  
-                  {/* Labels X */}
-                  <div className="flex justify-between px-2 mt-2">
-                    {fechamentosChartData.map((item, index) => (
-                      <span key={index} className='text-[8px] text-gray-600 font-black uppercase tracking-wider'>
-                        {item.mes}
-                      </span>
-                    ))}
-                  </div>
-                  
-                  {/* Valores */}
-                  <div className="absolute inset-0 flex justify-between items-end px-2 pb-6 pointer-events-none">
-                    {fechamentosChartData.map((item, index) => {
-                      const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
-                      const bottomPercent = ((item.total / maxTotal) * 80);
-                      return item.total > 0 ? (
-                        <div key={index} style={{ marginBottom: `${bottomPercent}%` }}>
-                          <span className='text-[9px] font-bold text-green-600 bg-white px-1.5 py-0.5 rounded-md border border-green-100 shadow-sm whitespace-nowrap'>
-                            {formatCompact(item.total)}
-                          </span>
-                        </div>
-                      ) : null;
-                    })}
-                  </div>
+                <div className="h-60">
+                  <Line data={fechamentosChartData} options={financeiroOptions} />
                 </div>
               )}
             </div>
