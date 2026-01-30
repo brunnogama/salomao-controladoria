@@ -2,7 +2,6 @@ import React from 'react';
 import { BarChart3, BarChart4, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatMoney, formatCompact } from './dashboardHelpers';
 import { EmptyState } from '../ui/EmptyState';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface EvolutionChartsProps {
   evolucaoMensal: any[];
@@ -88,44 +87,38 @@ export function EvolutionCharts({
               />
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={entradaChartData}>
-                <defs>
-                  <linearGradient id="colorQuantidade" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="mes" 
-                  tick={{ fontSize: 11, fontWeight: 700 }}
-                  stroke="#6b7280"
-                />
-                <YAxis 
-                  tick={{ fontSize: 11, fontWeight: 700 }}
-                  stroke="#6b7280"
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                  }}
-                  formatter={(value: any) => [`${value} casos`, 'Quantidade']}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="quantidade" 
-                  stroke="#1e3a8a" 
-                  strokeWidth={3} 
-                  fillOpacity={1} 
-                  fill="url(#colorQuantidade)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="h-72 flex flex-col">
+              {/* Área do Gráfico */}
+              <div className="flex-1 flex items-end justify-around gap-2 pb-8 border-b border-gray-100 relative px-4">
+                {entradaChartData.map((item, index) => {
+                  const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
+                  const height = (item.quantidade / maxQtd) * 100;
+                  
+                  return (
+                    <div key={index} className='flex flex-col items-center gap-2 w-full h-full justify-end group relative'>
+                      {/* Valor */}
+                      <span className='text-[10px] font-bold text-blue-600 mb-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                        {item.quantidade}
+                      </span>
+                      
+                      {/* Barra com gradiente */}
+                      <div 
+                        className='relative w-full max-w-[50px] bg-gradient-to-t from-[#1e3a8a] to-[#112240] rounded-t-xl hover:from-[#112240] hover:to-[#0a192f] transition-all cursor-pointer shadow-lg'
+                        style={{ height: `${Math.max(height, 3)}%` }}
+                      >
+                        {/* Shine effect */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl" />
+                      </div>
+                      
+                      {/* Mês */}
+                      <span className='text-[9px] text-gray-600 font-black uppercase tracking-wider mt-1'>
+                        {item.mes}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
         
@@ -221,46 +214,37 @@ export function EvolutionCharts({
                   />
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart data={propostasChartData}>
-                    <defs>
-                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="mes" 
-                      tick={{ fontSize: 10, fontWeight: 700 }}
-                      stroke="#6b7280"
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 10, fontWeight: 700 }}
-                      stroke="#6b7280"
-                      tickFormatter={(value) => formatCompact(value)}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                      }}
-                      formatter={(value: any) => formatMoney(value)}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="total" 
-                      stroke="#1e3a8a" 
-                      strokeWidth={3} 
-                      fillOpacity={1} 
-                      fill="url(#colorTotal)"
-                      name="Total"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div className="h-60 flex items-end justify-around gap-2 pb-4 border-b border-gray-100">
+                  {propostasChartData.map((item, index) => {
+                    const maxTotal = Math.max(...propostasChartData.map(d => d.total));
+                    const totalHeight = (item.total / maxTotal) * 100;
+                    
+                    return (
+                      <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
+                        {/* Valor total */}
+                        {item.total > 0 && (
+                          <span className='text-[9px] font-bold text-gray-600 mb-1 whitespace-nowrap'>
+                            {formatCompact(item.total)}
+                          </span>
+                        )}
+                        
+                        {/* Barra única com gradiente azul */}
+                        <div 
+                          className='relative w-full max-w-[32px] bg-gradient-to-t from-[#1e3a8a] to-[#112240] rounded-t-xl hover:from-[#112240] hover:to-[#0a192f] transition-all cursor-pointer shadow-lg'
+                          style={{ height: `${Math.max(totalHeight, 2)}%` }}
+                          title={`Total: ${formatMoney(item.total)}`}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl" />
+                        </div>
+                        
+                        {/* Mês */}
+                        <span className='text-[8px] text-gray-600 font-black uppercase mt-2 tracking-wider'>
+                          {item.mes}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
             
@@ -328,46 +312,37 @@ export function EvolutionCharts({
                   />
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart data={fechamentosChartData}>
-                    <defs>
-                      <linearGradient id="colorTotalFech" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#15803d" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#15803d" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="mes" 
-                      tick={{ fontSize: 10, fontWeight: 700 }}
-                      stroke="#6b7280"
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 10, fontWeight: 700 }}
-                      stroke="#6b7280"
-                      tickFormatter={(value) => formatCompact(value)}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                      }}
-                      formatter={(value: any) => formatMoney(value)}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="total" 
-                      stroke="#15803d" 
-                      strokeWidth={3} 
-                      fillOpacity={1} 
-                      fill="url(#colorTotalFech)"
-                      name="Total"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div className="h-60 flex items-end justify-around gap-2 pb-4 border-b border-gray-100">
+                  {fechamentosChartData.map((item, index) => {
+                    const maxTotal = Math.max(...fechamentosChartData.map(d => d.total));
+                    const totalHeight = (item.total / maxTotal) * 100;
+                    
+                    return (
+                      <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
+                        {/* Valor total */}
+                        {item.total > 0 && (
+                          <span className='text-[9px] font-bold text-gray-600 mb-1 whitespace-nowrap'>
+                            {formatCompact(item.total)}
+                          </span>
+                        )}
+                        
+                        {/* Barra única com gradiente verde */}
+                        <div 
+                          className='relative w-full max-w-[32px] bg-gradient-to-t from-green-700 to-green-600 rounded-t-xl hover:from-green-800 hover:to-green-700 transition-all cursor-pointer shadow-lg'
+                          style={{ height: `${Math.max(totalHeight, 2)}%` }}
+                          title={`Total: ${formatMoney(item.total)}`}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl" />
+                        </div>
+                        
+                        {/* Mês */}
+                        <span className='text-[8px] text-gray-600 font-black uppercase mt-2 tracking-wider'>
+                          {item.mes}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
             
