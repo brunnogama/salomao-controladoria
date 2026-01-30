@@ -239,7 +239,7 @@ export function EvolutionCharts({
           weight: 'bold'
         },
         callbacks: {
-          label: (context) => formatMoney(context.parsed.y)
+          label: (context) => formatMoney(context.parsed.y ?? 0)
         }
       },
       datalabels: {
