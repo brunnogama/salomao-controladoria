@@ -142,6 +142,14 @@ export function EvolutionCharts({
   const entradaOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 40,
+        bottom: 10,
+        left: 10,
+        right: 10
+      }
+    },
     plugins: {
       legend: {
         display: false
@@ -167,7 +175,7 @@ export function EvolutionCharts({
         display: true,
         align: 'top',
         anchor: 'end',
-        offset: 4,
+        offset: 8,
         backgroundColor: '#1e3a8a',
         borderRadius: 6,
         color: 'white',
@@ -186,6 +194,7 @@ export function EvolutionCharts({
     scales: {
       y: {
         beginAtZero: true,
+        grace: '10%',
         grid: {
           color: '#e5e7eb'
         },
@@ -214,10 +223,18 @@ export function EvolutionCharts({
     }
   };
 
-  // Opções para gráficos financeiros (sem valores sempre visíveis)
+  // Opções para gráficos financeiros (com valores visíveis e formatados)
   const financeiroOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 35,
+        bottom: 10,
+        left: 10,
+        right: 10
+      }
+    },
     plugins: {
       legend: {
         display: false
@@ -243,12 +260,40 @@ export function EvolutionCharts({
         }
       },
       datalabels: {
-        display: false
+        display: true,
+        align: (context) => {
+          const index = context.dataIndex;
+          const datasetLength = context.dataset.data.length;
+          // Alternar alinhamento para evitar sobreposição
+          if (index === 0 || index === datasetLength - 1) {
+            return 'top';
+          }
+          return (index % 2 === 0) ? 'top' : 'bottom';
+        },
+        anchor: 'center',
+        offset: 6,
+        backgroundColor: (context) => {
+          return context.dataset.borderColor as string;
+        },
+        borderRadius: 4,
+        color: 'white',
+        font: {
+          weight: 'bold',
+          size: 9
+        },
+        padding: {
+          top: 3,
+          bottom: 3,
+          left: 6,
+          right: 6
+        },
+        formatter: (value) => formatCompact(value as number)
       }
     },
     scales: {
       y: {
         beginAtZero: true,
+        grace: '10%',
         grid: {
           color: '#e5e7eb'
         },
