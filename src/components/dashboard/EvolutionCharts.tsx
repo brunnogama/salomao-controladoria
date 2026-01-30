@@ -87,109 +87,100 @@ export function EvolutionCharts({
               />
             </div>
           ) : (
-            <div className="h-72 relative">
-              <svg className="w-full h-full" viewBox="0 0 1000 300" preserveAspectRatio="none">
-                {/* Grid lines */}
-                <defs>
-                  <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 0.3 }} />
-                    <stop offset="100%" style={{ stopColor: '#1e3a8a', stopOpacity: 0 }} />
-                  </linearGradient>
-                </defs>
-                
-                {/* Grid horizontal lines */}
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <line
-                    key={i}
-                    x1="0"
-                    y1={i * 75}
-                    x2="1000"
-                    y2={i * 75}
-                    stroke="#e5e7eb"
-                    strokeWidth="1"
-                    strokeDasharray="5,5"
+            <div className="space-y-4">
+              {/* Área do Gráfico SVG */}
+              <div className="h-64 relative bg-gray-50/30 rounded-xl border border-gray-100 p-4">
+                <svg className="w-full h-full" viewBox="0 0 1000 200" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 0.3 }} />
+                      <stop offset="100%" style={{ stopColor: '#1e3a8a', stopOpacity: 0 }} />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Grid horizontal lines */}
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <line
+                      key={i}
+                      x1="0"
+                      y1={i * 50}
+                      x2="1000"
+                      y2={i * 50}
+                      stroke="#e5e7eb"
+                      strokeWidth="1"
+                      strokeDasharray="5,5"
+                    />
+                  ))}
+                  
+                  {/* Área preenchida */}
+                  <path
+                    d={(() => {
+                      const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
+                      const points = entradaChartData.map((item, index) => {
+                        const x = (index / (entradaChartData.length - 1)) * 1000;
+                        const y = 180 - ((item.quantidade / maxQtd) * 160);
+                        return `${x},${y}`;
+                      });
+                      return `M 0,180 L ${points.join(' L ')} L 1000,180 Z`;
+                    })()}
+                    fill="url(#areaGradient)"
                   />
-                ))}
-                
-                {/* Área preenchida */}
-                <path
-                  d={(() => {
+                  
+                  {/* Linha principal */}
+                  <path
+                    d={(() => {
+                      const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
+                      const points = entradaChartData.map((item, index) => {
+                        const x = (index / (entradaChartData.length - 1)) * 1000;
+                        const y = 180 - ((item.quantidade / maxQtd) * 160);
+                        return `${x},${y}`;
+                      });
+                      return `M ${points.join(' L ')}`;
+                    })()}
+                    fill="none"
+                    stroke="#1e3a8a"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  
+                  {/* Pontos na linha */}
+                  {entradaChartData.map((item, index) => {
                     const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                    const points = entradaChartData.map((item, index) => {
-                      const x = (index / (entradaChartData.length - 1)) * 1000;
-                      const y = 280 - ((item.quantidade / maxQtd) * 260);
-                      return `${x},${y}`;
-                    });
-                    return `M 0,280 L ${points.join(' L ')} L 1000,280 Z`;
-                  })()}
-                  fill="url(#areaGradient)"
-                />
-                
-                {/* Linha principal */}
-                <path
-                  d={(() => {
-                    const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                    const points = entradaChartData.map((item, index) => {
-                      const x = (index / (entradaChartData.length - 1)) * 1000;
-                      const y = 280 - ((item.quantidade / maxQtd) * 260);
-                      return `${x},${y}`;
-                    });
-                    return `M ${points.join(' L ')}`;
-                  })()}
-                  fill="none"
-                  stroke="#1e3a8a"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                
-                {/* Pontos na linha */}
-                {entradaChartData.map((item, index) => {
-                  const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                  const x = (index / (entradaChartData.length - 1)) * 1000;
-                  const y = 280 - ((item.quantidade / maxQtd) * 260);
-                  return (
-                    <g key={index}>
+                    const x = (index / (entradaChartData.length - 1)) * 1000;
+                    const y = 180 - ((item.quantidade / maxQtd) * 160);
+                    return (
                       <circle
+                        key={index}
                         cx={x}
                         cy={y}
-                        r="6"
+                        r="5"
                         fill="white"
                         stroke="#1e3a8a"
                         strokeWidth="3"
-                        className="hover:r-8 transition-all cursor-pointer"
+                        className="transition-all cursor-pointer hover:r-7"
                       />
-                    </g>
-                  );
-                })}
-              </svg>
-              
-              {/* Labels do eixo X */}
-              <div className="flex justify-between px-4 mt-2">
-                {entradaChartData.map((item, index) => (
-                  <span key={index} className='text-[9px] text-gray-600 font-black uppercase tracking-wider'>
-                    {item.mes}
-                  </span>
-                ))}
+                    );
+                  })}
+                </svg>
               </div>
               
-              {/* Valores nos pontos */}
-              <div className="absolute inset-0 flex justify-between items-end px-4 pb-8 pointer-events-none">
-                {entradaChartData.map((item, index) => {
-                  const maxQtd = Math.max(...entradaChartData.map(d => d.quantidade));
-                  const bottomPercent = ((item.quantidade / maxQtd) * 85);
-                  return (
-                    <div 
-                      key={index} 
-                      className="flex flex-col items-center"
-                      style={{ marginBottom: `${bottomPercent}%` }}
-                    >
-                      <span className='text-[10px] font-bold text-blue-600 bg-white px-2 py-0.5 rounded-lg border border-blue-100 shadow-sm'>
+              {/* Labels e Valores ABAIXO do gráfico */}
+              <div className="flex justify-between px-4">
+                {entradaChartData.map((item, index) => (
+                  <div key={index} className="flex flex-col items-center gap-2">
+                    {/* Valor */}
+                    <div className="px-3 py-1.5 bg-gradient-to-br from-[#112240] to-[#1e3a8a] rounded-lg shadow-md">
+                      <span className='text-sm font-black text-white tracking-tight'>
                         {item.quantidade}
                       </span>
                     </div>
-                  );
-                })}
+                    {/* Mês */}
+                    <span className='text-[9px] text-gray-600 font-black uppercase tracking-wider'>
+                      {item.mes}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -435,36 +426,86 @@ export function EvolutionCharts({
                   />
                 </div>
               ) : (
-                <div className="h-60 flex items-end justify-around gap-2 pb-4 border-b border-gray-100">
-                  {fechamentosChartData.map((item, index) => {
-                    const maxTotal = Math.max(...fechamentosChartData.map(d => d.total));
-                    const totalHeight = (item.total / maxTotal) * 100;
+                <div className="h-60 relative">
+                  <svg className="w-full h-full" viewBox="0 0 1000 240" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="areaGradientFech" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style={{ stopColor: '#15803d', stopOpacity: 0.3 }} />
+                        <stop offset="100%" style={{ stopColor: '#15803d', stopOpacity: 0 }} />
+                      </linearGradient>
+                    </defs>
                     
-                    return (
-                      <div key={index} className='flex flex-col items-center gap-1 w-full h-full justify-end group'>
-                        {/* Valor total */}
-                        {item.total > 0 && (
-                          <span className='text-[9px] font-bold text-gray-600 mb-1 whitespace-nowrap'>
+                    {/* Grid */}
+                    {[0, 1, 2, 3].map((i) => (
+                      <line key={i} x1="0" y1={i * 60} x2="1000" y2={i * 60} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3,3" />
+                    ))}
+                    
+                    {/* Área */}
+                    <path
+                      d={(() => {
+                        const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
+                        const points = fechamentosChartData.map((item, index) => {
+                          const x = (index / (fechamentosChartData.length - 1)) * 1000;
+                          const y = 220 - ((item.total / maxTotal) * 200);
+                          return `${x},${y}`;
+                        });
+                        return `M 0,220 L ${points.join(' L ')} L 1000,220 Z`;
+                      })()}
+                      fill="url(#areaGradientFech)"
+                    />
+                    
+                    {/* Linha */}
+                    <path
+                      d={(() => {
+                        const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
+                        const points = fechamentosChartData.map((item, index) => {
+                          const x = (index / (fechamentosChartData.length - 1)) * 1000;
+                          const y = 220 - ((item.total / maxTotal) * 200);
+                          return `${x},${y}`;
+                        });
+                        return `M ${points.join(' L ')}`;
+                      })()}
+                      fill="none"
+                      stroke="#15803d"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    
+                    {/* Pontos */}
+                    {fechamentosChartData.map((item, index) => {
+                      const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
+                      const x = (index / (fechamentosChartData.length - 1)) * 1000;
+                      const y = 220 - ((item.total / maxTotal) * 200);
+                      return (
+                        <circle key={index} cx={x} cy={y} r="5" fill="white" stroke="#15803d" strokeWidth="2.5" className="hover:r-7 transition-all" />
+                      );
+                    })}
+                  </svg>
+                  
+                  {/* Labels X */}
+                  <div className="flex justify-between px-2 mt-2">
+                    {fechamentosChartData.map((item, index) => (
+                      <span key={index} className='text-[8px] text-gray-600 font-black uppercase tracking-wider'>
+                        {item.mes}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {/* Valores */}
+                  <div className="absolute inset-0 flex justify-between items-end px-2 pb-6 pointer-events-none">
+                    {fechamentosChartData.map((item, index) => {
+                      const maxTotal = Math.max(...fechamentosChartData.map(d => d.total), 1);
+                      const bottomPercent = ((item.total / maxTotal) * 80);
+                      return item.total > 0 ? (
+                        <div key={index} style={{ marginBottom: `${bottomPercent}%` }}>
+                          <span className='text-[9px] font-bold text-green-600 bg-white px-1.5 py-0.5 rounded-md border border-green-100 shadow-sm whitespace-nowrap'>
                             {formatCompact(item.total)}
                           </span>
-                        )}
-                        
-                        {/* Barra única com gradiente verde */}
-                        <div 
-                          className='relative w-full max-w-[32px] bg-gradient-to-t from-green-700 to-green-600 rounded-t-xl hover:from-green-800 hover:to-green-700 transition-all cursor-pointer shadow-lg'
-                          style={{ height: `${Math.max(totalHeight, 2)}%` }}
-                          title={`Total: ${formatMoney(item.total)}`}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl" />
                         </div>
-                        
-                        {/* Mês */}
-                        <span className='text-[8px] text-gray-600 font-black uppercase mt-2 tracking-wider'>
-                          {item.mes}
-                        </span>
-                      </div>
-                    );
-                  })}
+                      ) : null;
+                    })}
+                  </div>
                 </div>
               )}
             </div>
