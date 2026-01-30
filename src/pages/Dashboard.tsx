@@ -66,7 +66,9 @@ export function Dashboard() {
     setExporting(true);
     try {
         const canvas = await html2canvas(dashboardRef.current, {
-            scale: 2, useCORS: true, backgroundColor: '#F8FAFC',
+            scale: 2, 
+            useCORS: true, 
+            backgroundColor: '#F8FAFC',
             ignoreElements: (element) => element.id === 'export-button-container' || element.id === 'dashboard-filters'
         });
 
@@ -100,62 +102,80 @@ export function Dashboard() {
   // Loading State
   if (loading || !metrics || metrics.geral.totalCasos === 0) {
     return (
-      <div className="flex justify-center items-center h-full">
-        <Loader2 className="w-8 h-8 text-salomao-gold animate-spin" />
+      <div className="flex flex-col justify-center items-center h-full gap-4">
+        <Loader2 className="w-10 h-10 text-[#1e3a8a] animate-spin" />
+        <p className="text-sm font-semibold text-gray-500">Carregando dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className='w-full space-y-8 pb-10 animate-in fade-in duration-500 p-8'>
-      
-      {/* Header com Filtros */}
-      <DashboardHeader 
-        userRole={userRole}
-        selectedPartner={selectedPartner}
-        setSelectedPartner={setSelectedPartner}
-        partnersList={partnersList}
-        selectedLocation={selectedLocation}
-        setSelectedLocation={setSelectedLocation}
-        locationsList={locationsList}
-        exporting={exporting}
-        onExport={handleExportAndEmail}
-      />
-
-      <div ref={dashboardRef} className="space-y-8 bg-[#F8FAFC] p-2">
+    <div className='w-full min-h-screen overflow-x-hidden'>
+      <div className='max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-16'>
         
-        {/* 1. Funil de Eficiência */}
-        <EfficiencyFunnel funil={funil} />
-
-        {/* 2. Snapshots (Carteira + Financeiro) */}
-        <PortfolioFinancialOverview metrics={metrics} />
-
-        {/* 3. Resumo Semanal */}
-        <WeeklySummary metrics={metrics} />
-
-        {/* 4. Resumo Mensal */}
-        <MonthlySummary metrics={metrics} />
-
-        {/* 5. Gráficos de Evolução (Entrada + Financeiro 12m) */}
-        <EvolutionCharts 
-          evolucaoMensal={evolucaoMensal}
-          propostas12Meses={propostas12Meses}
-          financeiro12Meses={financeiro12Meses}
-          mediasPropostas={mediasPropostas}
-          mediasFinanceiras={mediasFinanceiras}
-          statsPropostas={statsPropostas}
-          statsFinanceiro={statsFinanceiro}
+        {/* Header com Filtros */}
+        <DashboardHeader 
+          userRole={userRole}
+          selectedPartner={selectedPartner}
+          setSelectedPartner={setSelectedPartner}
+          partnersList={partnersList}
+          selectedLocation={selectedLocation}
+          setSelectedLocation={setSelectedLocation}
+          locationsList={locationsList}
+          exporting={exporting}
+          onExport={handleExportAndEmail}
         />
 
-        {/* 6. Sócios (Contratos + Financeiro) */}
-        <PartnerStats contractsByPartner={contractsByPartner} />
+        {/* Container do Dashboard - SEM SCROLL HORIZONTAL */}
+        <div ref={dashboardRef} className="w-full space-y-6 bg-[#F8FAFC] rounded-2xl p-4 sm:p-6">
+          
+          {/* 1. Funil de Eficiência */}
+          <div className="w-full overflow-hidden">
+            <EfficiencyFunnel funil={funil} />
+          </div>
 
-        {/* 7. Operacional (Rejeições e Assinaturas) */}
-        <OperationalStats 
-          rejectionData={rejectionData} 
-          metrics={metrics} 
-        />
-        
+          {/* 2. Snapshots (Carteira + Financeiro) */}
+          <div className="w-full overflow-hidden">
+            <PortfolioFinancialOverview metrics={metrics} />
+          </div>
+
+          {/* 3. Resumo Semanal */}
+          <div className="w-full overflow-hidden">
+            <WeeklySummary metrics={metrics} />
+          </div>
+
+          {/* 4. Resumo Mensal */}
+          <div className="w-full overflow-hidden">
+            <MonthlySummary metrics={metrics} />
+          </div>
+
+          {/* 5. Gráficos de Evolução (Entrada + Financeiro 12m) */}
+          <div className="w-full space-y-6 overflow-hidden">
+            <EvolutionCharts 
+              evolucaoMensal={evolucaoMensal}
+              propostas12Meses={propostas12Meses}
+              financeiro12Meses={financeiro12Meses}
+              mediasPropostas={mediasPropostas}
+              mediasFinanceiras={mediasFinanceiras}
+              statsPropostas={statsPropostas}
+              statsFinanceiro={statsFinanceiro}
+            />
+          </div>
+
+          {/* 6. Sócios (Contratos + Financeiro) */}
+          <div className="w-full space-y-6 overflow-hidden">
+            <PartnerStats contractsByPartner={contractsByPartner} />
+          </div>
+
+          {/* 7. Operacional (Rejeições e Assinaturas) */}
+          <div className="w-full space-y-6 overflow-hidden">
+            <OperationalStats 
+              rejectionData={rejectionData} 
+              metrics={metrics} 
+            />
+          </div>
+          
+        </div>
       </div>
     </div>
   );
