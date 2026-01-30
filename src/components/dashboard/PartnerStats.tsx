@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, Banknote } from 'lucide-react';
+import { Briefcase, Banknote, TrendingUp, Users } from 'lucide-react';
 import { formatMoney } from './dashboardHelpers';
 
 interface PartnerStatsProps {
@@ -10,133 +10,266 @@ export function PartnerStats({ contractsByPartner }: PartnerStatsProps) {
   return (
     <>
       {/* 7. CONTRATOS POR SÓCIO */}
-      <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-100'>
-        <div className='flex items-center gap-2 mb-6 border-b pb-4'>
-          <Briefcase className='text-blue-600' size={24} />
-          <div>
-            <h2 className='text-xl font-bold text-gray-800'>Contratos por Sócio</h2>
-            <p className='text-xs text-gray-600'>Distribuição detalhada por status.</p>
+      <div className='bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all p-6'>
+        
+        {/* Header */}
+        <div className='mb-6 pb-5 border-b border-gray-100'>
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='p-2 rounded-xl bg-gradient-to-br from-[#112240] to-[#1e3a8a] text-white shadow-lg'>
+              <Briefcase className='w-5 h-5' />
+            </div>
+            <div>
+              <h2 className='text-[20px] font-black text-[#0a192f] tracking-tight'>
+                Contratos por Sócio
+              </h2>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                Distribuição por status
+              </p>
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> 
-          {contractsByPartner.length === 0 ? <p className="text-sm text-gray-500 col-span-3 text-center py-8">Nenhum dado de sócio disponível.</p> : contractsByPartner.map((item, idx) => (
-            <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-              <div className="flex justify-between items-center mb-3">
-                <span className="font-bold text-gray-800 text-sm truncate" title={item.name}>{item.name}</span>
-                <span className="text-[10px] font-bold text-gray-600 bg-white border border-gray-200 px-2 py-0.5 rounded-full">{item.total} Casos</span>
-              </div>
-              <div className="space-y-1.5">
-                {item.analysis > 0 && (
-                  <div className="flex items-center text-[10px]">
-                    <span className="w-16 text-yellow-600 font-medium">Análise</span>
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
-                      <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(item.analysis / item.total) * 100}%` }}></div>
-                    </div>
-                    <span className="w-8 text-right text-gray-600">{item.analysis}</span>
-                  </div>
-                )}
-                {item.proposal > 0 && (
-                  <div className="flex items-center text-[10px]">
-                    <span className="w-16 text-blue-600 font-medium">Proposta</span>
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(item.proposal / item.total) * 100}%` }}></div>
-                    </div>
-                    <span className="w-8 text-right text-gray-600">{item.proposal}</span>
-                  </div>
-                )}
-                {item.active > 0 && (
-                  <div className="flex items-center text-[10px]">
-                    <span className="w-16 text-green-600 font-medium">Fechado</span>
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${(item.active / item.total) * 100}%` }}></div>
-                    </div>
-                    <span className="w-8 text-right text-gray-600">{item.active}</span>
-                  </div>
-                )}
-                {item.rejected > 0 && (
-                  <div className="flex items-center text-[10px]">
-                    <span className="w-16 text-red-600 font-medium">Rejeitado</span>
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
-                      <div className="h-full bg-red-400 rounded-full" style={{ width: `${(item.rejected / item.total) * 100}%` }}></div>
-                    </div>
-                    <span className="w-8 text-right text-gray-600">{item.rejected}</span>
-                  </div>
-                )}
-                {item.probono > 0 && (
-                  <div className="flex items-center text-[10px]">
-                    <span className="w-16 text-purple-600 font-medium">Probono</span>
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full mx-2 overflow-hidden">
-                      <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(item.probono / item.total) * 100}%` }}></div>
-                    </div>
-                    <span className="w-8 text-right text-gray-600">{item.probono}</span>
-                  </div>
-                )}
-              </div>
+
+        {/* Grid de Sócios */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {contractsByPartner.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-gray-400">Nenhum dado disponível</p>
             </div>
-          ))}
+          ) : (
+            contractsByPartner.map((item, idx) => (
+              <div 
+                key={idx} 
+                className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all"
+              >
+                {/* Header do Card */}
+                <div className="flex justify-between items-start mb-4 pb-3 border-b border-gray-100">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-black text-gray-800 text-sm truncate mb-1" title={item.name}>
+                      {item.name}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        Total
+                      </span>
+                      <span className="text-sm font-black text-[#1e3a8a]">
+                        {item.total}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Grid - Mais limpo */}
+                <div className="grid grid-cols-2 gap-3">
+                  {item.analysis > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        Análise
+                      </span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-amber-600">
+                          {item.analysis}
+                        </span>
+                        <span className="text-[9px] font-semibold text-gray-400">
+                          ({Math.round((item.analysis / item.total) * 100)}%)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.proposal > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        Proposta
+                      </span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-blue-600">
+                          {item.proposal}
+                        </span>
+                        <span className="text-[9px] font-semibold text-gray-400">
+                          ({Math.round((item.proposal / item.total) * 100)}%)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.active > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        Fechado
+                      </span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-green-600">
+                          {item.active}
+                        </span>
+                        <span className="text-[9px] font-semibold text-gray-400">
+                          ({Math.round((item.active / item.total) * 100)}%)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.rejected > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        Rejeitado
+                      </span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-red-600">
+                          {item.rejected}
+                        </span>
+                        <span className="text-[9px] font-semibold text-gray-400">
+                          ({Math.round((item.rejected / item.total) * 100)}%)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {item.probono > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        Probono
+                      </span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-purple-600">
+                          {item.probono}
+                        </span>
+                        <span className="text-[9px] font-semibold text-gray-400">
+                          ({Math.round((item.probono / item.total) * 100)}%)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* 8. VISÃO SÓCIOS (FINANCEIRA) */}
-      <div className='bg-white p-6 rounded-xl shadow-sm border border-gray-200'>
-        <div className='flex items-center gap-2 mb-6 border-b pb-4'>
-          <Banknote className='text-salomao-gold' size={24} />
-          <div>
-            <h2 className='text-xl font-bold text-gray-800'>Visão Financeira por Sócio</h2>
-            <p className='text-xs text-gray-600'>Distribuição de valores por sócio (Contratos Fechados).</p>
+      {/* 8. VISÃO FINANCEIRA POR SÓCIO */}
+      <div className='bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all p-6'>
+        
+        {/* Header */}
+        <div className='mb-6 pb-5 border-b border-gray-100'>
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg'>
+              <Banknote className='w-5 h-5' />
+            </div>
+            <div>
+              <h2 className='text-[20px] font-black text-[#0a192f] tracking-tight'>
+                Visão Financeira por Sócio
+              </h2>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                Contratos fechados
+              </p>
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> 
-          {contractsByPartner.length === 0 ? <p className="text-sm text-gray-500 col-span-3 text-center py-8">Nenhum dado financeiro disponível.</p> : contractsByPartner.map((item: any, idx) => {
-            const totalSocio = (item.pl || 0) + (item.exito || 0) + (item.fixo || 0);
-            return (
-              <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-bold text-gray-800 text-sm truncate" title={item.name}>{item.name}</span>
-                  <span className="text-[10px] font-bold text-gray-600 bg-white border border-gray-200 px-2 py-0.5 rounded-full">{item.active} Ativos</span>
-                </div>
-                <div className="space-y-2">
-                  {/* Pró-labore */}
-                  <div className="flex flex-col">
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-gray-600 font-medium">Pró-labore</span>
-                      <span className="font-bold text-gray-800">{formatMoney(item.pl || 0)}</span>
+
+        {/* Grid de Sócios */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {contractsByPartner.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-gray-400">Nenhum dado financeiro disponível</p>
+            </div>
+          ) : (
+            contractsByPartner.map((item: any, idx) => {
+              const totalSocio = (item.pl || 0) + (item.exito || 0) + (item.fixo || 0);
+              
+              return (
+                <div 
+                  key={idx} 
+                  className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all"
+                >
+                  {/* Header do Card */}
+                  <div className="mb-4 pb-4 border-b border-gray-100">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-black text-gray-800 text-sm truncate flex-1 min-w-0" title={item.name}>
+                        {item.name}
+                      </h3>
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider ml-2 whitespace-nowrap">
+                        {item.active} Ativos
+                      </span>
                     </div>
-                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${totalSocio > 0 ? ((item.pl || 0) / totalSocio) * 100 : 0}%` }}></div>
-                    </div>
-                  </div>
-                  
-                  {/* Êxito */}
-                  <div className="flex flex-col">
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-gray-600 font-medium">Êxito</span>
-                      <span className="font-bold text-gray-800">{formatMoney(item.exito || 0)}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${totalSocio > 0 ? ((item.exito || 0) / totalSocio) * 100 : 0}%` }}></div>
+                    {/* Total Geral */}
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                        Total
+                      </span>
+                      <span className="text-[20px] font-black text-[#1e3a8a] tracking-tight">
+                        {formatMoney(totalSocio)}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Fixo */}
-                  <div className="flex flex-col">
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-gray-600 font-medium">Fixo</span>
-                      <span className="font-bold text-gray-800">{formatMoney(item.fixo || 0)}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${totalSocio > 0 ? ((item.fixo || 0) / totalSocio) * 100 : 0}%` }}></div>
-                    </div>
-                  </div>
-                  
-                  <div className="pt-2 mt-1 border-t border-gray-200 flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Total</span>
-                    <span className="text-xs font-bold text-salomao-blue">{formatMoney(totalSocio)}</span>
+                  {/* Breakdown Financeiro - Estilo minimalista */}
+                  <div className="space-y-3">
+                    {/* Pró-labore */}
+                    {(item.pl || 0) > 0 && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                          <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                            Pró-labore
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-sm font-black text-gray-800">
+                            {formatMoney(item.pl || 0)}
+                          </span>
+                          <span className="text-[9px] font-semibold text-gray-400">
+                            {Math.round(((item.pl || 0) / totalSocio) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Êxito */}
+                    {(item.exito || 0) > 0 && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                            Êxito
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-sm font-black text-gray-800">
+                            {formatMoney(item.exito || 0)}
+                          </span>
+                          <span className="text-[9px] font-semibold text-gray-400">
+                            {Math.round(((item.exito || 0) / totalSocio) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fixo */}
+                    {(item.fixo || 0) > 0 && (
+                      <div className="flex justify-between items-center py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                          <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                            Fixo Mensal
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-sm font-black text-gray-800">
+                            {formatMoney(item.fixo || 0)}
+                          </span>
+                          <span className="text-[9px] font-semibold text-gray-400">
+                            {Math.round(((item.fixo || 0) / totalSocio) * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </>
