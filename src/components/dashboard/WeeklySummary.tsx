@@ -266,9 +266,14 @@ export function WeeklySummary({ metrics }: WeeklySummaryProps) {
               Insight Semanal
             </span>
           </div>
-          <p className="text-xs text-white/90 leading-relaxed font-semibold">
-            {insightSemana}
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-white/90 leading-relaxed font-semibold">
+              {getTrendText(deltaFechSemana, 'fechamento de contratos')}.
+            </p>
+            <p className="text-xs text-white/90 leading-relaxed font-semibold">
+              {getTrendText(deltaPropSemana, 'envio de propostas')}.
+            </p>
+          </div>
         </div>
       </div>
     </div>

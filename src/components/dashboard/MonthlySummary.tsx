@@ -268,9 +268,14 @@ export function MonthlySummary({ metrics }: MonthlySummaryProps) {
               Insight Mensal
             </span>
           </div>
-          <p className="text-xs text-white/90 leading-relaxed font-semibold">
-            {insightMes}
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-white/90 leading-relaxed font-semibold">
+              {getTrendText(deltaNovos, 'novas demandas')}.
+            </p>
+            <p className="text-xs text-white/90 leading-relaxed font-semibold">
+              {getTrendText(deltaFechMes, 'faturamento fechado')}.
+            </p>
+          </div>
         </div>
       </div>
     </div>
