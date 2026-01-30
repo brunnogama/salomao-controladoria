@@ -47,7 +47,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         const { data: { user } } = await supabase.auth.getUser();
         
         if (user) {
-          // Busca dados complementares na tabela profiles
           const { data: profile } = await supabase
             .from('profiles')
             .select('name, role')
@@ -55,7 +54,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             .single();
 
           if (profile) {
-            // Define o nome: Prioriza o banco, senão formata do email
             if (profile.name) {
                 setUserName(profile.name);
             } else if (user.email) {
@@ -67,7 +65,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 setUserName(formattedName);
             }
 
-            // Define o cargo traduzido
             const roleLabels: Record<string, string> = {
                 admin: 'Administrador',
                 editor: 'Editor',
@@ -100,9 +97,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Cores do Design System */}
       <aside className={`
-        fixed top-0 left-0 z-50 h-screen w-64 bg-[#112240] text-gray-300 flex flex-col font-sans border-r border-gray-800 shadow-2xl
+        fixed top-0 left-0 z-50 h-screen w-64 bg-[#112240] text-gray-100 flex flex-col font-sans border-r border-[#0a192f] shadow-2xl
         transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0
@@ -111,21 +108,21 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Botão Fechar (Apenas Mobile) */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white md:hidden"
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors md:hidden rounded-lg hover:bg-white/5"
         >
           <X className="w-6 h-6" />
         </button>
 
         {/* 1. HEADER LOGO */}
-        <div className="flex flex-col flex-shrink-0 relative bg-[#112240] pt-6 pb-4 px-6">
+        <div className="flex flex-col flex-shrink-0 relative bg-gradient-to-b from-[#0a192f] to-[#112240] pt-6 pb-4 px-6 border-b border-white/5">
           <div className="flex flex-col items-center w-full gap-4">
             <img 
               src="/logo-branca.png" 
               alt="Salomão Advogados" 
               className="h-11 w-auto object-contain block"
             />
-            <div className="bg-blue-950/30 border border-blue-800/30 rounded-lg px-4 py-2 w-full">
-              <span className="text-[10px] text-blue-300 font-bold tracking-[0.25em] uppercase leading-none whitespace-nowrap block text-center">
+            <div className="bg-[#1e3a8a]/30 border border-[#1e3a8a]/50 rounded-xl px-4 py-2 w-full backdrop-blur-sm">
+              <span className="text-[9px] text-white font-black tracking-[0.25em] uppercase leading-none whitespace-nowrap block text-center">
                 Módulo Controladoria
               </span>
             </div>
@@ -133,93 +130,103 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* 2. MENU PRINCIPAL */}
-        <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-1 custom-scrollbar pt-6">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               onClick={onClose}
               className={({ isActive }) =>
-                `w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all group ${
+                `w-full flex items-center px-4 py-3 rounded-xl transition-all group ${
                   isActive
-                    ? 'bg-[#1e3a8a] text-white font-medium shadow-md border-l-4 border-salomao-gold' 
-                    : 'hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                    ? 'bg-[#1e3a8a] text-white font-bold shadow-lg border-l-4 border-[#d4af37]' 
+                    : 'text-gray-300 hover:bg-white/5 hover:text-white border-l-4 border-transparent hover:border-[#1e3a8a]/50'
                 }`
               }
             >
               {({ isActive }) => (
-                <div className="flex items-center">
+                <>
                   <item.icon 
-                    className={`h-5 w-5 mr-3 transition-colors ${
+                    className={`h-5 w-5 mr-3 transition-colors flex-shrink-0 ${
                       isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
                     }`} 
                   />
-                  <span className="text-sm">{item.label}</span>
-                </div>
+                  <span className="text-sm font-semibold tracking-tight">{item.label}</span>
+                </>
               )}
             </NavLink>
           ))}
         </nav>
 
         {/* 3. MENU BASE */}
-        <div className="pt-4 pb-6 px-3 bg-[#112240] flex-shrink-0 mt-auto">
-          <div className="border-t border-gray-700/50 mb-4 mx-2"></div>
+        <div className="pt-4 pb-6 px-3 bg-gradient-to-t from-[#0a192f] to-[#112240] flex-shrink-0 mt-auto border-t border-white/5">
           
           <NavLink 
             to="/historico" 
             onClick={onClose}
             className={({ isActive }) => 
-              `w-full flex items-center px-3 py-3 rounded-lg transition-colors group mb-1 ${
-                isActive ? 'bg-[#1e3a8a] text-white' : 'hover:bg-white/5 hover:text-white'
+              `w-full flex items-center px-4 py-3 rounded-xl transition-all group mb-2 ${
+                isActive 
+                  ? 'bg-[#1e3a8a] text-white font-bold' 
+                  : 'text-gray-300 hover:bg-white/5 hover:text-white'
               }`
             }
           >
-            <History className="h-5 w-5 mr-3 text-gray-400 group-hover:text-white" />
-            <span className="text-sm">Histórico</span>
+            <History className="h-5 w-5 mr-3 text-gray-400 group-hover:text-white flex-shrink-0 transition-colors" />
+            <span className="text-sm font-semibold tracking-tight">Histórico</span>
           </NavLink>
           
           <NavLink 
             to="/configuracoes" 
             onClick={onClose}
             className={({ isActive }) => 
-              `w-full flex items-center px-3 py-3 rounded-lg transition-colors group ${
-                isActive ? 'bg-[#1e3a8a] text-white' : 'hover:bg-white/5 hover:text-white'
+              `w-full flex items-center px-4 py-3 rounded-xl transition-all group ${
+                isActive 
+                  ? 'bg-[#1e3a8a] text-white font-bold' 
+                  : 'text-gray-300 hover:bg-white/5 hover:text-white'
               }`
             }
           >
-            <Settings className="h-5 w-5 mr-3 text-gray-400 group-hover:text-white" />
-            <span className="text-sm">Configurações</span>
+            <Settings className="h-5 w-5 mr-3 text-gray-400 group-hover:text-white flex-shrink-0 transition-colors" />
+            <span className="text-sm font-semibold tracking-tight">Configurações</span>
           </NavLink>
 
-          {/* User Profile */}
-          <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-between group cursor-pointer px-2">
-            <div className="flex items-center">
-              <div className="relative">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-salomao-gold to-yellow-600 p-[1px]">
-                  <div className="w-full h-full rounded-full bg-[#112240] flex items-center justify-center">
-                    <span className="text-xs font-bold text-white">
-                      {userName.charAt(0)}
-                    </span>
+          {/* User Profile - Redesenhado */}
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all group cursor-pointer">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Avatar com gradiente gold */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37] to-amber-600 p-[2px]">
+                    <div className="w-full h-full rounded-[10px] bg-[#112240] flex items-center justify-center">
+                      <span className="text-sm font-black text-white">
+                        {userName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
                   </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#112240] rounded-full"></div>
                 </div>
-                <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 border-2 border-[#112240] rounded-full"></div>
+                
+                {/* User Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white group-hover:text-white transition-colors truncate" title={userName}>
+                    {userName}
+                  </p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-[0.15em] font-black">
+                    {userRole}
+                  </p>
+                </div>
               </div>
               
-              <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors truncate max-w-[100px]" title={userName}>
-                  {userName}
-                </p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest">{userRole}</p>
-              </div>
+              {/* Logout Button */}
+              <button 
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all flex-shrink-0"
+                title="Sair do Sistema"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            
-            <button 
-              onClick={handleLogout}
-              className="p-2 text-gray-500 hover:text-red-400 hover:bg-white/5 rounded-lg transition-all"
-              title="Sair do Sistema"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </aside>
